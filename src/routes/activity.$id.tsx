@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { MapPin, Clock, Star, ExternalLink, Trophy } from "lucide-react";
@@ -38,7 +38,6 @@ const resultsQuery = (id: string) =>
 export const Route = createFileRoute("/activity/$id")({
   loader: async ({ context, params }) => {
     const activity = await context.queryClient.ensureQueryData(activityQuery(params.id));
-    await context.queryClient.ensureQueryData(resultsQuery(params.id));
     return { activity };
   },
   head: ({ loaderData }) => {
@@ -81,7 +80,12 @@ function ActivityDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: activity } = useSuspenseQuery(activityQuery(id));
-  const { data: results } = useSuspenseQuery(resultsQuery(id));
+  // Results are supplementary: a failed results request must not hide the game.
+  const { data: results = [], isError: resultsUnavailable } = useQuery({
+    ...resultsQuery(id),
+    enabled: Boolean(activity && activity.type !== "daily_game"),
+    retry: false,
+  });
 
   const [signedIn, setSignedIn] = useState(false);
   const [registration, setRegistration] = useState<{ id: string; payment_status: string } | null>(null);
@@ -279,6 +283,11 @@ function ActivityDetail() {
         </section>
       ) : null}
 
+      {resultsUnavailable && (
+        <p className="panel-frost rounded-2xl p-5 text-sm text-muted-foreground" role="status">
+          Итоги соревнования временно недоступны. Попробуй обновить страницу позже.
+        </p>
+      )}
       {results.length ? (
         <section className="panel-frost mt-4 rounded-3xl p-5">
           <h2 className="text-sm font-semibold">Результаты</h2>
