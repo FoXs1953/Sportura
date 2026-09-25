@@ -123,7 +123,7 @@ function AuthPage() {
           {mode === "signin" ? "Войти" : "Создать аккаунт"}
         </Button>
         {mode === "signin" && (
-          <Link to="/reset-password" className="block text-center text-sm text-brand underline">
+          <Link to="/forgot-password" className="block text-center text-sm text-brand underline">
             Забыли пароль?
           </Link>
         )}
