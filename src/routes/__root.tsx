@@ -135,6 +135,14 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    // Some auth configurations redirect to the site root instead of the requested path.
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    if (hash.get("type") === "recovery" && window.location.pathname !== "/reset-password") {
+      window.location.replace(`/reset-password${window.location.hash}`);
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}

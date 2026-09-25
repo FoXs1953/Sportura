@@ -122,6 +122,11 @@ function AuthPage() {
         <Button type="submit" disabled={busy} className="press w-full">
           {mode === "signin" ? "Войти" : "Создать аккаунт"}
         </Button>
+        {mode === "signin" && (
+          <Link to="/reset-password" className="block text-center text-sm text-brand underline">
+            Забыли пароль?
+          </Link>
+        )}
         <Button type="button" variant="secondary" className="press w-full" onClick={google}>
           Продолжить с Google
         </Button>

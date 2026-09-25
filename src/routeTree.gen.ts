@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as LegalRouteImport } from './routes/legal'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedHostRouteImport } from './routes/_authenticated/host'
 import { Route as AuthenticatedMyGamesRouteImport } from './routes/_authenticated/my-games'
@@ -45,6 +46,11 @@ const JoinRoute = JoinRouteImport.update({
 const LegalRoute = LegalRouteImport.update({
   id: '/legal',
   path: '/legal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/join': typeof JoinRoute
   '/legal': typeof LegalRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/host': typeof AuthenticatedHostRoute
   '/my-games': typeof AuthenticatedMyGamesRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/join': typeof JoinRoute
   '/legal': typeof LegalRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/host': typeof AuthenticatedHostRoute
   '/my-games': typeof AuthenticatedMyGamesRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/join': typeof JoinRoute
   '/legal': typeof LegalRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/host': typeof AuthenticatedHostRoute
   '/_authenticated/my-games': typeof AuthenticatedMyGamesRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/join'
     | '/legal'
+    | '/reset-password'
     | '/admin'
     | '/host'
     | '/my-games'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/join'
     | '/legal'
+    | '/reset-password'
     | '/admin'
     | '/host'
     | '/my-games'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/join'
     | '/legal'
+    | '/reset-password'
     | '/_authenticated/admin'
     | '/_authenticated/host'
     | '/_authenticated/my-games'
@@ -185,6 +197,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   JoinRoute: typeof JoinRoute
   LegalRoute: typeof LegalRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ActivityIdRoute: typeof ActivityIdRoute
   OrganizerIdRoute: typeof OrganizerIdRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/legal'
       fullPath: '/legal'
       preLoaderRoute: typeof LegalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -310,6 +330,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   JoinRoute: JoinRoute,
   LegalRoute: LegalRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ActivityIdRoute: ActivityIdRoute,
   OrganizerIdRoute: OrganizerIdRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,
