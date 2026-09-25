@@ -1,0 +1,12 @@
+REVOKE ALL ON FUNCTION public.set_updated_at() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.sync_activity_counts() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.guard_activity_capacity() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.log_payment_status_change() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.recalc_user_rating() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.has_role(uuid, public.app_role) FROM anon;
+REVOKE ALL ON FUNCTION public.is_admin() FROM anon;
+REVOKE ALL ON FUNCTION public.is_activity_host(uuid, uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_activity_host(uuid, uuid) TO authenticated;

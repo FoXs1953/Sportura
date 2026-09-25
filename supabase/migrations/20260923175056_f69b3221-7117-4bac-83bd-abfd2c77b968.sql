@@ -1,0 +1,1 @@
+DELETE FROM public.activities WHERE title = 'ЧЕРНОВИК-ТЕСТ' AND location_text = 'Тест зал';
