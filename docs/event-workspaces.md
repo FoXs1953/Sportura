@@ -34,4 +34,14 @@ Before switching production:
 4. Configure auth URLs for `https://sportura.vercel.app`, SMTP/provider configuration and storage policies.
 5. Set matching public/server Supabase variables in Vercel. Set `CRON_SECRET` only if using the HTTP maintenance endpoint; database cron reminders already have a SQL migration.
 6. Check counts, roles, permissions, sample files, password reset and the end-to-end participant/organizer flows, then deploy and verify desktop/mobile pages.
-7. Confirm old repository integration is revoked. Its browser uninstall confirmation did not complete reliably and was handed off to the user.
+7. The previous provider's GitHub App is no longer listed under Installed GitHub Apps; removal was verified on 2026-09-26.
+
+## Independent infrastructure preparation
+
+- Created the user's `Sportura` organization on Supabase Free: `qzbguulvxsgqmiwnokhf`.
+- Prepared the new project form with the name `Sportura`. Project creation awaits the user's database-password entry and submission, as required by the browser credential policy.
+- Verified Vercel CLI authentication as `foxs1953` and linked the local directory to `foxs1953s-projects/sportura`.
+- The Vercel project currently exposes four configuration variables: public/server Supabase URL and publishable key. No database connection string or service-role key is available in that project configuration.
+- Opening the source database directly in the user's Supabase dashboard redirects to the organization project list; source project access was not obtained.
+- A full source database backup (including `auth` and migration history) and storage export, or authorized direct database access, is still required to preserve existing accounts and data. Production configuration has not been switched.
+- Supabase supports moving password hashes with the auth schema, but continuity for this project's users remains unverified until a source export is available: https://supabase.com/docs/guides/troubleshooting/migrating-auth-users-between-projects
