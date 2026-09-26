@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Mail, Phone, ShieldCheck } from "lucide-react";
 import type { MyProfile } from "@/lib/me.functions";
 import type { ProfileWorkspace, ProfileTab } from "@/lib/profile-model";
+import { reviewAverage } from "@/lib/profile-model";
 import {
   ACCOUNT_STATUS_LABEL,
   PAYMENT_STATUS_LABEL,
@@ -35,6 +36,8 @@ export function OverviewTab({
         new Date(b.activity!.date_time!).getTime(),
     );
   const next = upcoming[0];
+  const playerReviews = data.reviews.filter((review) => !review.as_host);
+  const rating = reviewAverage(playerReviews);
   const checks = [
     {
       done: me.name.trim().length >= 2,
@@ -139,19 +142,19 @@ export function OverviewTab({
         </Link>
       </Panel>
       <div className="profile-stats">
-        <Link to="/my-games" className="workspace-stat">
+        <button className="workspace-stat" onClick={() => go("rating")}>
           <strong>
             {data.registrations.filter((r) => r.status === "attended").length}
           </strong>
           <span>Посещено игр</span>
-        </Link>
+        </button>
         <Link to="/my-games" className="workspace-stat">
           <strong>{upcoming.length}</strong>
           <span>Ближайшие игры</span>
         </Link>
         <button className="workspace-stat" onClick={() => go("rating")}>
-          <strong>{data.reviews.length}</strong>
-          <span>Отзывов</span>
+          <strong>{rating?.toFixed(1) ?? "—"}</strong>
+          <span>{playerReviews.length ? `${playerReviews.length} отзывов · рейтинг игрока` : "Пока нет оценок"}</span>
         </button>
       </div>
       <Panel
