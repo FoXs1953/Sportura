@@ -2273,15 +2273,13 @@ Ratings and reliability scores.
 
 Paid competitions and automated payouts can be added after the audience and legal/payment model are validated.
 
-This project was built with [Lovable](https://lovable.dev).
+## Production
 
-## Build with Lovable
+The live application is https://sportura.vercel.app. Deployments are built by
+Vercel from this repository. The editor preview is not the production site.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/6fe87573-cbf8-4cbd-9f96-6bd8994350d8).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+The existing Supabase backend provides authentication, database records, and
+private file storage. Preserve it when cleaning up editor-related resources.
 
 ## Development
 
