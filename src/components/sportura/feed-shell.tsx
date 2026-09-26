@@ -41,7 +41,10 @@ export function FeedShell({ children }: { children: ReactNode }) {
                   : to === "/host"
                     ? pathname.startsWith("/host") ||
                       pathname.startsWith("/organizer/")
-                    : pathname.startsWith(to);
+                    : to === "/profile"
+                      ? pathname.startsWith("/profile") ||
+                        pathname.startsWith("/admin")
+                      : pathname.startsWith(to);
               return (
                 <Link
                   key={to}

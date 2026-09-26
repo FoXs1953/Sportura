@@ -35,7 +35,8 @@
 .sportura-page-compact {
   max-width: 560px;
 }
-.sportura-page-wide {
+.sportura-page-wide,
+.sportura-page-admin {
   max-width: 1184px;
 }
 
@@ -344,6 +345,10 @@
   }
 }
 @media (max-width: 767px) {
+  .sportura-page-admin .feed-intro h1 {
+    font-size: clamp(22px, 6vw, 28px);
+    letter-spacing: -1px;
+  }
   .auth-layout {
     grid-template-columns: minmax(0, 1fr);
     min-height: 0;

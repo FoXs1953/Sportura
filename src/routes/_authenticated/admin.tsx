@@ -185,7 +185,7 @@ function Admin() {
     <AppShell
       title="Администрирование"
       subtitle="Пользователи, события, платежи и управление платформой"
-      layout="wide"
+      layout="admin"
     >
       <div className="admin-page">
         {(o?.applicationsPending ?? 0) > 0 ||

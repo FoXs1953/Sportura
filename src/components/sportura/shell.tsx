@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { Compass } from "lucide-react";
 import { FeedShell } from "@/components/sportura/feed-shell";
 
-type PageLayout = "wide" | "standard" | "compact";
+type PageLayout = "wide" | "standard" | "compact" | "admin";
 
 export function AppShell({
   children,
