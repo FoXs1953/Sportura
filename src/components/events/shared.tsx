@@ -13,6 +13,20 @@ import {
 import type { Event, EventHistory } from "@/lib/event-model";
 import { eventEnd, escapeCsv } from "@/lib/event-model";
 import { mutateEvent, type EventAction } from "@/lib/event.functions";
+import {
+  ACTIVITY_STATUS_LABEL,
+  PAYMENT_STATUS_LABEL,
+  REGISTRATION_STATUS_LABEL,
+} from "@/lib/sportura";
+
+const historyStatuses: Record<string, string> = {
+  ...ACTIVITY_STATUS_LABEL,
+  ...PAYMENT_STATUS_LABEL,
+  ...REGISTRATION_STATUS_LABEL,
+  requested: "Запрошен",
+  in_progress: "В обработке",
+  approved: "Одобрен",
+};
 export {
   Panel,
   Empty,
@@ -212,7 +226,16 @@ export function History({ items }: { items: EventHistory[] }) {
               )
               .map(([k, v]) => (
                 <p className="text-sm" key={k}>
-                  {String(v)}
+                  {k === "from"
+                    ? "Было: "
+                    : k === "to"
+                      ? "Стало: "
+                      : k === "status"
+                        ? "Статус: "
+                        : ""}
+                  {["status", "from", "to"].includes(k)
+                    ? (historyStatuses[String(v)] ?? "Изменён")
+                    : String(v)}
                 </p>
               ))}
           </div>
