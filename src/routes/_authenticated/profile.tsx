@@ -34,6 +34,7 @@ import {
   CITIES,
   ROLE_LABEL,
   SPORTS,
+  sportImage,
 } from "@/lib/sportura";
 import { getAdminAlerts } from "@/lib/admin.functions";
 import { FileUploadButton } from "@/components/sportura/file-upload";
@@ -198,7 +199,15 @@ function Profile() {
               className="workspace-panel overflow-hidden"
               aria-label="Карточка профиля"
             >
-              <div className="h-24 bg-[linear-gradient(120deg,#243034,#344044_58%,#ff91643a)]" />
+              <div className="feed-card-image h-28">
+                <img
+                  src={sportImage(me.sports[0] ?? "Футбол")}
+                  alt=""
+                  width={640}
+                  height={280}
+                  className="size-full object-cover"
+                />
+              </div>
               <div className="relative px-5 pb-5">
                 <div className="-mt-9 flex items-end justify-between gap-3">
                   <div className="grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-[18px] border-4 border-[#1b2123] bg-[#30393c]">
@@ -378,7 +387,7 @@ function Profile() {
                       type="button"
                       aria-pressed={city === c}
                       onClick={() => setCity(c)}
-                      className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${city === c ? "bg-[#ff9164] text-[#171b1c]" : "workspace-panel-raised text-[#a3afb3] hover:text-white"}`}
+                      className={`feed-chip ${city === c ? "is-active" : ""}`}
                     >
                       {c}
                     </button>
@@ -404,7 +413,7 @@ function Profile() {
                             : [...prev, s],
                         )
                       }
-                      className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${sports.includes(s) ? "bg-[#ff9164] text-[#171b1c]" : "workspace-panel-raised text-[#a3afb3] hover:text-white"}`}
+                      className={`feed-chip ${sports.includes(s) ? "is-active" : ""}`}
                     >
                       {s}
                     </button>
@@ -525,7 +534,7 @@ function Profile() {
                           type="button"
                           aria-pressed={role === r}
                           onClick={() => setRole(r)}
-                          className={`rounded-lg px-3 py-2 text-xs font-bold ${role === r ? "bg-[#ff9164] text-[#171b1c]" : "workspace-panel-raised text-[#a3afb3]"}`}
+                          className={`feed-chip ${role === r ? "is-active" : ""}`}
                         >
                           {ROLE_LABEL[r]}
                         </button>

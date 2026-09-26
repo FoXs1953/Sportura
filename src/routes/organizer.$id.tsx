@@ -12,7 +12,7 @@ import {
 import { AppShell } from "@/components/sportura/shell";
 import { getOrganizerProfile } from "@/lib/organizer.functions";
 import { signedAvatarUrl } from "@/lib/storage";
-import { ACTIVITY_TYPE_LABEL, timeLabel } from "@/lib/sportura";
+import { ACTIVITY_TYPE_LABEL, sportImage, timeLabel } from "@/lib/sportura";
 
 const orgQuery = (id: string) =>
   queryOptions({
@@ -117,7 +117,15 @@ function OrganizerPage() {
       <div className="grid items-start gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-5">
           <section className="workspace-panel overflow-hidden">
-            <div className="h-28 bg-[linear-gradient(120deg,#273538,#3c494b_55%,#ff916445)]" />
+            <div className="feed-card-image h-28">
+              <img
+                src={sportImage(upcoming[0]?.sport ?? "Футбол")}
+                alt=""
+                width={640}
+                height={280}
+                className="size-full object-cover"
+              />
+            </div>
             <div className="relative px-5 pb-6">
               <div className="-mt-10 grid size-20 place-items-center overflow-hidden rounded-[18px] border-4 border-[#1b2123] bg-[#30393c]">
                 {avatarUrl ? (

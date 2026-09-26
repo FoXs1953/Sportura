@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   ArrowRight,
+  ArrowUpRight,
   CalendarDays,
   Clock3,
   MapPin,
@@ -35,6 +36,7 @@ import {
   PAYMENT_STATUS_LABEL,
   REGISTRATION_STATUS_LABEL,
   priceLabel,
+  sportImage,
   timeLabel,
 } from "@/lib/sportura";
 import type { PaymentStatus, RegistrationStatus } from "@/lib/sportura";
@@ -90,10 +92,11 @@ function isPast(reg: Reg) {
   );
 }
 function paymentTone(status: string) {
-  if (status === "paid") return "is-success";
-  if (status === "needs_review" || status === "pending") return "is-warning";
-  if (status === "rejected") return "is-danger";
-  return "";
+  if (status === "paid") return "";
+  if (status === "needs_review" || status === "pending")
+    return "feed-status-full";
+  if (status === "rejected") return "feed-status-cancelled";
+  return "feed-status-completed";
 }
 
 function MyGames() {
@@ -187,7 +190,7 @@ function MyGames() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-3 md:grid-cols-2" aria-label="Загружаем игры">
+        <div className="feed-grid" aria-label="Загружаем игры">
           {[1, 2].map((n) => (
             <div key={n} className="workspace-panel h-52 animate-pulse" />
           ))}
@@ -227,7 +230,7 @@ function MyGames() {
           )}
         </div>
       ) : (
-        <div className="grid items-start gap-4 md:grid-cols-2">
+        <div className="feed-grid items-start">
           {shown.map((r) => {
             const a = activityOf(r);
             if (!a) return null;
@@ -244,10 +247,23 @@ function MyGames() {
                   : null;
             const busy = busyId === r.id;
             return (
-              <article key={r.id} className="workspace-panel overflow-hidden">
-                <div className="border-b border-[#30393c] p-5 sm:p-6">
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    <span className="workspace-tag is-accent">
+              <article key={r.id} className="feed-card account-feed-card">
+                <Link
+                  to="/activity/$id"
+                  params={{ id: a.id }}
+                  className="feed-card-image block"
+                  aria-label={`Открыть игру: ${a.title}`}
+                >
+                  <img
+                    src={sportImage(a.sport)}
+                    alt=""
+                    width={640}
+                    height={360}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="feed-card-badges">
+                    <span className="feed-format">
                       {
                         REGISTRATION_STATUS_LABEL[
                           r.status as RegistrationStatus
@@ -255,49 +271,44 @@ function MyGames() {
                       }
                     </span>
                     <span
-                      className={`workspace-tag ${paymentTone(r.payment_status)}`}
+                      className={`feed-status ${paymentTone(r.payment_status)}`}
                     >
+                      <i aria-hidden="true" />
                       {PAYMENT_STATUS_LABEL[r.payment_status as PaymentStatus]}
                     </span>
                   </div>
+                  <span className="feed-card-sport">{a.sport}</span>
+                  <span className="feed-card-arrow">
+                    <ArrowUpRight size={18} aria-hidden="true" />
+                  </span>
+                </Link>
+                <div className="feed-card-body">
                   <Link
                     to="/activity/$id"
                     params={{ id: a.id }}
                     className="group inline-flex items-start gap-2 text-left"
                   >
-                    <h2 className="workspace-section-title leading-snug group-hover:text-[#ff9164]">
-                      {a.title}
-                    </h2>
-                    <ArrowRight
-                      className="mt-1 size-4 shrink-0 text-[#ff9164] transition-transform group-hover:translate-x-1"
-                      aria-hidden="true"
-                    />
+                    <h3 className="group-hover:text-[#ff9164]">{a.title}</h3>
                   </Link>
-                  <div className="mt-4 grid gap-2 text-xs text-[#a3afb3]">
-                    <p className="flex items-center gap-2">
-                      <Clock3
-                        size={15}
-                        className="shrink-0 text-[#ff9164]"
-                        aria-hidden="true"
-                      />
-                      {timeLabel(a) || "Время уточняется"}
+                  <div className="feed-card-details">
+                    <p className="feed-card-time">
+                      <Clock3 size={15} aria-hidden="true" />
+                      <span>{timeLabel(a) || "Время уточняется"}</span>
                     </p>
-                    <p className="flex items-center gap-2">
-                      <MapPin
-                        size={15}
-                        className="shrink-0 text-[#ff9164]"
-                        aria-hidden="true"
-                      />
-                      {a.location_text || "Площадка уточняется"}
+                    <p>
+                      <MapPin size={15} aria-hidden="true" />
+                      <span>{a.location_text || "Площадка уточняется"}</span>
                     </p>
                   </div>
                 </div>
-                <div className="p-5 sm:p-6">
-                  <div className="mb-4 flex items-baseline justify-between gap-3">
+                <div className="account-card-actions">
+                  <div className="feed-card-footer account-card-price">
                     <span className="workspace-overline">
                       Стоимость участия
                     </span>
-                    <strong className="text-sm">{priceLabel(a)}</strong>
+                    <div className="feed-card-price">
+                      <strong>{priceLabel(a)}</strong>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {r.payment_status === "pending" && !isPast(r) && (

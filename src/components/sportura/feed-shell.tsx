@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { CalendarCheck, Compass, ShieldCheck, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import "@/styles/feed.css";
@@ -11,6 +11,9 @@ const navigation = [
 ] as const;
 
 export function FeedShell({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
   return (
     <div className="feed-shell">
       <a className="feed-skip-link" href="#feed-content">
@@ -31,17 +34,26 @@ export function FeedShell({ children }: { children: ReactNode }) {
             SPORTURA<span className="feed-wordmark-dot">.</span>
           </Link>
           <nav className="feed-navigation" aria-label="Основная навигация">
-            {navigation.map(({ to, label, icon: Icon }) => (
-              <Link
-                key={to}
-                to={to}
-                aria-current={to === "/" ? "page" : undefined}
-                className={to === "/" ? "is-active" : ""}
-              >
-                <Icon size={19} aria-hidden="true" />
-                <span>{label}</span>
-              </Link>
-            ))}
+            {navigation.map(({ to, label, icon: Icon }) => {
+              const active =
+                to === "/"
+                  ? pathname === "/"
+                  : to === "/host"
+                    ? pathname.startsWith("/host") ||
+                      pathname.startsWith("/organizer/")
+                    : pathname.startsWith(to);
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  aria-current={active ? "page" : undefined}
+                  className={active ? "is-active" : ""}
+                >
+                  <Icon size={19} aria-hidden="true" />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
           </nav>
           <span className="feed-header-note">Место встречи — спорт</span>
         </div>

@@ -9,18 +9,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
+  ArrowUpRight,
   CalendarDays,
+  Clock3,
   ClipboardList,
+  MapPin,
   Plus,
   UsersRound,
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/sportura/shell";
-import {
-  CapacityMeter,
-  StatusBadge,
-} from "@/components/sportura/activity-card";
 import { ReceiptLink } from "@/components/sportura/receipt-link";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,6 +50,7 @@ import {
 } from "@/lib/registrations.functions";
 import {
   ACTIVITY_TYPE_LABEL,
+  ACTIVITY_STATUS_LABEL,
   CITIES,
   COMPETITION_DISCLAIMER,
   KASPI_DISCLAIMER,
@@ -58,7 +58,9 @@ import {
   PRIZE_TEMPLATE,
   SKILL_LEVELS,
   SPORTS,
+  capacityPercent,
   priceLabel,
+  sportImage,
   timeLabel,
   type ActivityType,
   type ActivityStatus,
@@ -87,6 +89,8 @@ type Tab = "list" | "create-game" | "create-competition";
 type HostedActivity = {
   id: string;
   title: string;
+  sport: string;
+  location_text: string;
   type: ActivityType;
   status: ActivityStatus;
   registered_count: number;
@@ -417,46 +421,97 @@ function HostDashboard() {
               )}
             </div>
           ) : (
-            <div className="grid items-start gap-4 md:grid-cols-2">
+            <div className="feed-grid items-start">
               {shown.map((a) => {
                 const s = mine?.stats[a.id];
                 const busy = busyId === a.id;
                 return (
-                  <article
-                    key={a.id}
-                    className="workspace-panel overflow-hidden"
-                  >
-                    <div className="border-b border-[#30393c] p-5 sm:p-6">
-                      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                        <span className="workspace-tag is-accent">
-                          {ACTIVITY_TYPE_LABEL[a.type as "daily_game"]}
+                  <article key={a.id} className="feed-card account-feed-card">
+                    <Link
+                      to="/activity/$id"
+                      params={{ id: a.id }}
+                      className="feed-card-image block"
+                      aria-label={`Открыть событие: ${a.title}`}
+                    >
+                      <img
+                        src={sportImage(a.sport)}
+                        alt=""
+                        width={640}
+                        height={360}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="feed-card-badges">
+                        <span className="feed-format">
+                          {ACTIVITY_TYPE_LABEL[a.type]}
                         </span>
-                        <StatusBadge status={a.status as ActivityStatus} />
+                        <span className={`feed-status feed-status-${a.status}`}>
+                          <i aria-hidden="true" />
+                          {ACTIVITY_STATUS_LABEL[a.status]}
+                        </span>
                       </div>
+                      <span className="feed-card-sport">{a.sport}</span>
+                      <span className="feed-card-arrow">
+                        <ArrowUpRight size={18} aria-hidden="true" />
+                      </span>
+                    </Link>
+                    <div className="feed-card-body">
                       <Link
                         to="/activity/$id"
                         params={{ id: a.id }}
-                        className="group inline-flex items-start gap-2"
+                        className="group"
                       >
-                        <h3 className="workspace-section-title leading-snug group-hover:text-[#ff9164]">
+                        <h3 className="group-hover:text-[#ff9164]">
                           {a.title}
                         </h3>
-                        <ArrowRight
-                          size={16}
-                          className="mt-1 shrink-0 text-[#ff9164]"
-                        />
                       </Link>
-                      <p className="workspace-muted mt-2 text-xs">
-                        {timeLabel(a) || "Время уточняется"}
-                      </p>
-                      <div className="mt-5">
-                        <CapacityMeter
-                          registered={a.registered_count}
-                          max={a.max_participants}
-                        />
+                      <div className="feed-card-details">
+                        <p className="feed-card-time">
+                          <Clock3 size={15} aria-hidden="true" />
+                          <span>{timeLabel(a) || "Время уточняется"}</span>
+                        </p>
+                        <p>
+                          <MapPin size={15} aria-hidden="true" />
+                          <span>
+                            {a.location_text || "Площадка уточняется"}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="feed-card-capacity">
+                        <div className="feed-capacity-label">
+                          <span>
+                            <UsersRound size={14} aria-hidden="true" />
+                            <strong>{a.registered_count}</strong>
+                            <span>/ {a.max_participants} участников</span>
+                          </span>
+                          <span>
+                            {Math.max(
+                              0,
+                              a.max_participants - a.registered_count,
+                            )}{" "}
+                            свободно
+                          </span>
+                        </div>
+                        <div
+                          className="feed-capacity-track"
+                          role="meter"
+                          aria-label="Заполненность события"
+                          aria-valuemin={0}
+                          aria-valuemax={a.max_participants || 1}
+                          aria-valuenow={Math.min(
+                            a.registered_count,
+                            a.max_participants || 1,
+                          )}
+                        >
+                          <span
+                            style={{
+                              transform: `scaleX(${capacityPercent(a.registered_count, a.max_participants) / 100})`,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-4 p-5 sm:p-6">
+                    <div className="account-card-actions space-y-4">
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="workspace-panel-raised p-2">
                           <Wallet
@@ -878,11 +933,7 @@ function ChipRow({
           type="button"
           aria-pressed={value === v}
           onClick={() => onChange(v)}
-          className={`press rounded-lg px-3 py-2 text-xs font-semibold ${
-            value === v
-              ? "bg-[#ff9164] text-[#171b1c]"
-              : "workspace-panel-raised"
-          }`}
+          className={`feed-chip ${value === v ? "is-active" : ""}`}
         >
           {v}
         </button>
@@ -1234,11 +1285,7 @@ function CompetitionForm({ onDone }: { onDone: () => void }) {
               type="button"
               aria-pressed={form.type === t}
               onClick={() => set("type", t)}
-              className={`press rounded-lg px-3 py-2 text-xs font-semibold ${
-                form.type === t
-                  ? "bg-[#ff9164] text-[#171b1c]"
-                  : "workspace-panel-raised"
-              }`}
+              className={`feed-chip ${form.type === t ? "is-active" : ""}`}
             >
               {ACTIVITY_TYPE_LABEL[t]}
             </button>

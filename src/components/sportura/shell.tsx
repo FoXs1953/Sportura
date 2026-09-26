@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { FeedShell } from "@/components/sportura/feed-shell";
 import {
   CalendarCheck,
   CompassIcon,
@@ -54,93 +55,29 @@ export function AppShell({
 
   if (workspace) {
     return (
-      <div className="workspace-shell">
-        <a className="workspace-skip" href="#workspace-content">
-          К содержимому
-        </a>
-        <header className="workspace-header">
-          <div className="workspace-header-inner">
-            <Link
-              to="/"
-              className="workspace-brand"
-              aria-label="Sportura — на главную"
-            >
-              <span className="workspace-brand-mark" aria-hidden="true">
-                <i />
-                <i />
-                <i />
+      <FeedShell>
+        {(title || subtitle || action) && (
+          <section
+            className="feed-intro"
+            aria-label={title ?? "Раздел Sportura"}
+          >
+            <div>
+              <span className="feed-location">
+                <CompassIcon size={14} aria-hidden="true" /> Sportura
               </span>
-              Sportura<span className="workspace-brand-dot">.</span>
-            </Link>
-            <nav
-              className="workspace-desktop-nav"
-              aria-label="Основная навигация"
-            >
-              {TABS.map((tab) => {
-                const active =
-                  tab.to === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(tab.to);
-                return (
-                  <Link
-                    key={tab.to}
-                    to={tab.to}
-                    aria-current={active ? "page" : undefined}
-                    className={active ? "is-active" : ""}
-                  >
-                    {tab.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        </header>
-        <main
-          id="workspace-content"
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="workspace-scroll"
-          tabIndex={-1}
-        >
-          <div className="workspace-main">
-            {(title || subtitle || action) && (
-              <div className="workspace-page-heading">
-                <div>
-                  <p className="workspace-eyebrow">
-                    Sportura / {title ?? "Кабинет"}
-                  </p>
-                  {title && <h1>{title}</h1>}
-                  {subtitle && <p className="workspace-subtitle">{subtitle}</p>}
-                </div>
-                {action}
-              </div>
-            )}
-            {children}
-          </div>
-        </main>
-        <nav className="workspace-mobile-nav" aria-label="Основная навигация">
-          {TABS.map((tab) => {
-            const active =
-              tab.to === "/" ? pathname === "/" : pathname.startsWith(tab.to);
-            const Icon = tab.icon;
-            return (
-              <Link
-                key={tab.to}
-                to={tab.to}
-                aria-current={active ? "page" : undefined}
-                className={active ? "is-active" : ""}
-              >
-                <Icon
-                  size={20}
-                  strokeWidth={active ? 2.4 : 1.8}
-                  aria-hidden="true"
-                />
-                <span>{tab.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+              {title && (
+                <h1>
+                  {title}
+                  <span className="feed-title-dot">.</span>
+                </h1>
+              )}
+              {subtitle && <p>{subtitle}</p>}
+            </div>
+            {action}
+          </section>
+        )}
+        {children}
+      </FeedShell>
     );
   }
 
