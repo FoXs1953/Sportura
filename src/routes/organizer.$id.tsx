@@ -117,7 +117,7 @@ function OrganizerPage() {
       <div className="grid items-start gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-5">
           <section className="workspace-panel overflow-hidden">
-            <div className="feed-card-image h-28">
+            <div className="h-28 w-full overflow-hidden">
               <img
                 src={sportImage(upcoming[0]?.sport ?? "Футбол")}
                 alt=""
@@ -150,7 +150,7 @@ function OrganizerPage() {
               <div className="mt-4 flex flex-wrap gap-2">
                 {profile.verified && (
                   <span className="workspace-tag is-success">
-                    <ShieldCheck size={14} /> Подтверждён
+                    <ShieldCheck size={14} /> Роль одобрена
                   </span>
                 )}
                 <span className="workspace-tag">
@@ -158,46 +158,55 @@ function OrganizerPage() {
                   года
                 </span>
               </div>
-              <div className="mt-5 flex items-center gap-2 border-t border-[#30393c] pt-4">
-                <Star
-                  size={19}
-                  className="text-[#ffb38f]"
-                  fill={profile.rating ? "currentColor" : "none"}
-                  aria-hidden="true"
-                />
-                <strong className="font-display text-xl">
-                  {profile.rating ? Number(profile.rating).toFixed(1) : "—"}
-                </strong>
-                <span className="workspace-muted text-xs">
-                  {profile.rating_count
-                    ? `${profile.rating_count} отзывов`
-                    : "Пока без оценок"}
-                </span>
-              </div>
+              {profile.bio && (
+                <p className="mt-4 whitespace-pre-wrap text-sm">
+                  {profile.bio}
+                </p>
+              )}
+              {data.statsVisible && (
+                <div className="mt-5 flex items-center gap-2 border-t border-[#30393c] pt-4">
+                  <Star
+                    size={19}
+                    className="text-[#ffb38f]"
+                    fill={profile.rating ? "currentColor" : "none"}
+                    aria-hidden="true"
+                  />
+                  <strong className="font-display text-xl">
+                    {profile.rating ? Number(profile.rating).toFixed(1) : "—"}
+                  </strong>
+                  <span className="workspace-muted text-xs">
+                    {profile.rating_count
+                      ? `${profile.rating_count} отзывов`
+                      : "Пока без оценок"}
+                  </span>
+                </div>
+              )}
             </div>
           </section>
-          <div className="workspace-stats">
-            <div className="workspace-stat">
-              <strong>{stats.games}</strong>
-              <span>Игр создано</span>
+          {data.statsVisible && (
+            <div className="workspace-stats">
+              <div className="workspace-stat">
+                <strong>{stats.games}</strong>
+                <span>Игр создано</span>
+              </div>
+              <div className="workspace-stat">
+                <strong>{stats.competitions}</strong>
+                <span>Турниров и лиг</span>
+              </div>
+              <div className="workspace-stat">
+                <strong>{stats.players}</strong>
+                <span>Записей игроков</span>
+              </div>
+              <div className="workspace-stat">
+                <strong>{stats.completed}</strong>
+                <span>Проведено</span>
+              </div>
+              <div className="workspace-stat">
+                <strong>{stats.cancelled}</strong>
+                <span>Отменено</span>
+              </div>
             </div>
-            <div className="workspace-stat">
-              <strong>{stats.competitions}</strong>
-              <span>Турниров и лиг</span>
-            </div>
-            <div className="workspace-stat">
-              <strong>{stats.players}</strong>
-              <span>Записей игроков</span>
-            </div>
-            <div className="workspace-stat">
-              <strong>{stats.completed}</strong>
-              <span>Проведено</span>
-            </div>
-            <div className="workspace-stat">
-              <strong>{stats.cancelled}</strong>
-              <span>Отменено</span>
-            </div>
-          </div>
+          )}
         </aside>
         <div className="space-y-5">
           <section
@@ -256,75 +265,80 @@ function OrganizerPage() {
               </ul>
             )}
           </section>
-          <section
-            className="workspace-panel p-5 sm:p-7"
-            aria-labelledby="reviews-title"
-          >
-            <div className="mb-5 flex items-end justify-between gap-3">
-              <div>
-                <p className="workspace-overline">Сообщество</p>
-                <h2 id="reviews-title" className="workspace-section-title mt-2">
-                  Отзывы игроков
-                </h2>
-              </div>
-              <span className="workspace-tag">
-                <UsersRound size={13} /> {reviews.length}
-              </span>
-            </div>
-            {reviews.length === 0 ? (
-              <div className="workspace-empty rounded-xl border border-dashed border-[#455054]">
-                <div className="workspace-empty-icon">
-                  <Star size={23} />
+          {data.statsVisible && (
+            <section
+              className="workspace-panel p-5 sm:p-7"
+              aria-labelledby="reviews-title"
+            >
+              <div className="mb-5 flex items-end justify-between gap-3">
+                <div>
+                  <p className="workspace-overline">Сообщество</p>
+                  <h2
+                    id="reviews-title"
+                    className="workspace-section-title mt-2"
+                  >
+                    Отзывы игроков
+                  </h2>
                 </div>
-                <h3>Отзывов пока нет</h3>
-                <p>
-                  После проведённых игр участники смогут оставить свою оценку.
-                </p>
+                <span className="workspace-tag">
+                  <UsersRound size={13} /> {reviews.length}
+                </span>
               </div>
-            ) : (
-              <ul className="divide-y divide-[#30393c]">
-                {reviews.map((review) => (
-                  <li key={review.id} className="py-4 first:pt-0 last:pb-0">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="grid size-8 place-items-center rounded-lg bg-[#30393c] text-xs font-bold">
-                          {(review.reviewer || "У").slice(0, 1).toUpperCase()}
-                        </span>
-                        <strong className="text-xs">
-                          {review.reviewer || "Участник"}
-                        </strong>
+              {reviews.length === 0 ? (
+                <div className="workspace-empty rounded-xl border border-dashed border-[#455054]">
+                  <div className="workspace-empty-icon">
+                    <Star size={23} />
+                  </div>
+                  <h3>Отзывов пока нет</h3>
+                  <p>
+                    После проведённых игр участники смогут оставить свою оценку.
+                  </p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-[#30393c]">
+                  {reviews.map((review) => (
+                    <li key={review.id} className="py-4 first:pt-0 last:pb-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="grid size-8 place-items-center rounded-lg bg-[#30393c] text-xs font-bold">
+                            {(review.reviewer || "У").slice(0, 1).toUpperCase()}
+                          </span>
+                          <strong className="text-xs">
+                            {review.reviewer || "Участник"}
+                          </strong>
+                        </div>
+                        <time
+                          className="workspace-muted text-[11px]"
+                          dateTime={review.created_at}
+                        >
+                          {new Date(review.created_at).toLocaleDateString(
+                            "ru-RU",
+                          )}
+                        </time>
                       </div>
-                      <time
-                        className="workspace-muted text-[11px]"
-                        dateTime={review.created_at}
+                      <div
+                        className="mt-2 flex gap-0.5 text-[#ffb38f]"
+                        aria-label={`Оценка ${review.rating} из 5`}
                       >
-                        {new Date(review.created_at).toLocaleDateString(
-                          "ru-RU",
-                        )}
-                      </time>
-                    </div>
-                    <div
-                      className="mt-2 flex gap-0.5 text-[#ffb38f]"
-                      aria-label={`Оценка ${review.rating} из 5`}
-                    >
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <Star
-                          key={n}
-                          size={13}
-                          fill={n <= review.rating ? "currentColor" : "none"}
-                        />
-                      ))}
-                    </div>
-                    {review.comment && (
-                      <p className="mt-2 text-sm leading-relaxed text-[#d6ddde]">
-                        {review.comment}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star
+                            key={n}
+                            size={13}
+                            fill={n <= review.rating ? "currentColor" : "none"}
+                          />
+                        ))}
+                      </div>
+                      {review.comment && (
+                        <p className="mt-2 text-sm leading-relaxed text-[#d6ddde]">
+                          {review.comment}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
         </div>
       </div>
     </AppShell>

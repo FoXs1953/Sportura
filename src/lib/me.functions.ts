@@ -40,13 +40,17 @@ export const getMe = createServerFn({ method: "GET" })
       supabase.from("user_roles").select("role").eq("user_id", userId),
       supabase
         .from("manager_applications")
-        .select("id, status, requested_role, motivation, admin_notes, created_at")
+        .select(
+          "id, status, requested_role, motivation, admin_notes, created_at",
+        )
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
     ]);
     if (profileRes.error) throw new Error(profileRes.error.message);
+    if (rolesRes.error) throw new Error(rolesRes.error.message);
+    if (appRes.error) throw new Error(appRes.error.message);
     const p = profileRes.data as Record<string, unknown> | null;
     return {
       id: userId,
@@ -63,7 +67,8 @@ export const getMe = createServerFn({ method: "GET" })
       no_show_count: (p?.["no_show_count"] as number) ?? 0,
       dispute_count: (p?.["dispute_count"] as number) ?? 0,
       cancellation_count: (p?.["cancellation_count"] as number) ?? 0,
-      account_status: (p?.["account_status"] as MyProfile["account_status"]) ?? "active",
+      account_status:
+        (p?.["account_status"] as MyProfile["account_status"]) ?? "active",
       roles: ((rolesRes.data ?? []) as { role: AppRole }[]).map((r) => r.role),
       application: (appRes.data as MyProfile["application"]) ?? null,
     };
@@ -92,7 +97,9 @@ export const updateMyProfile = createServerFn({ method: "POST" })
         city: data.city,
         sports: data.sports,
         kaspi_payment_link: data.kaspi_payment_link ?? null,
-        ...(data.avatar_url === undefined ? {} : { avatar_url: data.avatar_url }),
+        ...(data.avatar_url === undefined
+          ? {}
+          : { avatar_url: data.avatar_url }),
       })
       .eq("id", context.userId);
     if (error) throw new Error(error.message);
@@ -103,8 +110,11 @@ export const updateMyProfile = createServerFn({ method: "POST" })
 export const confirmVerification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const claims = context.claims as Record<string, unknown>;
-    const verified = Boolean(claims["email"]) || Boolean(claims["phone"]);
+    const { data, error: authError } = await context.supabase.auth.getUser();
+    if (authError) throw new Error(authError.message);
+    const verified = Boolean(
+      data.user?.email_confirmed_at || data.user?.phone_confirmed_at,
+    );
     if (!verified) return { verified: false };
     const { error } = await context.supabase
       .from("profiles")
@@ -127,7 +137,11 @@ export const applyForHostRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const [profileRes, rolesRes, pendingRes] = await Promise.all([
-      supabase.from("profiles").select("name, phone, verified, account_status").eq("id", userId).maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("name, phone, verified, account_status")
+        .eq("id", userId)
+        .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
       supabase
         .from("manager_applications")
@@ -137,27 +151,44 @@ export const applyForHostRole = createServerFn({ method: "POST" })
         .limit(1)
         .maybeSingle(),
     ]);
-    const profile = profileRes.data as
-      | { name?: string; phone?: string | null; verified?: boolean; account_status?: string }
-      | null;
-    if (!profile?.verified) {
+    const profile = profileRes.data as {
+      name?: string;
+      phone?: string | null;
+      verified?: boolean;
+      account_status?: string;
+    } | null;
+    if (!profile) throw new Error("Профиль не найден");
+    const identity = await supabase.auth.getUser();
+    if (identity.error) throw new Error(identity.error.message);
+    if (
+      !identity.data.user?.email_confirmed_at &&
+      !identity.data.user?.phone_confirmed_at
+    ) {
       throw new Error("Сначала подтвердите e-mail или телефон в профиле.");
     }
     if (profile.account_status && profile.account_status !== "active") {
-      throw new Error("Аккаунт ограничен, заявку рассмотреть нельзя. Напишите администратору.");
+      throw new Error(
+        "Аккаунт ограничен, заявку рассмотреть нельзя. Напишите администратору.",
+      );
     }
     if (!profile.name || profile.name.trim().length < 2) {
       throw new Error("Укажите имя и фамилию в профиле перед подачей заявки.");
     }
     if (!profile.phone) {
-      throw new Error("Укажите телефон в профиле — администратор должен связаться с вами.");
+      throw new Error(
+        "Укажите телефон в профиле — администратор должен связаться с вами.",
+      );
     }
-    const roles = ((rolesRes.data ?? []) as { role: string }[]).map((r) => r.role);
+    const roles = ((rolesRes.data ?? []) as { role: string }[]).map(
+      (r) => r.role,
+    );
     if (roles.includes(data.requested_role) || roles.includes("admin")) {
       throw new Error("Эта роль у вас уже есть.");
     }
     if (pendingRes.data) {
-      throw new Error("У вас уже есть заявка на рассмотрении. Дождитесь решения администратора.");
+      throw new Error(
+        "У вас уже есть заявка на рассмотрении. Дождитесь решения администратора.",
+      );
     }
     const { error } = await supabase.from("manager_applications").insert({
       user_id: userId,

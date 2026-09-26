@@ -12,6 +12,10 @@ import { ActivityEditor } from "@/components/sportura/admin-activity-edit";
 import { moderateActivity, setUserRole } from "@/lib/cms-admin.functions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { getSupportAdmin } from "@/lib/profile.functions";
+import { Input } from "@/components/ui/input";
+import { SupportAdmin } from "@/components/profile/support";
+import "@/styles/profile.css";
 import { getMe } from "@/lib/me.functions";
 import {
   exportAdminCsv,
@@ -67,7 +71,8 @@ type Tab =
   | "reports"
   | "content"
   | "settings"
-  | "audit";
+  | "audit"
+  | "support";
 
 function downloadCsv(filename: string, csv: string) {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -94,6 +99,18 @@ function Admin() {
   const isAdmin = Boolean(me?.roles.includes("admin"));
   const [tab, setTab] = useState<Tab>("overview");
   const [notes, setNotes] = useState("");
+  const [restrictionNotes, setRestrictionNotes] = useState<
+    Record<string, string>
+  >({});
+  const [restrictionDates, setRestrictionDates] = useState<
+    Record<string, string>
+  >({});
+  const support = useQuery({
+    queryKey: ["support-admin"],
+    queryFn: () => getSupportAdmin(),
+    enabled: isAdmin,
+    refetchInterval: 30000,
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const overview = useQuery({
@@ -253,6 +270,12 @@ function Admin() {
               ["content", "Контент", 0],
               ["settings", "Настройки", 0],
               ["audit", "Действия", 0],
+              [
+                "support",
+                "Поддержка",
+                support.data?.filter((t) => t.status !== "resolved").length ??
+                  0,
+              ],
             ] as [Tab, string, number][]
           ).map(([key, label, count]) => (
             <button
@@ -476,6 +499,34 @@ function Admin() {
                     );
                   })}
                 </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs">
+                    Причина ограничения (видна пользователю)
+                    <Input
+                      value={restrictionNotes[u.id] ?? ""}
+                      maxLength={600}
+                      onChange={(e) =>
+                        setRestrictionNotes((v) => ({
+                          ...v,
+                          [u.id]: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="text-xs">
+                    Срок ограничения (необязательно)
+                    <Input
+                      type="datetime-local"
+                      value={restrictionDates[u.id] ?? ""}
+                      onChange={(e) =>
+                        setRestrictionDates((v) => ({
+                          ...v,
+                          [u.id]: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
@@ -494,7 +545,16 @@ function Admin() {
                         run(
                           () =>
                             setAccountStatus({
-                              data: { userId: u.id, status: s },
+                              data: {
+                                userId: u.id,
+                                status: s,
+                                notes: restrictionNotes[u.id] ?? null,
+                                restrictionUntil: restrictionDates[u.id]
+                                  ? new Date(
+                                      restrictionDates[u.id]!,
+                                    ).toISOString()
+                                  : null,
+                              },
                             }),
                           "Статус обновлён",
                           ["users", "overview"],
@@ -832,6 +892,11 @@ function Admin() {
 
         {tab === "content" ? <ContentTab /> : null}
         {tab === "settings" ? <SettingsTab /> : null}
+        {tab === "support" && (
+          <div className="profile-main">
+            <SupportAdmin />
+          </div>
+        )}
         {tab === "audit" ? <AuditTab /> : null}
       </div>
     </AppShell>

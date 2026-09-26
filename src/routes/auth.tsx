@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import { useQuery } from "@tanstack/react-query";
+import { getAuthCapabilities } from "@/lib/profile.functions";
 import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,10 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const capabilities = useQuery({
+    queryKey: ["auth-capabilities"],
+    queryFn: () => getAuthCapabilities(),
+  });
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -87,15 +92,21 @@ function AuthPage() {
   }
 
   async function google() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Не удалось войти через Google");
-      return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) throw error;
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Не удалось войти через Google",
+      );
+      setBusy(false);
     }
-    if (result.redirected) return;
-    navigate({ to: "/" });
   }
 
   return (
@@ -150,14 +161,17 @@ function AuthPage() {
             Забыли пароль?
           </Link>
         )}
-        <Button
-          type="button"
-          variant="secondary"
-          className="press w-full"
-          onClick={google}
-        >
-          Продолжить с Google
-        </Button>
+        {capabilities.data?.google && (
+          <Button
+            disabled={busy}
+            type="button"
+            variant="secondary"
+            className="press w-full"
+            onClick={google}
+          >
+            Продолжить с Google
+          </Button>
+        )}
         <button
           type="button"
           className="auth-switch w-full text-center text-sm"

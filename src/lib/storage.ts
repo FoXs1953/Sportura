@@ -34,7 +34,7 @@ export async function uploadReceipt(file: File, registrationId: string): Promise
 export async function uploadAvatar(file: File): Promise<string> {
   if (file.size > MAX_AVATAR_BYTES) throw new Error("Файл больше 5 МБ. Выберите фото меньше.");
   const userId = await currentUserId();
-  const path = `${userId}/avatar.${extOf(file)}`;
+  const path = `${userId}/avatar-${crypto.randomUUID()}.${extOf(file)}`;
   const { error } = await supabase.storage
     .from(AVATARS_BUCKET)
     .upload(path, file, (file.type ? { upsert: true, contentType: file.type } : { upsert: true }));

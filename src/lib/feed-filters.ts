@@ -12,7 +12,7 @@ export const feedSearchSchema = z.object({
   free: z.boolean().catch(false).default(false),
   open: z.boolean().catch(false).default(false),
   sort: z
-    .enum(["available", "date", "price"])
+    .enum(["available", "date", "price", "personal"])
     .catch("available")
     .default("available"),
 });

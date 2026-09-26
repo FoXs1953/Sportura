@@ -236,6 +236,7 @@ export const setAccountStatus = createServerFn({ method: "POST" })
         userId: z.string().uuid(),
         status: z.enum(["active", "flagged", "suspended", "banned"]),
         notes: z.string().max(600).optional().nullable(),
+        restrictionUntil: z.string().datetime().optional().nullable(),
       })
       .parse(input),
   )
@@ -243,7 +244,13 @@ export const setAccountStatus = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { error } = await context.supabase
       .from("profiles")
-      .update({ account_status: data.status, admin_notes: data.notes ?? null })
+      .update({
+        account_status: data.status,
+        restriction_reason:
+          data.status === "active" ? null : (data.notes ?? null),
+        restriction_until:
+          data.status === "active" ? null : (data.restrictionUntil ?? null),
+      })
       .eq("id", data.userId);
     if (error) throw new Error(error.message);
     return { ok: true };

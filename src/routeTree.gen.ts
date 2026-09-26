@@ -22,6 +22,7 @@ import { Route as AuthenticatedMyGamesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as ActivityIdRouteImport } from './routes/activity.$id'
 import { Route as OrganizerIdRouteImport } from './routes/organizer.$id'
+import { Route as PlayerIdRouteImport } from './routes/player.$id'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 import { Route as ApiPublicCronMaintenanceRouteImport } from './routes/api/public/cron/maintenance'
 
@@ -89,6 +90,11 @@ const OrganizerIdRoute = OrganizerIdRouteImport.update({
   path: '/organizer/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayerIdRoute = PlayerIdRouteImport.update({
+  id: '/player/$id',
+  path: '/player/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
   id: '/api/public/health',
   path: '/api/public/health',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/activity/$id': typeof ActivityIdRoute
   '/organizer/$id': typeof OrganizerIdRoute
+  '/player/$id': typeof PlayerIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/cron/maintenance': typeof ApiPublicCronMaintenanceRoute
 }
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/activity/$id': typeof ActivityIdRoute
   '/organizer/$id': typeof OrganizerIdRoute
+  '/player/$id': typeof PlayerIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/cron/maintenance': typeof ApiPublicCronMaintenanceRoute
 }
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/activity/$id': typeof ActivityIdRoute
   '/organizer/$id': typeof OrganizerIdRoute
+  '/player/$id': typeof PlayerIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/cron/maintenance': typeof ApiPublicCronMaintenanceRoute
 }
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/activity/$id'
     | '/organizer/$id'
+    | '/player/$id'
     | '/api/public/health'
     | '/api/public/cron/maintenance'
   fileRoutesByTo: FileRoutesByTo
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/activity/$id'
     | '/organizer/$id'
+    | '/player/$id'
     | '/api/public/health'
     | '/api/public/cron/maintenance'
   id:
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/activity/$id'
     | '/organizer/$id'
+    | '/player/$id'
     | '/api/public/health'
     | '/api/public/cron/maintenance'
   fileRoutesById: FileRoutesById
@@ -213,6 +225,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ActivityIdRoute: typeof ActivityIdRoute
   OrganizerIdRoute: typeof OrganizerIdRoute
+  PlayerIdRoute: typeof PlayerIdRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
   ApiPublicCronMaintenanceRoute: typeof ApiPublicCronMaintenanceRoute
 }
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/player/$id': {
+      id: '/player/$id'
+      path: '/player/$id'
+      fullPath: '/player/$id'
+      preLoaderRoute: typeof PlayerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/health': {
       id: '/api/public/health'
       path: '/api/public/health'
@@ -354,6 +374,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ActivityIdRoute: ActivityIdRoute,
   OrganizerIdRoute: OrganizerIdRoute,
+  PlayerIdRoute: PlayerIdRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,
   ApiPublicCronMaintenanceRoute: ApiPublicCronMaintenanceRoute,
 }

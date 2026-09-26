@@ -6,8 +6,12 @@ import {
   type ErrorComponentProps,
   type SearchSchemaInput,
 } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import {
+  queryOptions,
+  useSuspenseQuery,
+  useQuery,
+} from "@tanstack/react-query";
+import { useState, useEffect, type ReactNode } from "react";
 import {
   ArrowRight,
   Check,
@@ -17,6 +21,9 @@ import {
   Ticket,
   X,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { getFeedPreferences } from "@/lib/profile.functions";
+import { rankForPlayer } from "@/lib/profile-recommendations";
 import { FeedShell } from "@/components/sportura/feed-shell";
 import { ActivityCard } from "@/components/sportura/activity-card";
 import { ContentBlocks } from "@/components/sportura/content-blocks";
@@ -94,6 +101,28 @@ function FilterButton({
 }
 
 function Feed() {
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (live) setUserId(data.session?.user.id ?? null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) =>
+      setUserId(session?.user.id ?? null),
+    );
+    return () => {
+      live = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+  const prefs = useQuery({
+    queryKey: ["feed-preferences", userId],
+    queryFn: () => getFeedPreferences(),
+    enabled: !!userId,
+    retry: false,
+    staleTime: 30000,
+  });
+
   const { data: activities } = useSuspenseQuery(feedQuery);
   const { data: site } = useSuspenseQuery(siteQuery);
   const { now } = Route.useLoaderData();
@@ -117,7 +146,11 @@ function Feed() {
     filters.sport !== "all" ||
     filters.type !== "all" ||
     !!filters.q;
-  const list = filterFeed(activities, filters, new Date(now));
+  const filtered = filterFeed(activities, filters, new Date(now));
+  const list =
+    filters.sort === "personal" && prefs.data
+      ? rankForPlayer(filtered, prefs.data)
+      : filtered;
   const sports = [
     ...new Set([
       ...site.catalog.sports,
@@ -314,6 +347,9 @@ function Feed() {
                 }
               >
                 <option value="available">Сначала открытые</option>
+                {prefs.data && (
+                  <option value="personal">Для вас · по профилю</option>
+                )}
                 <option value="date">По дате</option>
                 <option value="price">Сначала дешевле</option>
               </select>
