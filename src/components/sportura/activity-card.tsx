@@ -14,17 +14,9 @@ import {
 } from "@/lib/sportura";
 
 export function StatusBadge({ status }: { status: ActivityStatus }) {
-  const tone: Record<ActivityStatus, string> = {
-    open: "bg-success/15 text-success",
-    nearly_full: "bg-accent/20 text-accent",
-    full: "bg-brand/20 text-brand",
-    completed: "bg-panel-2 text-muted-foreground",
-    cancelled: "bg-destructive/20 text-destructive",
-  };
   return (
-    <span
-      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone[status]}`}
-    >
+    <span className={`feed-status feed-status-${status}`}>
+      <i aria-hidden="true" />
       {ACTIVITY_STATUS_LABEL[status]}
     </span>
   );

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { AppShell } from "@/components/sportura/shell";
+import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,12 +46,12 @@ function ForgotPasswordPage() {
   }
 
   return (
-    <AppShell
+    <AuthFrame
       title="Забыли пароль?"
       subtitle="Восстановление доступа к Sportura"
     >
       {sent ? (
-        <div className="panel-frost space-y-4 rounded-3xl p-5">
+        <div className="auth-message space-y-4">
           <p role="status" className="text-sm">
             Если аккаунт с адресом {email.trim()} существует, мы отправили
             письмо со ссылкой. Проверь входящие и папку «Спам».
@@ -68,11 +68,7 @@ function ForgotPasswordPage() {
           </button>
         </div>
       ) : (
-        <form
-          onSubmit={sendReset}
-          className="panel-frost space-y-4 rounded-3xl p-5"
-          aria-busy={busy}
-        >
+        <form onSubmit={sendReset} className="space-y-5" aria-busy={busy}>
           <p className="text-sm text-muted-foreground">
             Введи почту аккаунта. Мы отправим ссылку для смены пароля.
           </p>
@@ -103,6 +99,6 @@ function ForgotPasswordPage() {
       >
         Вернуться ко входу
       </Link>
-    </AppShell>
+    </AuthFrame>
   );
 }

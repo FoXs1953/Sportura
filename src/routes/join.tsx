@@ -13,17 +13,19 @@ export const Route = createFileRoute("/join")({
       { title: "Закрытая игра по коду — Sportura" },
       {
         name: "description",
-        content: "Введите код приглашения, чтобы открыть закрытую игру или турнир в Астане.",
+        content:
+          "Введите код приглашения, чтобы открыть закрытую игру или турнир в Астане.",
       },
       { property: "og:title", content: "Закрытая игра по коду — Sportura" },
       {
         property: "og:description",
-        content: "Приватные игры доступны только по коду приглашения от организатора.",
+        content:
+          "Приватные игры доступны только по коду приглашения от организатора.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://sportspot-kz.lovable.app/join" },
+      { property: "og:url", content: "https://sportura.vercel.app/join" },
     ],
-    links: [{ rel: "canonical", href: "https://sportspot-kz.lovable.app/join" }],
+    links: [{ rel: "canonical", href: "https://sportura.vercel.app/join" }],
   }),
   component: JoinByCode,
 });
@@ -47,7 +49,9 @@ function JoinByCode() {
       }
       await navigate({ to: "/activity/$id", params: { id: found.id } });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Не удалось открыть игру");
+      toast.error(
+        err instanceof Error ? err.message : "Не удалось открыть игру",
+      );
     } finally {
       setBusy(false);
     }
@@ -56,10 +60,10 @@ function JoinByCode() {
   return (
     <AppShell title="Закрытая игра" subtitle="Вход по коду приглашения">
       <PageBlocks page="join" />
-      <div className="panel-frost space-y-4 rounded-3xl p-5">
+      <div className="join-panel panel-frost space-y-4 rounded-3xl p-6">
         <p className="text-sm text-muted-foreground">
-          Организатор закрытой игры или турнира даёт код приглашения. Введите его — откроется
-          страница игры, где можно записаться.
+          Организатор закрытой игры или турнира даёт код приглашения. Введите
+          его — откроется страница игры, где можно записаться.
         </p>
         <Input
           value={code}
@@ -70,7 +74,11 @@ function JoinByCode() {
           placeholder="Например: ASTANA-FC-12"
           autoCapitalize="characters"
         />
-        <Button className="press w-full" disabled={busy} onClick={() => void open()}>
+        <Button
+          className="press w-full"
+          disabled={busy}
+          onClick={() => void open()}
+        >
           {busy ? "Ищем…" : "Открыть игру"}
         </Button>
       </div>

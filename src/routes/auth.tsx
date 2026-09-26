@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { AppShell } from "@/components/sportura/shell";
+import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +12,15 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Вход — Sportura" },
-      { name: "description", content: "Войдите или зарегистрируйтесь, чтобы записываться на игры." },
+      {
+        name: "description",
+        content: "Войдите или зарегистрируйтесь, чтобы записываться на игры.",
+      },
       { property: "og:title", content: "Вход — Sportura" },
-      { property: "og:description", content: "Вход и регистрация участников Sportura." },
+      {
+        property: "og:description",
+        content: "Вход и регистрация участников Sportura.",
+      },
     ],
   }),
   component: AuthPage,
@@ -43,12 +49,17 @@ function AuthPage() {
         });
         if (error) throw error;
         if (!data.session) {
-          toast.success("Мы отправили письмо для подтверждения. Проверьте почту.");
+          toast.success(
+            "Мы отправили письмо для подтверждения. Проверьте почту.",
+          );
           return;
         }
         navigate({ to: "/" });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         if (error) throw error;
         navigate({ to: "/" });
       }
@@ -56,7 +67,11 @@ function AuthPage() {
       const raw = err instanceof Error ? err.message : "";
       const low = raw.toLowerCase();
       let message = raw || "Не удалось выполнить вход";
-      if (low.includes("pwned") || low.includes("compromised") || low.includes("leak")) {
+      if (
+        low.includes("pwned") ||
+        low.includes("compromised") ||
+        low.includes("leak")
+      ) {
         message = "Этот пароль уже утёк в интернет. Придумайте другой.";
       } else if (low.includes("weak")) {
         message = "Пароль должен быть не короче 6 символов.";
@@ -84,15 +99,20 @@ function AuthPage() {
   }
 
   return (
-    <AppShell
+    <AuthFrame
       title={mode === "signin" ? "Вход" : "Регистрация"}
       subtitle="Играйте, записывайтесь и создавайте игры"
     >
-      <form onSubmit={submit} className="panel-frost space-y-4 rounded-3xl p-5">
+      <form onSubmit={submit} className="space-y-5">
         {mode === "signup" ? (
           <div className="space-y-2">
             <Label htmlFor="name">Имя</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ваше имя" />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ваше имя"
+            />
           </div>
         ) : null}
         <div className="space-y-2">
@@ -123,29 +143,39 @@ function AuthPage() {
           {mode === "signin" ? "Войти" : "Создать аккаунт"}
         </Button>
         {mode === "signin" && (
-          <Link to="/forgot-password" className="block text-center text-sm text-brand underline">
+          <Link
+            to="/forgot-password"
+            className="block text-center text-sm text-brand underline"
+          >
             Забыли пароль?
           </Link>
         )}
-        <Button type="button" variant="secondary" className="press w-full" onClick={google}>
+        <Button
+          type="button"
+          variant="secondary"
+          className="press w-full"
+          onClick={google}
+        >
           Продолжить с Google
         </Button>
         <button
           type="button"
-          className="w-full text-center text-sm text-muted-foreground"
+          className="auth-switch w-full text-center text-sm"
           onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
         >
-          {mode === "signin" ? "Нет аккаунта? Зарегистрируйтесь" : "Уже есть аккаунт? Войти"}
+          {mode === "signin"
+            ? "Нет аккаунта? Зарегистрируйтесь"
+            : "Уже есть аккаунт? Войти"}
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-muted-foreground">
+      <p className="auth-bottom-note text-center text-xs text-muted-foreground">
         Продолжая, вы принимаете{" "}
         <Link to="/legal" className="text-brand underline">
           правила и политики платформы
         </Link>
         .
       </p>
-    </AppShell>
+    </AuthFrame>
   );
 }

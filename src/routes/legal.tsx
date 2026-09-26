@@ -13,7 +13,10 @@ export const Route = createFileRoute("/legal")({
           "Условия использования, политика конфиденциальности, правила участников, менеджеров, возвратов и споров Sportura.",
       },
       { property: "og:title", content: "Правила и политики — Sportura" },
-      { property: "og:description", content: "Документы и правила платформы Sportura." },
+      {
+        property: "og:description",
+        content: "Документы и правила платформы Sportura.",
+      },
     ],
   }),
   component: Legal,
@@ -92,9 +95,12 @@ const SECTIONS: { title: string; body: string[] }[] = [
 
 function Legal() {
   return (
-    <AppShell title="Правила и политики" subtitle="Документы платформы Sportura">
+    <AppShell
+      title="Правила и политики"
+      subtitle="Документы платформы Sportura"
+    >
       <PageBlocks page="legal" />
-      <div className="space-y-4">
+      <div className="legal-page grid gap-4 md:grid-cols-2">
         {SECTIONS.map((s) => (
           <section key={s.title} className="panel-frost rounded-3xl p-5">
             <h2 className="text-base font-semibold">{s.title}</h2>

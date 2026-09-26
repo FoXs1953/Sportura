@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { AppShell } from "@/components/sportura/shell";
+import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -111,14 +111,17 @@ function ResetPasswordPage() {
   }
 
   return (
-    <AppShell title="Новый пароль" subtitle="Восстановление доступа к Sportura">
+    <AuthFrame
+      title="Новый пароль"
+      subtitle="Восстановление доступа к Sportura"
+    >
       {screen === "checking" && (
         <p role="status" className="text-sm text-muted-foreground">
           Проверяем ссылку…
         </p>
       )}
       {screen === "expired" && (
-        <div className="panel-frost space-y-4 rounded-3xl p-5">
+        <div className="auth-message space-y-4">
           <h2 className="text-lg font-semibold">
             Ссылка недействительна или истекла
           </h2>
@@ -134,11 +137,7 @@ function ResetPasswordPage() {
         </div>
       )}
       {screen === "change" && (
-        <form
-          onSubmit={changePassword}
-          className="panel-frost space-y-4 rounded-3xl p-5"
-          aria-busy={busy}
-        >
+        <form onSubmit={changePassword} className="space-y-5" aria-busy={busy}>
           <p className="text-sm text-muted-foreground">
             Установи новый пароль для {accountEmail || "своего аккаунта"}.
           </p>
@@ -180,7 +179,7 @@ function ResetPasswordPage() {
         </form>
       )}
       {screen === "done" && (
-        <div className="panel-frost space-y-4 rounded-3xl p-5">
+        <div className="auth-message space-y-4">
           <p role="status" className="text-sm">
             Пароль сохранён. Войди с новым паролем.
           </p>
@@ -200,6 +199,6 @@ function ResetPasswordPage() {
           Вернуться ко входу
         </Link>
       )}
-    </AppShell>
+    </AuthFrame>
   );
 }

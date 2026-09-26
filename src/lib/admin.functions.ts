@@ -16,8 +16,14 @@ export const getAdminAlerts = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context);
     const [apps, regs, disputes] = await Promise.all([
-      context.supabase.from("manager_applications").select("id").eq("status", "pending"),
-      context.supabase.from("registrations").select("id").eq("payment_status", "needs_review"),
+      context.supabase
+        .from("manager_applications")
+        .select("id")
+        .eq("status", "pending"),
+      context.supabase
+        .from("registrations")
+        .select("id")
+        .eq("payment_status", "needs_review"),
       context.supabase.from("disputes").select("id").eq("status", "open"),
     ]);
     return {
@@ -32,9 +38,20 @@ export const getAdminOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context);
     const { supabase } = context;
-    const [users, activities, registrations, disputes, applications, transactions] = await Promise.all([
+    const [
+      users,
+      activities,
+      registrations,
+      disputes,
+      applications,
+      transactions,
+    ] = await Promise.all([
       supabase.from("profiles").select("id, account_status"),
-      supabase.from("activities").select("id, type, status, entry_fee, commission_percent, registered_count"),
+      supabase
+        .from("activities")
+        .select(
+          "id, type, status, entry_fee, commission_percent, registered_count",
+        ),
       supabase.from("registrations").select("id, payment_status"),
       supabase.from("disputes").select("id, status"),
       supabase.from("manager_applications").select("id, status"),
@@ -52,13 +69,21 @@ export const getAdminOverview = createServerFn({ method: "GET" })
 
     const commission = acts
       .filter((a) => a.type !== "daily_game" && a.entry_fee)
-      .reduce((sum, a) => sum + (a.entry_fee ?? 0) * a.registered_count * (a.commission_percent / 100), 0);
+      .reduce(
+        (sum, a) =>
+          sum +
+          (a.entry_fee ?? 0) *
+            a.registered_count *
+            (a.commission_percent / 100),
+        0,
+      );
 
     return {
       users: {
         total: (users.data ?? []).length,
-        flagged: (users.data ?? []).filter((u: { account_status: string }) => u.account_status !== "active")
-          .length,
+        flagged: (users.data ?? []).filter(
+          (u: { account_status: string }) => u.account_status !== "active",
+        ).length,
       },
       activities: {
         total: acts.length,
@@ -70,14 +95,23 @@ export const getAdminOverview = createServerFn({ method: "GET" })
         total: regs.length,
         paid: regs.filter((r) => r.payment_status === "paid").length,
         pending: regs.filter((r) => r.payment_status === "pending").length,
-        needsReview: regs.filter((r) => r.payment_status === "needs_review").length,
+        needsReview: regs.filter((r) => r.payment_status === "needs_review")
+          .length,
         rejected: regs.filter((r) => r.payment_status === "rejected").length,
       },
-      disputesOpen: ((disputes.data ?? []) as { status: string }[]).filter((d) => d.status === "open").length,
-      applicationsPending: ((applications.data ?? []) as { status: string }[]).filter(
-        (a) => a.status === "pending",
+      disputesOpen: ((disputes.data ?? []) as { status: string }[]).filter(
+        (d) => d.status === "open",
       ).length,
-      escrowBalance: ((transactions.data ?? []) as { type: string; amount: number; status: string }[])
+      applicationsPending: (
+        (applications.data ?? []) as { status: string }[]
+      ).filter((a) => a.status === "pending").length,
+      escrowBalance: (
+        (transactions.data ?? []) as {
+          type: string;
+          amount: number;
+          status: string;
+        }[]
+      )
         .filter((t) => t.status === "pending")
         .reduce((s, t) => s + Number(t.amount), 0),
       commissionRevenue: Math.round(commission),
@@ -96,12 +130,14 @@ export const listUsersAdmin = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
-    const roles = await context.supabase.from("user_roles").select("user_id, role");
+    const roles = await context.supabase
+      .from("user_roles")
+      .select("user_id, role");
     const byUser: Record<string, string[]> = {};
     for (const r of (roles.data ?? []) as { user_id: string; role: string }[]) {
       (byUser[r.user_id] ??= []).push(r.role);
     }
-    return (data ?? []).map((u: { id: string }) => ({ ...u, roles: byUser[u.id] ?? [] }));
+    return (data ?? []).map((u) => ({ ...u, roles: byUser[u.id] ?? [] }));
   });
 
 export const listApplicationsAdmin = createServerFn({ method: "GET" })
@@ -110,7 +146,9 @@ export const listApplicationsAdmin = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const { data, error } = await context.supabase
       .from("manager_applications")
-      .select("id, user_id, requested_role, motivation, status, admin_notes, created_at, reviewed_at")
+      .select(
+        "id, user_id, requested_role, motivation, status, admin_notes, created_at, reviewed_at",
+      )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     type AppProfile = {
@@ -141,7 +179,7 @@ export const listApplicationsAdmin = createServerFn({ method: "GET" })
           .in("id", ids)
       : { data: [] as AppProfile[] };
     const byId: Record<string, AppProfile> = {};
-    for (const p of ((profiles.data ?? []) as AppProfile[])) byId[p.id] = p;
+    for (const p of (profiles.data ?? []) as AppProfile[]) byId[p.id] = p;
     return rows.map((r) => ({ ...r, profile: byId[r.user_id] ?? null }));
   });
 
@@ -178,7 +216,8 @@ export const reviewApplication = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (data.approve) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { supabaseAdmin } =
+        await import("@/integrations/supabase/client.server");
       const grant = await supabaseAdmin
         .from("user_roles")
         .insert({ user_id: app.data.user_id, role: app.data.requested_role });
@@ -244,7 +283,9 @@ export const listDisputesAdmin = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const { data, error } = await context.supabase
       .from("disputes")
-      .select("id, reason, status, admin_notes, created_at, user_id, activity:activities(id, title)")
+      .select(
+        "id, reason, status, admin_notes, created_at, user_id, activity:activities(id, title)",
+      )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -300,7 +341,10 @@ function csvEscape(value: unknown): string {
 }
 
 function toCsv(headers: string[], rows: unknown[][]): string {
-  const lines = [headers.join(";"), ...rows.map((r) => r.map(csvEscape).join(";"))];
+  const lines = [
+    headers.join(";"),
+    ...rows.map((r) => r.map(csvEscape).join(";")),
+  ];
   // BOM so Excel on Windows reads Cyrillic correctly
   return `\uFEFF${lines.join("\r\n")}`;
 }
@@ -308,7 +352,9 @@ function toCsv(headers: string[], rows: unknown[][]): string {
 /** Admin-only CSV export for reporting and reconciliation. */
 export const exportAdminCsv = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ kind: z.enum(CSV_KINDS) }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ kind: z.enum(CSV_KINDS) }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabase } = context;
@@ -468,7 +514,16 @@ export const exportAdminCsv = createServerFn({ method: "POST" })
     return {
       filename: "sportura-payment-audit.csv",
       csv: toCsv(
-        ["ID", "Активность", "Было", "Стало", "Номер платежа", "Заметка", "Кто изменил", "Когда"],
+        [
+          "ID",
+          "Активность",
+          "Было",
+          "Стало",
+          "Номер платежа",
+          "Заметка",
+          "Кто изменил",
+          "Когда",
+        ],
         (rows ?? []).map((h: any) => [
           h.id,
           h.activity?.title,
@@ -490,7 +545,9 @@ export const getCommissionReport = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const { data: rows, error } = await context.supabase
       .from("activities")
-      .select("id, title, type, entry_fee, commission_percent, registered_count, created_at")
+      .select(
+        "id, title, type, entry_fee, commission_percent, registered_count, created_at",
+      )
       .neq("type", "daily_game")
       .eq("is_free", false)
       .order("created_at", { ascending: true })
@@ -500,7 +557,9 @@ export const getCommissionReport = createServerFn({ method: "GET" })
     const list = (rows ?? []).map((a: any, index: number) => {
       const gross = Number(a.entry_fee ?? 0) * Number(a.registered_count ?? 0);
       const free = index < 10;
-      const commission = free ? 0 : Math.round((gross * Number(a.commission_percent ?? 10)) / 100);
+      const commission = free
+        ? 0
+        : Math.round((gross * Number(a.commission_percent ?? 10)) / 100);
       return {
         id: a.id as string,
         title: a.title as string,

@@ -17,7 +17,7 @@ export function FeedShell({ children }: { children: ReactNode }) {
   return (
     <div className="feed-shell">
       <a className="feed-skip-link" href="#feed-content">
-        К событиям
+        К содержимому
       </a>
       <header className="feed-header">
         <div className="feed-header-inner">
