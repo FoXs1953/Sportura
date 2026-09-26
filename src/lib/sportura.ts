@@ -3,18 +3,32 @@ import minifootball from "@/assets/sport-minifootball.jpg";
 import basketball from "@/assets/sport-basketball.jpg";
 import volleyball from "@/assets/sport-volleyball.jpg";
 
-export const SPORTS = ["Футбол", "Мини-футбол", "Баскетбол", "Волейбол"] as const;
+export const SPORTS = [
+  "Футбол",
+  "Мини-футбол",
+  "Баскетбол",
+  "Волейбол",
+] as const;
 export type Sport = (typeof SPORTS)[number];
 
 export const CITIES = ["Астана", "Алматы", "Шымкент", "Караганда"] as const;
 
-export const SKILL_LEVELS = ["Любой", "Начальный", "Любитель", "Профессиональный"] as const;
+export const SKILL_LEVELS = [
+  "Любой",
+  "Начальный",
+  "Любитель",
+  "Профессиональный",
+] as const;
 
 export type ActivityType = "daily_game" | "tournament" | "league";
-export type ActivityStatus = "open" | "nearly_full" | "full" | "completed" | "cancelled";
-export type PaymentStatus = "pending" | "paid" | "needs_review" | "rejected" | "refunded";
-export type RegistrationStatus = "registered" | "cancelled" | "no_show" | "attended" | "rejected";
-export type AppRole = "participant" | "sports_manager" | "tournament_organizer" | "admin";
+export type ActivityStatus =
+  "open" | "nearly_full" | "full" | "completed" | "cancelled";
+export type PaymentStatus =
+  "pending" | "paid" | "needs_review" | "rejected" | "refunded";
+export type RegistrationStatus =
+  "registered" | "cancelled" | "no_show" | "attended" | "rejected";
+export type AppRole =
+  "participant" | "sports_manager" | "tournament_organizer" | "admin";
 export type AccountStatus = "active" | "flagged" | "suspended" | "banned";
 
 export const ACTIVITY_TYPE_LABEL: Record<ActivityType, string> = {
@@ -74,7 +88,10 @@ export function formatKzt(value: number | null | undefined): string {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(value))} ₸`;
 }
 
-export function priceLabel(a: { price_text: string | null; entry_fee: number | null }): string {
+export function priceLabel(a: {
+  price_text: string | null;
+  entry_fee: number | null;
+}): string {
   if (a.price_text && a.price_text.trim()) return a.price_text;
   return formatKzt(a.entry_fee);
 }
@@ -91,6 +108,7 @@ export function spotsLeft(registered: number, max: number): number {
 export function formatDateTime(value: string | null): string {
   if (!value) return "";
   return new Date(value).toLocaleString("ru-RU", {
+    timeZone: "Asia/Almaty",
     day: "numeric",
     month: "long",
     hour: "2-digit",
@@ -98,7 +116,10 @@ export function formatDateTime(value: string | null): string {
   });
 }
 
-export function timeLabel(a: { time_text: string | null; date_time: string | null }): string {
+export function timeLabel(a: {
+  time_text: string | null;
+  date_time: string | null;
+}): string {
   if (a.time_text && a.time_text.trim()) return a.time_text;
   return formatDateTime(a.date_time);
 }

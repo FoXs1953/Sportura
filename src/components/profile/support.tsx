@@ -27,6 +27,7 @@ export type TicketDraft = {
   topic: string;
   subject: string;
   registration_id?: string;
+  activity_id?: string;
   review_id?: string;
 };
 export function TicketComposer({
@@ -47,6 +48,7 @@ export function TicketComposer({
       topic: draft?.topic ?? "general",
       subject: draft?.subject ?? "",
       registration_id: draft?.registration_id ?? "",
+      activity_id: draft?.activity_id ?? "",
       review_id: draft?.review_id ?? "",
       body: "",
     },

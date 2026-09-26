@@ -47,7 +47,11 @@ function JoinByCode() {
         toast.error("Игра по такому коду не найдена");
         return;
       }
-      await navigate({ to: "/activity/$id", params: { id: found.id } });
+      await navigate({
+        to: "/activity/$id",
+        params: { id: found.id },
+        search: { code: code.trim() },
+      });
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Не удалось открыть игру",

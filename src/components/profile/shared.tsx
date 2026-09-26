@@ -125,6 +125,7 @@ export function useProfileForm<T extends object>(
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["profile-workspace"] }),
         qc.invalidateQueries({ queryKey: ["me"] }),
+        qc.invalidateQueries({ queryKey: ["event-host"] }),
       ]);
       return true;
     } catch (e) {
@@ -222,11 +223,13 @@ export function SaveRow({
 export function Panel({
   title,
   subtitle,
+  description,
   children,
   action,
 }: {
   title: string;
   subtitle?: string;
+  description?: string;
   children: ReactNode;
   action?: ReactNode;
 }) {
@@ -235,9 +238,9 @@ export function Panel({
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="workspace-section-title">{title}</h2>
-          {subtitle && (
+          {(subtitle || description) && (
             <p className="workspace-muted mt-2 text-sm leading-relaxed">
-              {subtitle}
+              {subtitle || description}
             </p>
           )}
         </div>
@@ -249,16 +252,18 @@ export function Panel({
 }
 export function Empty({
   title,
+  text,
   children,
 }: {
   title: string;
+  text?: string;
   children?: ReactNode;
 }) {
   return (
     <div className="profile-empty">
       <h3>{title}</h3>
-      {children && (
-        <div className="workspace-muted mt-2 text-sm">{children}</div>
+      {(children || text) && (
+        <div className="workspace-muted mt-2 text-sm">{children || text}</div>
       )}
     </div>
   );

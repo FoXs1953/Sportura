@@ -35,10 +35,16 @@ function localDay(date: Date): number {
   return Date.UTC(part("year"), part("month") - 1, part("day"));
 }
 
-export function isRegistrationOpen(activity: PublicActivity): boolean {
+export function isRegistrationOpen(
+  activity: PublicActivity,
+  now = Date.now(),
+): boolean {
   return (
     (activity.status === "open" || activity.status === "nearly_full") &&
-    activity.registered_count < activity.max_participants
+    activity.registered_count < activity.max_participants &&
+    (!activity.date_time || Date.parse(activity.date_time) > now) &&
+    (!activity.registration_deadline ||
+      Date.parse(activity.registration_deadline) > now)
   );
 }
 
@@ -56,7 +62,8 @@ export function filterFeed(
     if (filters.sport !== "all" && activity.sport !== filters.sport)
       return false;
     if (filters.free && !activity.is_free) return false;
-    if (filters.open && !isRegistrationOpen(activity)) return false;
+    if (filters.open && !isRegistrationOpen(activity, now.getTime()))
+      return false;
     if (
       search &&
       ![
@@ -90,7 +97,10 @@ export function filterFeed(
       return price(a) - price(b) || 0;
     }
     if (filters.sort === "date") return timestamp(a) - timestamp(b) || 0;
-    return Number(isRegistrationOpen(b)) - Number(isRegistrationOpen(a));
+    return (
+      Number(isRegistrationOpen(b, now.getTime())) -
+      Number(isRegistrationOpen(a, now.getTime()))
+    );
   });
 }
 

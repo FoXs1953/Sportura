@@ -59,7 +59,13 @@ export function ActivityCard({
   activity,
   priority = false,
 }: {
-  activity: PublicActivity;
+  activity: PublicActivity & {
+    cover_url?: string | null;
+    duration_minutes?: number | null;
+    participation_mode?: string;
+    host_rating_count?: number;
+    host_approved?: boolean;
+  };
   priority?: boolean;
 }) {
   const open = isRegistrationOpen(activity);
@@ -92,7 +98,10 @@ export function ActivityCard({
       >
         <div className="feed-card-image">
           <img
-            src={sportImage(activity.sport)}
+            src={activity.cover_url || sportImage(activity.sport)}
+            onError={(e) => {
+              e.currentTarget.src = sportImage(activity.sport);
+            }}
             alt=""
             width={640}
             height={360}
@@ -105,7 +114,22 @@ export function ActivityCard({
             </span>
             <span className={`feed-status feed-status-${status}`}>
               <i aria-hidden="true" />
-              {open ? "Идёт набор" : ACTIVITY_STATUS_LABEL[status]}
+              {open
+                ? "Идёт набор"
+                : activity.status === "cancelled"
+                  ? "Отменено"
+                  : activity.status === "completed"
+                    ? "Завершено"
+                    : activity.date_time &&
+                        Date.parse(activity.date_time) <= Date.now()
+                      ? Date.parse(activity.date_time) +
+                          (activity.duration_minutes ?? 120) * 60000 >
+                        Date.now()
+                        ? "Идёт сейчас"
+                        : "Завершилось"
+                      : left === 0
+                        ? "Мест нет"
+                        : "Регистрация закрыта"}
             </span>
           </div>
           <span className="feed-card-sport">{activity.sport}</span>
@@ -122,18 +146,30 @@ export function ActivityCard({
             </p>
             <p>
               <MapPin size={15} aria-hidden="true" />
-              <span>{activity.location_text || "Площадка уточняется"}</span>
+              <span>
+                {activity.city} ·{" "}
+                {activity.location_text || "Площадка уточняется"}
+              </span>
             </p>
           </div>
+          <p className="workspace-muted text-xs">
+            {activity.skill_level || "Любой уровень"}
+            {activity.host_approved ? " · Организатор с одобренной ролью" : ""}
+          </p>
           <div className="feed-card-capacity">
             <div className="feed-capacity-label">
               <span>
                 <UsersRound size={14} aria-hidden="true" />
                 <strong>{activity.registered_count}</strong>
-                <span>/ {activity.max_participants} участников</span>
+                <span>
+                  / {activity.max_participants}{" "}
+                  {activity.participation_mode === "team"
+                    ? "команд"
+                    : "участников"}
+                </span>
               </span>
               <span className={open && left <= 3 ? "feed-last-spots" : ""}>
-                {closed
+                {!open
                   ? "Запись закрыта"
                   : left > 0
                     ? `${left} ${placeWord === "one" ? "место" : placeWord === "few" ? "места" : "мест"}`
@@ -168,7 +204,11 @@ export function ActivityCard({
                     <>
                       <Star size={11} aria-hidden="true" />
                       {activity.host_rating.toFixed(1)}
-                      <span>организатор</span>
+                      <span>
+                        {activity.host_rating_count
+                          ? `${activity.host_rating_count} оценок`
+                          : "организатор"}
+                      </span>
                     </>
                   ) : (
                     "Организатор"
@@ -182,7 +222,13 @@ export function ActivityCard({
               <strong>
                 {activity.is_free ? "Бесплатно" : priceLabel(activity)}
               </strong>
-              <span>{activity.is_free ? "за участие" : "с участника"}</span>
+              <span>
+                {activity.participation_mode === "team"
+                  ? "за команду"
+                  : activity.is_free
+                    ? "за участие"
+                    : "с участника"}
+              </span>
             </div>
           </div>
         </div>

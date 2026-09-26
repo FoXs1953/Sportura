@@ -233,4 +233,5 @@ try {
   );
 }
 console.log("DATABASE CHECKS PASSED");
+await (await import('./events-database.mjs')).testEvents(db,as,assert);
 await db.close();

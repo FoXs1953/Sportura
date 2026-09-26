@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "../components/ui/sonner";
 import { AppShell } from "../components/sportura/shell";
 import appCss from "../styles.css?url";
@@ -140,6 +141,19 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    let previous: string | null | undefined;
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      const next = session?.user.id ?? null;
+      if (
+        event === "SIGNED_OUT" ||
+        (previous !== undefined && previous !== next)
+      )
+        queryClient.clear();
+      previous = next;
+    });
+    return () => data.subscription.unsubscribe();
+  }, [queryClient]);
 
   useEffect(() => {
     // Some auth configurations redirect to the site root instead of the requested path.

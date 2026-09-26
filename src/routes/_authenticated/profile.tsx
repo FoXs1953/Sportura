@@ -37,11 +37,25 @@ import { HelpTab, type TicketDraft } from "@/components/profile/support";
 import "@/styles/profile.css";
 const searchSchema = z.object({
   tab: z.enum(profileTabs).optional().catch(undefined),
+  registration: z.string().uuid().optional().catch(undefined),
+  activity: z.string().uuid().optional().catch(undefined),
+  review: z.string().uuid().optional().catch(undefined),
+  topic: z
+    .enum(["general", "payment", "attendance", "review"])
+    .optional()
+    .catch(undefined),
   ticket: z.string().uuid().optional().catch(undefined),
 });
 export const Route = createFileRoute("/_authenticated/profile")({
   validateSearch: (
-    search: { tab?: string; ticket?: string } & SearchSchemaInput,
+    search: {
+      tab?: string;
+      ticket?: string;
+      registration?: string;
+      activity?: string;
+      review?: string;
+      topic?: string;
+    } & SearchSchemaInput,
   ) => searchSchema.parse(search),
   head: () => ({
     meta: [
@@ -73,6 +87,18 @@ function Profile() {
   });
   const [avatar, setAvatar] = useState("");
   const [draft, setDraft] = useState<TicketDraft>();
+  const linkedDraft: TicketDraft | undefined =
+    search.registration || search.activity || search.review
+      ? {
+          topic: search.topic ?? "general",
+          subject: "Вопрос по событию",
+          ...(search.registration
+            ? { registration_id: search.registration }
+            : {}),
+          ...(search.activity ? { activity_id: search.activity } : {}),
+          ...(search.review ? { review_id: search.review } : {}),
+        }
+      : undefined;
   useEffect(() => {
     if (search.tab) {
       try {
@@ -210,7 +236,9 @@ function Profile() {
               {tab === "help" && (
                 <HelpTab
                   data={data}
-                  {...(draft ? { draft } : {})}
+                  {...(draft || linkedDraft
+                    ? { draft: draft ?? linkedDraft }
+                    : {})}
                   {...(search.ticket ? { ticketId: search.ticket } : {})}
                   onDone={() => setDraft(undefined)}
                 />

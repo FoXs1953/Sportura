@@ -1,1426 +1,1001 @@
+import { useState } from "react";
 import {
-  KASPI_LINK_MESSAGE,
-  TWO_GIS_MESSAGE,
-  parseKaspiLink,
-  parseTwoGisLink,
-} from "@/lib/kz-validation";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  CalendarDays,
-  Clock3,
-  ClipboardList,
-  MapPin,
-  Plus,
-  UsersRound,
-  Wallet,
-} from "lucide-react";
+  createFileRoute,
+  Link,
+  type SearchSchemaInput,
+} from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import { toast } from "sonner";
 import { AppShell } from "@/components/sportura/shell";
-import { ReceiptLink } from "@/components/sportura/receipt-link";
 import { Button } from "@/components/ui/button";
+import { UnsavedChanges } from "@/components/profile/shared";
+import { getHostEvents, mutateEvent } from "@/lib/event.functions";
+import { getMe, type MyProfile } from "@/lib/me.functions";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { getMe } from "@/lib/me.functions";
-import {
-  createCompetition,
-  createDailyGame,
-  getMyActivities,
-  setActivityStatus,
-  submitCompetitionResults,
-} from "@/lib/host.functions";
-import {
-  listActivityParticipants,
-  setPaymentStatus,
-} from "@/lib/registrations.functions";
+  eventDraft,
+  eventPhase,
+  localDateTime,
+  type Event,
+  type HostWorkspace,
+  type HostDocument,
+} from "@/lib/event-model";
 import {
   ACTIVITY_TYPE_LABEL,
   ACTIVITY_STATUS_LABEL,
-  CITIES,
-  COMPETITION_DISCLAIMER,
-  KASPI_DISCLAIMER,
-  PAYMENT_STATUS_LABEL,
-  PRIZE_TEMPLATE,
-  SKILL_LEVELS,
+  ROLE_LABEL,
   SPORTS,
-  capacityPercent,
-  priceLabel,
+  formatKzt,
   sportImage,
-  timeLabel,
-  type ActivityType,
-  type ActivityStatus,
-  type PaymentStatus,
 } from "@/lib/sportura";
-
-export const Route = createFileRoute("/_authenticated/host")({
-  head: () => ({
-    meta: [
-      { title: "Кабинет организатора — Sportura" },
-      {
-        name: "description",
-        content: "Создание игр и турниров, участники, статусы оплаты.",
-      },
-      { property: "og:title", content: "Кабинет организатора — Sportura" },
-      {
-        property: "og:description",
-        content: "Управление играми, участниками и оплатой.",
-      },
-    ],
-  }),
-  component: HostDashboard,
+import {
+  Panel,
+  Empty,
+  ErrorNotice,
+  History,
+  Confirm,
+  CalendarButton,
+  MapLink,
+  HelpLink,
+  useEventAction,
+  dateLabel,
+} from "@/components/events/shared";
+import { EventWizard } from "@/components/events/host/wizard";
+import { Participants } from "@/components/events/host/participants";
+import { HostCompetition } from "@/components/events/competition";
+import { HostInsights } from "@/components/events/host/insights";
+import { HostSettings } from "@/components/events/host/settings";
+import "@/styles/profile.css";
+import "@/styles/events.css";
+const tabs = {
+  overview: "Обзор",
+  events: "Мои события",
+  participants: "Участники",
+  payments: "Оплаты и возвраты",
+  competitions: "Турниры и лиги",
+  insights: "Статистика и отзывы",
+  settings: "Настройки и помощь",
+};
+const schema = z.object({
+  tab: z
+    .enum([
+      "overview",
+      "events",
+      "participants",
+      "payments",
+      "competitions",
+      "insights",
+      "settings",
+    ])
+    .catch("overview")
+    .default("overview"),
+  event: z.string().uuid().optional(),
+  section: z
+    .enum(["overview", "participants", "payments", "results", "history"])
+    .catch("overview")
+    .default("overview"),
+  status: z.string().optional(),
 });
-
-type Tab = "list" | "create-game" | "create-competition";
-type HostedActivity = {
-  id: string;
-  title: string;
-  sport: string;
-  location_text: string;
-  type: ActivityType;
-  status: ActivityStatus;
-  registered_count: number;
-  max_participants: number;
-  time_text: string | null;
-  date_time: string | null;
-  price_text: string | null;
-  entry_fee: number | null;
-  is_private: boolean;
-  invite_code: string | null;
-};
-type ParticipantRegistration = {
-  id: string;
-  status: string;
-  payment_status: PaymentStatus;
-  payment_reference: string | null;
-  participant_note: string | null;
-  receipt_url: string | null;
-  profile: { name: string } | null;
-};
-
-function HostDashboard() {
-  const queryClient = useQueryClient();
-  const {
-    data: me,
-    isLoading: meLoading,
-    isError: meError,
-    refetch: refetchMe,
-  } = useQuery({ queryKey: ["me"], queryFn: () => getMe() });
-  const {
-    data: mine,
-    isLoading: activitiesLoading,
-    isError: activitiesError,
-    refetch: refetchActivities,
-  } = useQuery({
-    queryKey: ["host", "activities"],
-    queryFn: () => getMyActivities(),
+export const Route = createFileRoute("/_authenticated/host")({
+  validateSearch: (
+    s: {
+      tab?: string;
+      event?: string;
+      section?: string;
+      status?: string;
+    } & SearchSchemaInput,
+  ) => schema.parse(s),
+  head: () => ({ meta: [{ title: "Кабинет организатора — Sportura" }] }),
+  component: HostPage,
+});
+function HostPage() {
+  const me = useQuery({ queryKey: ["me"], queryFn: () => getMe() });
+  const q = useQuery({
+    queryKey: ["event-host"],
+    queryFn: () => getHostEvents(),
+    enabled: !!me.data,
+    refetchInterval: 30000,
   });
-  const [tab, setTab] = useState<Tab>("list");
-  const [listFilter, setListFilter] = useState<"active" | "history">("active");
-  const [openParticipants, setOpenParticipants] = useState<string | null>(null);
-  const [newCode, setNewCode] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  const isManager = Boolean(
-    me?.roles.includes("sports_manager") || me?.roles.includes("admin"),
-  );
-  const isOrganizer = Boolean(
-    me?.roles.includes("tournament_organizer") || me?.roles.includes("admin"),
-  );
-  const activities = (mine?.activities ?? []) as HostedActivity[];
-  const active = activities.filter(
-    (a) => a.status !== "cancelled" && a.status !== "completed",
-  );
-  const history = activities.filter(
-    (a) => a.status === "cancelled" || a.status === "completed",
-  );
-  const shown = listFilter === "active" ? active : history;
-  const totalPlayers = active.reduce(
-    (sum, a) => sum + (a.registered_count ?? 0),
-    0,
-  );
-  const toReview = Object.values(mine?.stats ?? {}).reduce(
-    (sum, item) => sum + item.review,
-    0,
-  );
-
-  async function changeStatus(
-    activityId: string,
-    status: ActivityStatus,
-    success: string,
-  ) {
-    setBusyId(activityId);
-    try {
-      await setActivityStatus({ data: { activityId, status } });
-      toast.success(success);
-      await queryClient.invalidateQueries({ queryKey: ["host", "activities"] });
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Не удалось обновить статус",
-      );
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  if (meLoading)
-    return (
-      <AppShell workspace title="Организатор">
-        <div className="workspace-panel h-56 animate-pulse" />
-      </AppShell>
-    );
-  if (meError)
-    return (
-      <AppShell workspace title="Организатор">
-        <div className="workspace-panel workspace-empty" role="alert">
-          <h2>Не удалось загрузить профиль</h2>
-          <p>Проверьте соединение и попробуйте ещё раз.</p>
-          <Button onClick={() => void refetchMe()}>Повторить</Button>
-        </div>
-      </AppShell>
-    );
-  if (me && !isManager && !isOrganizer) {
-    return (
-      <AppShell
-        workspace
-        title="Организатор"
-        subtitle="Создавайте события и управляйте участниками"
-      >
-        <div className="workspace-panel workspace-empty">
-          <div className="workspace-empty-icon">
-            <ClipboardList size={24} />
-          </div>
-          <h2>Начните проводить игры</h2>
-          <p>
-            Чтобы создавать игры и турниры, подайте заявку на роль организатора.
-            Статус заявки появится в профиле.
-          </p>
-          <Link to="/profile" className="workspace-primary-link mt-2">
-            Перейти в профиль <ArrowRight size={16} />
-          </Link>
-        </div>
-      </AppShell>
-    );
-  }
-
   return (
     <AppShell
       workspace
-      title="Организатор"
-      subtitle={me?.name ? `Кабинет ${me.name}` : "Игры, участники и оплата"}
+      title="Кабинет организатора"
+      subtitle="События, участники и результаты в одном месте"
     >
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="workspace-stat">
-          <strong>{active.length}</strong>
-          <span>Активных событий</span>
-        </div>
-        <div className="workspace-stat">
-          <strong>{totalPlayers}</strong>
-          <span>Игроков записалось</span>
-        </div>
-        <div className="workspace-stat">
-          <strong className={toReview ? "workspace-count" : ""}>
-            {toReview}
-          </strong>
-          <span>Платежей на проверке</span>
-        </div>
-        <div className="workspace-stat">
-          <strong>{history.length}</strong>
-          <span>В истории</span>
-        </div>
-      </div>
-
-      <div
-        className="mb-6 flex flex-wrap gap-2"
-        role="group"
-        aria-label="Разделы кабинета"
-      >
-        <button
-          type="button"
-          aria-pressed={tab === "list"}
-          onClick={() => setTab("list")}
-          className={
-            tab === "list"
-              ? "workspace-primary-link"
-              : "workspace-panel-raised px-4 py-2.5 text-xs font-bold"
-          }
-        >
-          <ClipboardList size={16} /> Мои события
-        </button>
-        {isManager && (
-          <button
-            type="button"
-            aria-pressed={tab === "create-game"}
-            onClick={() => setTab("create-game")}
-            className={
-              tab === "create-game"
-                ? "workspace-primary-link"
-                : "workspace-panel-raised inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold"
-            }
-          >
-            <Plus size={16} /> Новая игра
-          </button>
-        )}
-        {isOrganizer && (
-          <button
-            type="button"
-            aria-pressed={tab === "create-competition"}
-            onClick={() => setTab("create-competition")}
-            className={
-              tab === "create-competition"
-                ? "workspace-primary-link"
-                : "workspace-panel-raised inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold"
-            }
-          >
-            <Plus size={16} /> Турнир или лига
-          </button>
-        )}
-      </div>
-
-      {tab === "create-game" && (
-        <div className="max-w-3xl">
-          <div className="mb-4">
-            <p className="workspace-overline">Новое событие</p>
-            <h2 className="workspace-section-title mt-2">
-              Создать игровой слот
-            </h2>
-            <p className="workspace-muted mt-1 text-xs">
-              Черновик сохраняется автоматически.
-            </p>
-          </div>
-          <GameForm onDone={() => setTab("list")} onCreated={setNewCode} />
-        </div>
-      )}
-      {tab === "create-competition" && (
-        <div className="max-w-3xl">
-          <div className="mb-4">
-            <p className="workspace-overline">Новое событие</p>
-            <h2 className="workspace-section-title mt-2">
-              Создать соревнование
-            </h2>
-            <p className="workspace-muted mt-1 text-xs">
-              Черновик сохраняется автоматически.
-            </p>
-          </div>
-          <CompetitionForm onDone={() => setTab("list")} />
-        </div>
-      )}
-
-      {tab === "list" && (
-        <section aria-label="Мои события">
-          {newCode && (
-            <div className="workspace-panel mb-5 border-[#ff91644a] bg-[#ff91640d] p-5">
-              <p className="workspace-overline">Закрытая игра создана</p>
-              <p className="mt-2 text-sm">Код входа для игроков</p>
-              <p className="mt-2 font-display text-3xl tracking-widest text-[#ff9164]">
-                {newCode}
+      <UnsavedChanges>
+        <div className="events-workspace">
+          {me.isPending || q.isPending ? (
+            <Panel title="Загружаем кабинет…">
+              <p className="workspace-muted">
+                Получаем события и последние изменения.
               </p>
-              <p className="workspace-muted mt-2 text-xs">
-                Игроки вводят его на главной странице в разделе «Войти по коду».
-              </p>
-              <div className="mt-4 flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(newCode);
-                    toast.success("Код скопирован");
-                  }}
-                >
-                  Скопировать
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setNewCode(null)}
-                >
-                  Закрыть
-                </Button>
-              </div>
-            </div>
-          )}
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="workspace-section-title">Мои события</h2>
-              <p className="workspace-muted mt-1 text-xs">
-                Записи, оплата и результаты
-              </p>
-            </div>
-            <div
-              className="workspace-segment"
-              role="group"
-              aria-label="Статус событий"
-            >
-              <button
-                aria-pressed={listFilter === "active"}
-                onClick={() => setListFilter("active")}
+            </Panel>
+          ) : me.error || q.error ? (
+            <Panel title="Не удалось загрузить кабинет">
+              <ErrorNotice
+                message={me.error?.message ?? q.error?.message ?? ""}
+              />
+              <Button
+                onClick={() => {
+                  void me.refetch();
+                  void q.refetch();
+                }}
               >
-                Активные {active.length}
-              </button>
-              <button
-                aria-pressed={listFilter === "history"}
-                onClick={() => setListFilter("history")}
-              >
-                История {history.length}
-              </button>
-            </div>
-          </div>
-          {activitiesLoading ? (
-            <div
-              className="grid gap-4 md:grid-cols-2"
-              aria-label="Загружаем события"
-            >
-              <div className="workspace-panel h-64 animate-pulse" />
-              <div className="workspace-panel h-64 animate-pulse" />
-            </div>
-          ) : activitiesError ? (
-            <div className="workspace-panel workspace-empty" role="alert">
-              <h2>Не удалось загрузить события</h2>
-              <p>Проверьте соединение и повторите попытку.</p>
-              <Button onClick={() => void refetchActivities()}>
                 Повторить
               </Button>
-            </div>
-          ) : shown.length === 0 ? (
-            <div className="workspace-panel workspace-empty">
-              <div className="workspace-empty-icon">
-                <CalendarDays size={24} />
-              </div>
-              <h2>
-                {listFilter === "active"
-                  ? "Активных событий пока нет"
-                  : "История пока пуста"}
-              </h2>
-              <p>
-                {listFilter === "active"
-                  ? "Создайте игру или турнир — участники смогут записаться из ленты."
-                  : "Завершённые и отменённые события появятся здесь."}
+            </Panel>
+          ) : me.data &&
+            !me.data.roles.some((r) =>
+              ["admin", "sports_manager", "tournament_organizer"].includes(r),
+            ) ? (
+            <Panel title="Станьте организатором">
+              <p className="workspace-muted mb-4">
+                Подайте заявку, чтобы создавать игры или соревнования.
               </p>
-              {listFilter === "active" && (isManager || isOrganizer) && (
-                <button
-                  className="workspace-primary-link mt-2"
-                  onClick={() =>
-                    setTab(isManager ? "create-game" : "create-competition")
-                  }
-                >
-                  <Plus size={16} /> Создать событие
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="feed-grid items-start">
-              {shown.map((a) => {
-                const s = mine?.stats[a.id];
-                const busy = busyId === a.id;
-                return (
-                  <article key={a.id} className="feed-card account-feed-card">
-                    <Link
-                      to="/activity/$id"
-                      params={{ id: a.id }}
-                      className="feed-card-image block"
-                      aria-label={`Открыть событие: ${a.title}`}
-                    >
-                      <img
-                        src={sportImage(a.sport)}
-                        alt=""
-                        width={640}
-                        height={360}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <div className="feed-card-badges">
-                        <span className="feed-format">
-                          {ACTIVITY_TYPE_LABEL[a.type]}
-                        </span>
-                        <span className={`feed-status feed-status-${a.status}`}>
-                          <i aria-hidden="true" />
-                          {ACTIVITY_STATUS_LABEL[a.status]}
-                        </span>
-                      </div>
-                      <span className="feed-card-sport">{a.sport}</span>
-                      <span className="feed-card-arrow">
-                        <ArrowUpRight size={18} aria-hidden="true" />
-                      </span>
-                    </Link>
-                    <div className="feed-card-body">
-                      <Link
-                        to="/activity/$id"
-                        params={{ id: a.id }}
-                        className="group"
-                      >
-                        <h3 className="group-hover:text-[#ff9164]">
-                          {a.title}
-                        </h3>
-                      </Link>
-                      <div className="feed-card-details">
-                        <p className="feed-card-time">
-                          <Clock3 size={15} aria-hidden="true" />
-                          <span>{timeLabel(a) || "Время уточняется"}</span>
-                        </p>
-                        <p>
-                          <MapPin size={15} aria-hidden="true" />
-                          <span>
-                            {a.location_text || "Площадка уточняется"}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="feed-card-capacity">
-                        <div className="feed-capacity-label">
-                          <span>
-                            <UsersRound size={14} aria-hidden="true" />
-                            <strong>{a.registered_count}</strong>
-                            <span>/ {a.max_participants} участников</span>
-                          </span>
-                          <span>
-                            {Math.max(
-                              0,
-                              a.max_participants - a.registered_count,
-                            )}{" "}
-                            свободно
-                          </span>
-                        </div>
-                        <div
-                          className="feed-capacity-track"
-                          role="meter"
-                          aria-label="Заполненность события"
-                          aria-valuemin={0}
-                          aria-valuemax={a.max_participants || 1}
-                          aria-valuenow={Math.min(
-                            a.registered_count,
-                            a.max_participants || 1,
-                          )}
-                        >
-                          <span
-                            style={{
-                              transform: `scaleX(${capacityPercent(a.registered_count, a.max_participants) / 100})`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="account-card-actions space-y-4">
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="workspace-panel-raised p-2">
-                          <Wallet
-                            size={15}
-                            className="mx-auto mb-1 text-[#91d7b7]"
-                          />
-                          <strong className="block text-sm">
-                            {s?.paid ?? 0}
-                          </strong>
-                          <span className="workspace-muted text-[10px]">
-                            оплачено
-                          </span>
-                        </div>
-                        <div className="workspace-panel-raised p-2">
-                          <ClipboardList
-                            size={15}
-                            className="mx-auto mb-1 text-[#e9c67f]"
-                          />
-                          <strong className="block text-sm">
-                            {s?.review ?? 0}
-                          </strong>
-                          <span className="workspace-muted text-[10px]">
-                            проверить
-                          </span>
-                        </div>
-                        <div className="workspace-panel-raised p-2">
-                          <UsersRound
-                            size={15}
-                            className="mx-auto mb-1 text-[#a3afb3]"
-                          />
-                          <strong className="block text-sm">
-                            {s?.pending ?? 0}
-                          </strong>
-                          <span className="workspace-muted text-[10px]">
-                            ожидают
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-xs font-bold">
-                          {priceLabel(a)}
-                        </span>
-                        {a.is_private && a.invite_code && (
-                          <span className="workspace-tag">
-                            Код: {a.invite_code}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          aria-expanded={openParticipants === a.id}
-                          onClick={() =>
-                            setOpenParticipants(
-                              openParticipants === a.id ? null : a.id,
-                            )
-                          }
-                        >
-                          Участники и оплата
-                        </Button>
-                        {a.status !== "cancelled" &&
-                        a.status !== "completed" ? (
-                          <>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  disabled={busy}
-                                >
-                                  Завершить
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="rounded-2xl border-[#30393c] bg-[#1b2123] text-[#f5f7f6]">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Завершить событие?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Игра перейдёт в историю. Если нужно, запись
-                                    можно открыть снова.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Назад</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() =>
-                                      void changeStatus(
-                                        a.id,
-                                        "completed",
-                                        "Событие завершено",
-                                      )
-                                    }
-                                  >
-                                    Завершить
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  disabled={busy}
-                                  className="text-destructive"
-                                >
-                                  Отменить
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="rounded-2xl border-[#30393c] bg-[#1b2123] text-[#f5f7f6]">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Отменить событие?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Участники больше не смогут записаться. Это
-                                    затронет всех, кто уже записан.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>
-                                    Оставить
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() =>
-                                      void changeStatus(
-                                        a.id,
-                                        "cancelled",
-                                        "Событие отменено",
-                                      )
-                                    }
-                                  >
-                                    Отменить событие
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={busy}
-                            onClick={() =>
-                              void changeStatus(
-                                a.id,
-                                "open",
-                                "Запись открыта снова",
-                              )
-                            }
-                          >
-                            Открыть снова
-                          </Button>
-                        )}
-                      </div>
-                      {openParticipants === a.id && (
-                        <Participants
-                          activityId={a.id}
-                          competition={a.type !== "daily_game"}
-                        />
-                      )}
-                      {a.type !== "daily_game" && (
-                        <ResultsForm activityId={a.id} />
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
+              <Link
+                className="workspace-primary-link"
+                to="/profile"
+                search={{ tab: "organizer" }}
+              >
+                Подать заявку →
+              </Link>
+            </Panel>
+          ) : me.data && q.data ? (
+            <Workspace data={q.data} me={me.data} />
+          ) : null}
+        </div>
+      </UnsavedChanges>
     </AppShell>
   );
 }
-
-function Participants({
-  activityId,
-  competition,
-}: {
-  activityId: string;
-  competition: boolean;
-}) {
-  const queryClient = useQueryClient();
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["host", "participants", activityId],
-    queryFn: async () =>
-      (
-        (await listActivityParticipants({
-          data: { activityId },
-        })) as ParticipantRegistration[]
-      ).filter((r) => r.status !== "cancelled" && r.status !== "rejected"),
-  });
-
-  async function mark(registrationId: string, status: PaymentStatus) {
-    setBusyId(registrationId);
-    try {
-      await setPaymentStatus({ data: { registrationId, status } });
-      toast.success("Статус обновлён");
-      await queryClient.invalidateQueries({
-        queryKey: ["host", "participants", activityId],
-      });
-      await queryClient.invalidateQueries({ queryKey: ["host", "activities"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Ошибка");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  if (isLoading)
-    return (
-      <p className="text-xs text-muted-foreground">Загружаем участников…</p>
+function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [editor, setEditor] = useState<{
+    key: string;
+    document?: HostDocument;
+    event?: Event;
+  } | null>(null);
+  const action = useEventAction();
+  const a = data.activities.find((a) => a.id === search.event);
+  const canComp =
+    me.roles.includes("admin") || me.roles.includes("tournament_organizer");
+  const go = (
+    tab: keyof typeof tabs,
+    event?: string,
+    section = "overview",
+    status?: string,
+  ) =>
+    void navigate({
+      search: {
+        tab,
+        section,
+        ...(event ? { event } : {}),
+        ...(status ? { status } : {}),
+      },
+    });
+  const open = (id: string) => {
+    setEditor(null);
+    go("events", id);
+  };
+  async function duplicate(a: Event, template = false) {
+    await action.run(
+      async () => {
+        const d = await mutateEvent({
+          data: {
+            action: "document",
+            payload: {
+              id: crypto.randomUUID(),
+              kind: template ? "template" : "draft",
+              name: a.title,
+              data: {
+                ...eventDraft(a),
+                date_time: "",
+                registration_deadline: "",
+              },
+            },
+          },
+        });
+        if (!template) setEditor({ key: d.id, document: d });
+      },
+      template ? "Шаблон сохранён" : "Создан новый черновик",
     );
-  if (isError)
-    return (
-      <div className="workspace-panel-raised p-4 text-xs" role="alert">
-        <p>Не удалось загрузить участников.</p>
+  }
+  return (
+    <>
+      <div className="event-toolbar">
+        <p className="workspace-kicker">SPORTURA / ORGANIZER</p>
         <Button
-          size="sm"
-          variant="secondary"
-          className="mt-2"
-          onClick={() => void refetch()}
+          disabled={!!editor && search.tab === "events"}
+          onClick={() => {
+            setEditor({ key: crypto.randomUUID() });
+            go("events");
+          }}
         >
-          Повторить
+          + Создать событие
         </Button>
       </div>
-    );
-
-  return (
-    <div className="workspace-panel-raised space-y-3 p-4">
-      <p className="text-xs text-muted-foreground">
-        {competition ? COMPETITION_DISCLAIMER : KASPI_DISCLAIMER}
-      </p>
-      {(data ?? []).length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Пока никто не записался.
-        </p>
-      ) : (
-        (data ?? []).map((r) => (
-          <div
-            key={r.id}
-            className="border-t border-[#455054] pt-3 first:border-0 first:pt-0"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold">
-                  {r.profile?.name ?? "Участник"}
-                </p>
-                <span
-                  className={`workspace-tag mt-1 ${r.payment_status === "paid" ? "is-success" : r.payment_status === "needs_review" ? "is-warning" : r.payment_status === "rejected" ? "is-danger" : ""}`}
-                >
-                  {PAYMENT_STATUS_LABEL[r.payment_status]}
-                </span>
-                {r.payment_reference && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Код платежа: {r.payment_reference}
-                  </p>
-                )}
-                {r.participant_note ? (
-                  <p className="text-[11px] text-muted-foreground">
-                    «{r.participant_note}»
-                  </p>
-                ) : null}
-                {r.receipt_url ? <ReceiptLink path={r.receipt_url} /> : null}
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                className="press"
-                disabled={busyId === r.id || r.payment_status === "paid"}
-                onClick={() => void mark(r.id, "paid")}
-              >
-                Оплачено
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="press"
-                disabled={
-                  busyId === r.id || r.payment_status === "needs_review"
-                }
-                onClick={() => void mark(r.id, "needs_review")}
-              >
-                На проверку
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="press"
-                disabled={busyId === r.id || r.payment_status === "rejected"}
-                onClick={() => void mark(r.id, "rejected")}
-              >
-                Отклонить
-              </Button>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-function ResultsForm({ activityId }: { activityId: string }) {
-  const [rows, setRows] = useState([
-    { placement: 1, participant_name: "", prize_amount: 0 },
-  ]);
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="workspace-panel-raised p-4">
-      <button
-        type="button"
-        className="text-xs font-semibold text-brand"
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open ? "Скрыть результаты" : "Внести результаты"}
-      </button>
-      {open ? (
-        <div className="mt-3 space-y-2">
-          {rows.map((row, i) => (
-            <div key={row.placement} className="flex gap-2">
-              <span className="w-6 pt-2 text-sm">{row.placement}.</span>
-              <Input
-                value={row.participant_name}
-                placeholder="Победитель (1 место)"
-                onChange={(e) =>
-                  setRows((prev) =>
-                    prev.map((r, idx) =>
-                      idx === i
-                        ? { ...r, participant_name: e.target.value }
-                        : r,
-                    ),
-                  )
-                }
-              />
-              <Input
-                type="number"
-                value={row.prize_amount}
-                onChange={(e) =>
-                  setRows((prev) =>
-                    prev.map((r, idx) =>
-                      idx === i
-                        ? { ...r, prize_amount: Number(e.target.value) }
-                        : r,
-                    ),
-                  )
-                }
-                className="w-28"
-              />
-            </div>
-          ))}
-          <Button
-            size="sm"
-            className="press"
-            onClick={async () => {
-              try {
-                await submitCompetitionResults({
-                  data: {
-                    activityId,
-                    rows: rows.filter((r) => r.participant_name.trim()),
-                  },
-                });
-                toast.success("Результаты сохранены. Окно споров — 48 часов.");
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : "Ошибка");
-              }
-            }}
-          >
-            Сохранить результаты
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function useDraft<T extends object>(key: string, initial: T) {
-  const [form, setForm] = useState<T>(initial);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) setForm({ ...initial, ...JSON.parse(raw) });
-    } catch {
-      // Ignore an invalid or unavailable saved draft.
-    }
-    setLoaded(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  useEffect(() => {
-    if (loaded) localStorage.setItem(key, JSON.stringify(form));
-  }, [key, form, loaded]);
-  const clear = () => {
-    localStorage.removeItem(key);
-    setForm(initial);
-  };
-  return [form, setForm, clear] as const;
-}
-
-function ChipRow({
-  values,
-  value,
-  onChange,
-}: {
-  values: readonly string[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {values.map((v) => (
-        <button
-          key={v}
-          type="button"
-          aria-pressed={value === v}
-          onClick={() => onChange(v)}
-          className={`feed-chip ${value === v ? "is-active" : ""}`}
-        >
-          {v}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function GameForm({
-  onDone,
-  onCreated,
-}: {
-  onDone: () => void;
-  onCreated: (code: string) => void;
-}) {
-  const queryClient = useQueryClient();
-  const [form, setForm, clearDraft] = useDraft("sportura:draft:game", {
-    title: "",
-    sport: SPORTS[0] as string,
-    city: CITIES[0] as string,
-    location_text: "",
-    two_gis_url: "",
-    time_text: "",
-    date_time: "",
-    price_text: "Бесплатно",
-    entry_fee: "",
-    max_participants: "12",
-    kaspi_payment_link: "",
-    description: "",
-    skill_level: SKILL_LEVELS[0] as string,
-    recurrence: "",
-    cancellation_policy: "",
-    is_private: false,
-  });
-  const [busy, setBusy] = useState(false);
-
-  function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
-    setForm((f) => ({ ...f, [key]: value }));
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const created = await createDailyGame({
-        data: {
-          title: form.title,
-          sport: form.sport,
-          city: form.city,
-          location_text: form.location_text,
-          two_gis_url: form.two_gis_url || null,
-          time_text: form.time_text,
-          date_time: form.date_time
-            ? new Date(form.date_time).toISOString()
-            : null,
-          price_text: form.price_text,
-          entry_fee: form.entry_fee ? Number(form.entry_fee) : null,
-          max_participants: Number(form.max_participants),
-          kaspi_payment_link: form.kaspi_payment_link || null,
-          description: form.description || null,
-          skill_level: form.skill_level,
-          recurrence: form.recurrence || null,
-          cancellation_policy: form.cancellation_policy || null,
-          is_private: form.is_private,
-        },
-      });
-      clearDraft();
-      if (created.invite_code) {
-        onCreated(created.invite_code);
-      }
-      toast.success("Игровой слот создан");
-      await queryClient.invalidateQueries({ queryKey: ["host", "activities"] });
-      await queryClient.invalidateQueries({ queryKey: ["activities", "feed"] });
-      onDone();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Не удалось создать слот",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form onSubmit={submit} className="workspace-panel space-y-5 p-5 sm:p-7">
-      <div className="space-y-2">
-        <Label>Название</Label>
-        <Input
-          required
-          value={form.title}
-          onChange={(e) => set("title", e.target.value)}
-          placeholder="Вечерний футбол 6x6"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Вид спорта</Label>
-        <ChipRow
-          values={SPORTS}
-          value={form.sport}
-          onChange={(v) => set("sport", v)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Город</Label>
-        <ChipRow
-          values={CITIES}
-          value={form.city}
-          onChange={(v) => set("city", v)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Место (текстом)</Label>
-        <Input
-          required
-          value={form.location_text}
-          onChange={(e) => set("location_text", e.target.value)}
-          placeholder="Спортзал «Алау», ул. Кабанбай батыра 15"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Ссылка 2GIS</Label>
-        <Input
-          value={form.two_gis_url}
-          onChange={(e) => set("two_gis_url", e.target.value)}
-          placeholder="https://2gis.kz/astana/..."
-        />
-        {form.two_gis_url.trim() && !parseTwoGisLink(form.two_gis_url) ? (
-          <p className="text-xs text-destructive">{TWO_GIS_MESSAGE}</p>
-        ) : null}
-      </div>
-      <div className="space-y-2">
-        <Label>Время (текстом)</Label>
-        <Input
-          required
-          value={form.time_text}
-          onChange={(e) => set("time_text", e.target.value)}
-          placeholder="Каждый вторник, 20:00–21:30"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Дата и время (для сортировки)</Label>
-        <Input
-          type="datetime-local"
-          value={form.date_time}
-          onChange={(e) => set("date_time", e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Цена (текстом)</Label>
-        <Input
-          required
-          value={form.price_text}
-          onChange={(e) => set("price_text", e.target.value)}
-          placeholder="2000 ₸ с человека"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Взнос, ₸ (пусто = бесплатно)</Label>
-        <Input
-          type="number"
-          value={form.entry_fee}
-          onChange={(e) => set("entry_fee", e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Максимум участников</Label>
-        <Input
-          type="number"
-          required
-          min={2}
-          value={form.max_participants}
-          onChange={(e) => set("max_participants", e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Личная ссылка Kaspi (для платной игры)</Label>
-        <Input
-          value={form.kaspi_payment_link}
-          onChange={(e) => set("kaspi_payment_link", e.target.value)}
-          placeholder="https://pay.kaspi.kz/pay/..."
-        />
-        {form.kaspi_payment_link.trim() &&
-        !parseKaspiLink(form.kaspi_payment_link) ? (
-          <p className="text-xs text-destructive">{KASPI_LINK_MESSAGE}</p>
-        ) : null}
-        <p className="text-xs text-muted-foreground">{KASPI_DISCLAIMER}</p>
-      </div>
-      <div className="space-y-2">
-        <Label>Уровень</Label>
-        <ChipRow
-          values={SKILL_LEVELS}
-          value={form.skill_level}
-          onChange={(v) => set("skill_level", v)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Регулярность</Label>
-        <Input
-          value={form.recurrence}
-          onChange={(e) => set("recurrence", e.target.value)}
-          placeholder="Каждую неделю"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Условия отмены</Label>
-        <Textarea
-          value={form.cancellation_policy}
-          onChange={(e) => set("cancellation_policy", e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Описание</Label>
-        <Textarea
-          value={form.description}
-          onChange={(e) => set("description", e.target.value)}
-        />
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={form.is_private}
-          onChange={(e) => set("is_private", e.target.checked)}
-        />
-        Приватная игра (только по коду)
-      </label>
-      <Button type="submit" className="press w-full" disabled={busy}>
-        Создать игровой слот
-      </Button>
-    </form>
-  );
-}
-
-function CompetitionForm({ onDone }: { onDone: () => void }) {
-  const queryClient = useQueryClient();
-  const [form, setForm, clearDraft] = useDraft("sportura:draft:competition", {
-    title: "",
-    type: "tournament" as "tournament" | "league",
-    sport: SPORTS[0] as string,
-    city: CITIES[0] as string,
-    location_text: "",
-    two_gis_url: "",
-    time_text: "",
-    date_time: "",
-    price_text: "",
-    entry_fee: "",
-    max_participants: "16",
-    format: "Групповой этап + плей-офф",
-    age_division: "",
-    skill_division: "",
-    description: "",
-    registration_deadline: "",
-  });
-  const [busy, setBusy] = useState(false);
-
-  function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
-    setForm((f) => ({ ...f, [key]: value }));
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await createCompetition({
-        data: {
-          title: form.title,
-          type: form.type,
-          sport: form.sport,
-          city: form.city,
-          location_text: form.location_text,
-          two_gis_url: form.two_gis_url || null,
-          time_text: form.time_text,
-          date_time: form.date_time
-            ? new Date(form.date_time).toISOString()
-            : null,
-          price_text: form.price_text || "По взносу",
-          entry_fee: form.entry_fee ? Number(form.entry_fee) : null,
-          max_participants: Number(form.max_participants),
-          format: form.format,
-          age_division: form.age_division || null,
-          skill_division: form.skill_division || null,
-          description: form.description || null,
-          registration_deadline: form.registration_deadline
-            ? new Date(form.registration_deadline).toISOString()
-            : null,
-          prize_pool: PRIZE_TEMPLATE,
-          is_private: false,
-        },
-      });
-      clearDraft();
-      toast.success("Соревнование создано");
-      await queryClient.invalidateQueries({ queryKey: ["host", "activities"] });
-      await queryClient.invalidateQueries({ queryKey: ["activities", "feed"] });
-      onDone();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Не удалось создать соревнование",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const feeNum = Number(form.entry_fee || 0);
-  const fund = feeNum * Number(form.max_participants || 0) * 0.9;
-  return (
-    <form onSubmit={submit} className="workspace-panel space-y-5 p-5 sm:p-7">
-      <div className="workspace-panel-raised space-y-2 p-4 text-xs">
-        <p className="text-sm font-semibold">Как провести турнир — по шагам</p>
-        <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
-          <li>
-            Забронируйте площадку на нужные даты и укажите её адрес и ссылку
-            2ГИС.
-          </li>
-          <li>Выберите тип: турнир (1–3 дня) или лига (несколько недель).</li>
-          <li>
-            Укажите, сколько команд или игроков примете, и взнос с каждого в
-            тенге.
-          </li>
-          <li>Поставьте дедлайн регистрации — минимум за сутки до старта.</li>
-          <li>
-            Опишите формат и правила: состав команды, длительность матча, что
-            делать при ничьей.
-          </li>
-          <li>
-            После финала внесите победителя в «Мои активности» → «Внести
-            результаты».
-          </li>
-          <li>Через 48 часов без споров приз выплачивается победителю.</li>
-        </ol>
-        <p className="text-muted-foreground">
-          Черновик сохраняется автоматически — можно выйти и вернуться.
-        </p>
-      </div>
-      <div className="space-y-2">
-        <Label>Название</Label>
-        <Input
-          required
-          value={form.title}
-          onChange={(e) => set("title", e.target.value)}
-          placeholder="Кубок Астаны по мини-футболу"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Тип</Label>
-        <div className="flex gap-2">
-          {(["tournament", "league"] as const).map((t) => (
+      <nav className="event-tabs" aria-label="Кабинет организатора">
+        {Object.entries(tabs)
+          .filter(([k]) => k !== "competitions" || canComp)
+          .map(([k, l]) => (
             <button
-              key={t}
-              type="button"
-              aria-pressed={form.type === t}
-              onClick={() => set("type", t)}
-              className={`feed-chip ${form.type === t ? "is-active" : ""}`}
+              key={k}
+              aria-current={search.tab === k ? "page" : undefined}
+              className={search.tab === k ? "is-active" : ""}
+              onClick={() => go(k as keyof typeof tabs)}
             >
-              {ACTIVITY_TYPE_LABEL[t]}
+              {l}
             </button>
           ))}
+      </nav>
+      <ErrorNotice message={action.error} />
+      {search.tab === "events" && editor ? (
+        <EventWizard
+          key={editor.key}
+          document={editor.document}
+          event={editor.event}
+          documents={data.documents}
+          competition={canComp}
+          kaspi={me.kaspi_payment_link}
+          onClose={() => setEditor(null)}
+          onDone={open}
+        />
+      ) : search.tab === "overview" ? (
+        <Overview data={data} me={me} go={go} />
+      ) : search.tab === "events" && a ? (
+        <EventManagement
+          event={a}
+          data={data}
+          section={search.section}
+          select={(s) => go("events", a.id, s)}
+          edit={() => setEditor({ key: crypto.randomUUID(), event: a })}
+          duplicate={() => void duplicate(a)}
+          template={() => void duplicate(a, true)}
+          back={() => go("events")}
+        />
+      ) : search.tab === "events" ? (
+        <EventList
+          data={data}
+          select={open}
+          draft={(d) => setEditor({ key: d.id, document: d })}
+          edit={(a) => setEditor({ key: crypto.randomUUID(), event: a })}
+          duplicate={(a) => void duplicate(a)}
+        />
+      ) : search.tab === "participants" || search.tab === "payments" ? (
+        <Participants
+          key={`${search.tab}:${search.event}:${search.status}`}
+          data={data}
+          eventId={search.event ?? ""}
+          payments={search.tab === "payments"}
+          initialStatus={search.status ?? "all"}
+        />
+      ) : search.tab === "competitions" ? (
+        <>
+          <Panel title="Турниры и лиги">
+            <div className="event-rows">
+              {data.activities
+                .filter((a) => a.type !== "daily_game")
+                .map((a) => (
+                  <button
+                    className="event-row text-left"
+                    key={a.id}
+                    onClick={() => go("competitions", a.id)}
+                  >
+                    <h3>{a.title}</h3>
+                    <p className="workspace-muted">
+                      {ACTIVITY_TYPE_LABEL[a.type]} ·{" "}
+                      {ACTIVITY_STATUS_LABEL[a.status]} · {a.registered_count}{" "}
+                      {a.participation_mode === "team"
+                        ? "команд"
+                        : "участников"}{" "}
+                      ·{" "}
+                      {data.matches.some((m) => m.activity_id === a.id)
+                        ? "Расписание создано"
+                        : "Подготовка расписания"}
+                    </p>
+                  </button>
+                ))}
+              {!data.activities.some((a) => a.type !== "daily_game") && (
+                <Empty
+                  title="Первое соревнование впереди"
+                  text="Создайте турнир или лигу и откройте набор участников."
+                />
+              )}
+            </div>
+          </Panel>
+          {a && a.type !== "daily_game" && (
+            <HostCompetition
+              key={a.id}
+              event={a}
+              registrations={data.registrations.filter(
+                (r) => r.activity_id === a.id,
+              )}
+            />
+          )}
+        </>
+      ) : search.tab === "insights" ? (
+        <HostInsights data={data} onSelect={open} />
+      ) : search.tab === "settings" ? (
+        <HostSettings
+          data={data}
+          onTemplate={(d) => {
+            setEditor({
+              key: crypto.randomUUID(),
+              document: {
+                ...d,
+                id: crypto.randomUUID(),
+                kind: "draft",
+                updated_at: "",
+                data: { ...d.data, date_time: "", registration_deadline: "" },
+              },
+            });
+            go("events");
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+function Overview({
+  data: d,
+  me,
+  go,
+}: {
+  data: HostWorkspace;
+  me: MyProfile;
+  go: (
+    tab: keyof typeof tabs,
+    event?: string,
+    section?: string,
+    status?: string,
+  ) => void;
+}) {
+  const future = d.activities
+    .filter((a) => ["upcoming", "live"].includes(eventPhase(a)))
+    .sort((a, b) => (a.date_time ?? "z").localeCompare(b.date_time ?? "z"));
+  const checks = d.registrations.filter(
+    (r) => r.payment_status === "needs_review",
+  );
+  const refunds = d.refunds.filter(
+    (f) => !["completed", "rejected"].includes(f.status),
+  );
+  const today = localDateTime(new Date().toISOString()).slice(0, 10);
+  const attention = d.activities.filter(
+    (a) =>
+      a.status !== "cancelled" &&
+      ((a.registered_count < a.max_participants / 2 &&
+        eventPhase(a) === "upcoming") ||
+        (eventPhase(a) === "past" &&
+          d.registrations.some(
+            (r) => r.activity_id === a.id && r.status === "registered",
+          )) ||
+        (a.type !== "daily_game" &&
+          eventPhase(a) === "past" &&
+          !a.results_submitted_at)),
+  );
+  return (
+    <>
+      <Panel
+        title={me.name}
+        description={`${me.city} · ${me.roles
+          .filter((r) => r !== "participant")
+          .map((r) => ROLE_LABEL[r])
+          .join(", ")}`}
+      >
+        <div className="event-line">
+          <span className="workspace-tag">
+            {me.verified ? "Профиль проверен" : "Роль организатора активна"}
+          </span>
+          <Link
+            className="profile-link"
+            to="/organizer/$id"
+            params={{ id: me.id }}
+          >
+            Публичная страница ↗
+          </Link>
         </div>
+      </Panel>
+      <div className="event-stats">
+        {[
+          [future.length, "Предстоящие", () => go("events")],
+          [
+            d.registrations.filter(
+              (r) =>
+                r.status === "registered" &&
+                future.some((a) => a.id === r.activity_id),
+            ).length,
+            "Записаны",
+            () => go("participants", undefined, undefined, "registered"),
+          ],
+          [
+            checks.length,
+            "Чеки на проверке",
+            () => go("payments", undefined, undefined, "needs_review"),
+          ],
+          [
+            refunds.length,
+            "Возвраты в работе",
+            () => go("payments", undefined, undefined, "refund"),
+          ],
+        ].map(([n, l, fn]) => (
+          <button
+            key={String(l)}
+            className="workspace-stat"
+            onClick={fn as () => void}
+          >
+            <strong>{Number(n)}</strong>
+            <span>{String(l)}</span>
+          </button>
+        ))}
       </div>
-      <div className="space-y-2">
-        <Label>Вид спорта</Label>
-        <ChipRow
-          values={SPORTS}
-          value={form.sport}
-          onChange={(v) => set("sport", v)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Город</Label>
-        <ChipRow
-          values={CITIES}
-          value={form.city}
-          onChange={(v) => set("city", v)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Место</Label>
-        <Input
-          required
-          value={form.location_text}
-          onChange={(e) => set("location_text", e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Ссылка на карту</Label>
-        <Input
-          value={form.two_gis_url}
-          onChange={(e) => set("two_gis_url", e.target.value)}
-          placeholder="https://2gis.kz/astana/..."
-        />
-        {form.two_gis_url.trim() && !parseTwoGisLink(form.two_gis_url) ? (
-          <p className="text-xs text-destructive">{TWO_GIS_MESSAGE}</p>
-        ) : null}
-      </div>
-      <div className="space-y-2">
-        <Label>Сроки (текстом)</Label>
-        <Input
-          required
-          value={form.time_text}
-          onChange={(e) => set("time_text", e.target.value)}
-          placeholder="12–14 июля, с 10:00"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Старт</Label>
-        <Input
-          type="datetime-local"
-          value={form.date_time}
-          onChange={(e) => set("date_time", e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Дедлайн регистрации</Label>
-        <Input
-          type="datetime-local"
-          value={form.registration_deadline}
-          onChange={(e) => set("registration_deadline", e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Взнос, ₸</Label>
-        <Input
-          type="number"
-          value={form.entry_fee}
-          onChange={(e) => set("entry_fee", e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Цена (текстом, как увидят игроки)</Label>
-        <Input
-          value={form.price_text}
-          onChange={(e) => set("price_text", e.target.value)}
-          placeholder="10 000 ₸ с команды"
-        />
-        <p className="text-xs text-muted-foreground">
-          Призовой фонд при полном составе:{" "}
-          {Math.round(fund).toLocaleString("ru-RU")} ₸ — всё победителю.
+      {future[0] && (
+        <Panel title="Ближайшее событие">
+          <EventSummary a={future[0]} data={d} />
+          <div className="event-actions mt-4">
+            <Button onClick={() => go("events", future[0]!.id)}>
+              Управлять событием
+            </Button>
+            <CalendarButton event={future[0]} />
+          </div>
+        </Panel>
+      )}
+      <Panel title="Требует внимания">
+        <div className="event-rows">
+          {checks.length > 0 && (
+            <button
+              className="event-row text-left"
+              onClick={() =>
+                go("payments", undefined, undefined, "needs_review")
+              }
+            >
+              Проверить {checks.length} чеков →
+            </button>
+          )}
+          {refunds.length > 0 && (
+            <button
+              className="event-row text-left"
+              onClick={() => go("payments", undefined, undefined, "refund")}
+            >
+              Рассмотреть {refunds.length} возвратов →
+            </button>
+          )}
+          {attention.map((a) => (
+            <button
+              key={a.id}
+              className="event-row text-left"
+              onClick={() => go("events", a.id)}
+            >
+              {a.title}:{" "}
+              {eventPhase(a) === "upcoming"
+                ? "набрано меньше половины состава"
+                : "проверьте посещение и результаты"}{" "}
+              →
+            </button>
+          ))}
+          {d.notifications.slice(0, 5).map((n) => (
+            <a
+              key={n.id}
+              className="event-row"
+              href={
+                n.href.startsWith("/") && !n.href.startsWith("//")
+                  ? n.href
+                  : "/host"
+              }
+            >
+              <strong>{n.title}</strong>
+              <p className="workspace-muted text-sm">{n.body}</p>
+            </a>
+          ))}
+          {!checks.length &&
+            !refunds.length &&
+            !attention.length &&
+            !d.notifications.length && (
+              <Empty title="Всё спокойно" text="Новые задачи появятся здесь." />
+            )}
+        </div>
+      </Panel>
+      <Panel title="План на сегодня">
+        <div className="event-rows">
+          {d.activities
+            .filter(
+              (a) =>
+                a.status !== "cancelled" &&
+                localDateTime(a.date_time).startsWith(today),
+            )
+            .map((a) => (
+              <button
+                key={a.id}
+                className="event-row text-left"
+                onClick={() => go("events", a.id)}
+              >
+                {dateLabel(a.date_time, true)} · {a.title} →
+              </button>
+            ))}
+        </div>
+        {!d.activities.some((a) =>
+          localDateTime(a.date_time).startsWith(today),
+        ) && (
+          <p className="workspace-muted">
+            Сегодня событий нет. Можно подготовить следующую игру.
+          </p>
+        )}
+      </Panel>
+      {!d.activities.length && (
+        <Panel title="Первые шаги">
+          <ol className="list-decimal ml-5 space-y-2">
+            <li>
+              <Link
+                className="profile-link"
+                to="/profile"
+                search={{ tab: "organizer" }}
+              >
+                Заполните сведения организатора
+              </Link>
+            </li>
+            <li>Создайте событие и сохраните черновик.</li>
+            <li>Проверьте карточку и опубликуйте.</li>
+          </ol>
+        </Panel>
+      )}
+      <Panel title="Последние изменения">
+        <History items={d.history.slice(0, 8)} />
+      </Panel>
+    </>
+  );
+}
+function EventSummary({ a, data }: { a: Event; data: HostWorkspace }) {
+  const regs = data.registrations.filter((r) => r.activity_id === a.id);
+  return (
+    <div className="event-line">
+      <div>
+        <h3 className="event-title">{a.title}</h3>
+        <p className="workspace-muted mt-2">
+          {dateLabel(a.date_time, true)} · {a.location_text}
+        </p>
+        <p className="text-sm mt-2">
+          {ACTIVITY_TYPE_LABEL[a.type]} · {ACTIVITY_STATUS_LABEL[a.status]} ·{" "}
+          {a.registered_count}/{a.max_participants} мест ·{" "}
+          {formatKzt(a.entry_fee)}
         </p>
       </div>
-      <div className="space-y-2">
-        <Label>Команд / участников</Label>
-        <Input
-          type="number"
-          required
-          min={2}
-          value={form.max_participants}
-          onChange={(e) => set("max_participants", e.target.value)}
-        />
+      <div className="text-sm">
+        <p>
+          {regs.filter((r) => r.payment_status === "paid").length} оплат
+          подтверждено
+        </p>
+        <p>
+          {regs.filter((r) => r.payment_status === "needs_review").length} чеков
+          на проверке
+        </p>
       </div>
-      <div className="space-y-2">
-        <Label>Формат</Label>
-        <Input
-          value={form.format}
-          onChange={(e) => set("format", e.target.value)}
-          placeholder="Групповой этап + плей-офф, матчи 2×20 мин"
-        />
+    </div>
+  );
+}
+function EventList({
+  data,
+  select,
+  draft,
+  edit,
+  duplicate,
+}: {
+  data: HostWorkspace;
+  select: (id: string) => void;
+  draft: (d: HostDocument) => void;
+  edit: (a: Event) => void;
+  duplicate: (a: Event) => void;
+}) {
+  const [tab, setTab] = useState("upcoming");
+  const [q, setQ] = useState("");
+  const [sport, setSport] = useState("all");
+  const [type, setType] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [date, setDate] = useState("");
+  const [calendar, setCalendar] = useState(false);
+  const [remove, setRemove] = useState<HostDocument | null>(null);
+  const action = useEventAction();
+  const rows = data.activities.filter(
+    (a) =>
+      (tab === "cancelled"
+        ? a.status === "cancelled"
+        : tab === "past"
+          ? eventPhase(a) === "past"
+          : !["past", "cancelled"].includes(eventPhase(a))) &&
+      (sport === "all" || a.sport === sport) &&
+      (type === "all" || a.type === type) &&
+      (status === "all" || a.status === status) &&
+      (!date || localDateTime(a.date_time).startsWith(date)) &&
+      `${a.title} ${a.location_text}`.toLowerCase().includes(q.toLowerCase()),
+  );
+  const drafts = data.documents.filter(
+    (d) => d.kind === "draft" && !d.published_id,
+  );
+  return (
+    <Panel title="Мои события">
+      <div className="event-actions mb-4">
+        {[
+          ["upcoming", "Предстоящие"],
+          ["drafts", `Черновики (${drafts.length})`],
+          ["past", "Завершённые"],
+          ["cancelled", "Отменённые"],
+        ].map(([k, l]) => (
+          <Button
+            key={k}
+            variant={tab === k ? "default" : "outline"}
+            onClick={() => setTab(k!)}
+          >
+            {l}
+          </Button>
+        ))}
       </div>
-      <div className="space-y-2">
-        <Label>Возрастной дивизион</Label>
-        <Input
-          value={form.age_division}
-          onChange={(e) => set("age_division", e.target.value)}
-          placeholder="18+"
+      {tab === "drafts" ? (
+        <div className="event-rows">
+          {drafts.map((d) => (
+            <div className="event-row event-line" key={d.id}>
+              <div>
+                <h3>{d.name}</h3>
+                <small>{dateLabel(d.updated_at)}</small>
+              </div>
+              <div className="event-actions">
+                <Button onClick={() => draft(d)}>Продолжить</Button>
+                <Button variant="ghost" onClick={() => setRemove(d)}>
+                  Удалить
+                </Button>
+              </div>
+            </div>
+          ))}
+          {!drafts.length && (
+            <Empty
+              title="Нет черновиков"
+              text="Создайте событие — его можно сохранить на любом этапе."
+            />
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="event-filters mb-5">
+            <label>
+              Поиск
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Название или площадка"
+              />
+            </label>
+            <label>
+              Спорт
+              <select value={sport} onChange={(e) => setSport(e.target.value)}>
+                <option value="all">Все</option>
+                {SPORTS.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Формат
+              <select value={type} onChange={(e) => setType(e.target.value)}>
+                <option value="all">Все</option>
+                {Object.entries(ACTIVITY_TYPE_LABEL).map(([k, l]) => (
+                  <option key={k} value={k}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Статус
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="all">Все</option>
+                {Object.entries(ACTIVITY_STATUS_LABEL).map(([k, l]) => (
+                  <option key={k} value={k}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Дата
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </label>
+          </div>
+          <Button
+            variant="outline"
+            className="mb-4"
+            onClick={() => setCalendar(!calendar)}
+          >
+            {calendar ? "Показать карточки" : "Календарь по датам"}
+          </Button>
+          <div className="event-rows">
+            {rows.map((a, i) => (
+              <div key={a.id}>
+                {calendar &&
+                  (i === 0 ||
+                    localDateTime(rows[i - 1]?.date_time).slice(0, 10) !==
+                      localDateTime(a.date_time).slice(0, 10)) && (
+                    <h3 className="event-date-heading">
+                      {new Date(a.date_time ?? "").toLocaleDateString("ru-RU", {
+                        timeZone: "Asia/Almaty",
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </h3>
+                  )}
+                <article className="event-row">
+                  <EventSummary a={a} data={data} />
+                  <div className="event-actions mt-4">
+                    <Button size="sm" onClick={() => select(a.id)}>
+                      Управлять
+                    </Button>
+                    <Link
+                      className="profile-link"
+                      to="/activity/$id"
+                      params={{ id: a.id }}
+                    >
+                      Вид игрока ↗
+                    </Link>
+                    {!["completed", "cancelled"].includes(a.status) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => edit(a)}
+                      >
+                        Редактировать
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => duplicate(a)}
+                    >
+                      Создать похожее
+                    </Button>
+                    <CopyEvent event={a} />
+                  </div>
+                </article>
+              </div>
+            ))}
+            {!rows.length && (
+              <Empty
+                title="Нет событий по этим условиям"
+                text="Измените фильтры или создайте новое событие."
+              />
+            )}
+          </div>
+        </>
+      )}
+      <Confirm
+        open={!!remove}
+        title="Удалить черновик?"
+        description={remove?.name ?? ""}
+        busy={action.busy}
+        onClose={() => setRemove(null)}
+        onConfirm={async () => {
+          if (
+            remove &&
+            (await action.mutate("delete_document", { id: remove.id }))
+          )
+            setRemove(null);
+        }}
+      />
+      <ErrorNotice message={action.error} />
+    </Panel>
+  );
+}
+function CopyEvent({ event: a }: { event: Event }) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(
+            `https://sportura.vercel.app/activity/${a.id}${a.is_private && a.invite_code ? "?code=" + encodeURIComponent(a.invite_code) : ""}`,
+          );
+          toast.success("Ссылка скопирована");
+        } catch {
+          toast.error(
+            "Браузер не разрешил копирование. Откройте событие и скопируйте адрес.",
+          );
+        }
+      }}
+    >
+      Скопировать ссылку
+    </Button>
+  );
+}
+function EventManagement({
+  event: a,
+  data,
+  section,
+  select,
+  edit,
+  duplicate,
+  template,
+  back,
+}: {
+  event: Event;
+  data: HostWorkspace;
+  section: string;
+  select: (s: string) => void;
+  edit: () => void;
+  duplicate: () => void;
+  template: () => void;
+  back: () => void;
+}) {
+  const [actionName, setActionName] = useState("");
+  const [reason, setReason] = useState("");
+  const action = useEventAction();
+  const regs = data.registrations.filter((r) => r.activity_id === a.id);
+  return (
+    <>
+      <Panel
+        title={a.title}
+        description={`${ACTIVITY_TYPE_LABEL[a.type]} · ${ACTIVITY_STATUS_LABEL[a.status]}`}
+      >
+        <div className="event-actions">
+          <Button variant="ghost" onClick={back}>
+            ← Все события
+          </Button>
+          <Link
+            className="profile-link"
+            to="/activity/$id"
+            params={{ id: a.id }}
+          >
+            Открыть как игрок
+          </Link>
+          <CopyEvent event={a} />
+        </div>
+        {a.is_private && (
+          <div className="profile-callout mt-4">
+            <p>
+              Код приглашения:{" "}
+              <strong className="break-all">{a.invite_code}</strong>
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                void navigator.clipboard
+                  .writeText(a.invite_code ?? "")
+                  .then(() => toast.success("Код скопирован"))
+                  .catch(() => toast.error("Скопируйте код вручную"))
+              }
+            >
+              Копировать код
+            </Button>
+          </div>
+        )}
+      </Panel>
+      <nav className="event-tabs" aria-label="Управление событием">
+        {Object.entries({
+          overview: "Обзор",
+          participants: "Участники",
+          payments: "Оплаты",
+          results: "Результаты",
+          history: "История",
+        }).map(([k, l]) => (
+          <button
+            key={k}
+            className={section === k ? "is-active" : ""}
+            onClick={() => select(k)}
+          >
+            {l}
+          </button>
+        ))}
+      </nav>
+      {section === "overview" ? (
+        <Panel title="Сведения и действия">
+          <img
+            src={a.cover_url || sportImage(a.sport)}
+            className="h-48 w-full object-cover rounded-xl mb-5"
+            alt=""
+          />
+          <EventSummary a={a} data={data} />
+          <p className="event-description mt-4">{a.description}</p>
+          <div className="event-actions mt-5">
+            <MapLink event={a} />
+            <CalendarButton event={a} />
+            {!["completed", "cancelled"].includes(a.status) && (
+              <>
+                <Button variant="outline" onClick={edit}>
+                  Редактировать
+                </Button>
+                {a.type === "daily_game" && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setActionName("completed")}
+                  >
+                    Завершить
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setActionName("cancelled")}
+                >
+                  Отменить событие
+                </Button>
+              </>
+            )}
+            <Button variant="outline" onClick={duplicate}>
+              Создать похожее
+            </Button>
+            <Button variant="outline" onClick={template}>
+              Сохранить как шаблон
+            </Button>
+            <HelpLink activity={a.id} />
+          </div>
+        </Panel>
+      ) : section === "participants" || section === "payments" ? (
+        <Participants
+          key={section}
+          data={data}
+          eventId={a.id}
+          payments={section === "payments"}
         />
-      </div>
-      <div className="space-y-2">
-        <Label>Дивизион по уровню</Label>
-        <Input
-          value={form.skill_division}
-          onChange={(e) => set("skill_division", e.target.value)}
-          placeholder="Любители"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Описание</Label>
-        <Textarea
-          value={form.description}
-          onChange={(e) => set("description", e.target.value)}
-          placeholder="Состав команды, форма, судейство, что взять с собой"
-        />
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Весь призовой фонд (взносы минус 10% комиссии платформы) получает 1
-        место. Выплата — после 48-часового окна споров.
-      </p>
-      <Button type="submit" className="press w-full" disabled={busy}>
-        Создать соревнование
-      </Button>
-    </form>
+      ) : section === "results" ? (
+        a.type === "daily_game" ? (
+          <Panel title="Результат игры">
+            <p className="workspace-muted">
+              Для обычной игры результатом служит подтверждённая посещаемость.
+              Отметьте участников и завершите событие — после этого они смогут
+              оставить отзывы.
+            </p>
+            <Button className="mt-4" onClick={() => select("participants")}>
+              Отметить посещение
+            </Button>
+          </Panel>
+        ) : (
+          <HostCompetition event={a} registrations={regs} />
+        )
+      ) : (
+        <Panel title="История события">
+          <History items={data.history.filter((h) => h.activity_id === a.id)} />
+        </Panel>
+      )}
+      <Confirm
+        open={!!actionName}
+        title={
+          actionName === "cancelled"
+            ? "Отменить событие?"
+            : "Завершить событие?"
+        }
+        description={
+          actionName === "cancelled"
+            ? `Будут уведомлены ${regs.filter((r) => !["cancelled", "rejected"].includes(r.status)).length} участников. Оплаченных записей: ${regs.filter((r) => r.payment_status === "paid").length}. По ним появятся запросы возврата.`
+            : "После завершения участники с отмеченным посещением смогут оставить отзыв."
+        }
+        busy={action.busy}
+        onClose={() => setActionName("")}
+        onConfirm={async () => {
+          if (
+            await action.mutate("event_status", {
+              activity_id: a.id,
+              status: actionName,
+              reason,
+            })
+          ) {
+            setActionName("");
+            setReason("");
+          }
+        }}
+      >
+        <label className="event-form">
+          Причина / комментарий
+          <textarea
+            value={reason}
+            maxLength={600}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </label>
+        <ErrorNotice message={action.error} />
+      </Confirm>
+    </>
   );
 }

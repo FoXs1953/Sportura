@@ -1,4 +1,9 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  useNavigate,
+  Link,
+  type SearchSchemaInput,
+} from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +15,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: { redirect?: string } & SearchSchemaInput) => ({
+    redirect:
+      typeof s.redirect === "string" &&
+      s.redirect.startsWith("/") &&
+      !s.redirect.startsWith("//") &&
+      !s.redirect.includes("\\")
+        ? s.redirect
+        : "/",
+  }),
   head: () => ({
     meta: [
       { title: "Вход — Sportura" },
@@ -29,6 +43,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const capabilities = useQuery({
     queryKey: ["auth-capabilities"],
     queryFn: () => getAuthCapabilities(),
@@ -59,14 +74,14 @@ function AuthPage() {
           );
           return;
         }
-        navigate({ to: "/" });
+        window.location.assign(redirect);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-        navigate({ to: "/" });
+        window.location.assign(redirect);
       }
     } catch (err) {
       const raw = err instanceof Error ? err.message : "";
@@ -96,7 +111,7 @@ function AuthPage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: `${window.location.origin}${redirect}` },
       });
       if (error) throw error;
     } catch (error) {

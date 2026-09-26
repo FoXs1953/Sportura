@@ -1,493 +1,741 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import {
-  ArrowRight,
-  ArrowUpRight,
+  createFileRoute,
+  Link,
+  type SearchSchemaInput,
+} from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { z } from "zod";
+import {
   CalendarDays,
-  Clock3,
-  MapPin,
-  MessageSquareText,
+  Wallet,
+  History as HistoryIcon,
   Star,
-  TicketCheck,
+  LifeBuoy,
 } from "lucide-react";
-import { toast } from "sonner";
 import { AppShell } from "@/components/sportura/shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getPlayerEvents } from "@/lib/event.functions";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { getMyRegistrations } from "@/lib/me.functions";
+  eventPhase,
+  overlaps,
+  refundLabels,
+  localDateTime,
+  type Registration,
+} from "@/lib/event-model";
 import {
-  cancelMyRegistration,
-  leaveReview,
-  openDispute,
-} from "@/lib/registrations.functions";
-import {
+  sportImage,
   PAYMENT_STATUS_LABEL,
   REGISTRATION_STATUS_LABEL,
-  priceLabel,
-  sportImage,
-  timeLabel,
+  formatKzt,
+  SPORTS,
 } from "@/lib/sportura";
-import type { PaymentStatus, RegistrationStatus } from "@/lib/sportura";
-
+import { PaymentPanel } from "@/components/events/payment";
+import {
+  Panel,
+  Empty,
+  ErrorNotice,
+  Confirm,
+  CalendarButton,
+  MapLink,
+  History,
+  HelpLink,
+  useEventAction,
+  dateLabel,
+} from "@/components/events/shared";
+import "@/styles/profile.css";
+import "@/styles/events.css";
+const tabs = [
+  "upcoming",
+  "payments",
+  "cancelled",
+  "history",
+  "reviews",
+  "help",
+] as const;
+const labels = {
+  upcoming: "Предстоящие",
+  payments: "Оплаты и чеки",
+  cancelled: "Отмены и возвраты",
+  history: "История",
+  reviews: "Отзывы",
+  help: "Помощь",
+};
+const schema = z.object({
+  tab: z.enum(tabs).catch("upcoming").default("upcoming"),
+  payment: z.string().optional(),
+  registration: z.string().uuid().optional(),
+});
 export const Route = createFileRoute("/_authenticated/my-games")({
-  head: () => ({
-    meta: [
-      { title: "Мои игры — Sportura" },
-      {
-        name: "description",
-        content: "Ваши записи, статусы оплаты, отзывы и споры.",
-      },
-      { property: "og:title", content: "Мои игры — Sportura" },
-      {
-        property: "og:description",
-        content: "Список ваших записей на игры и соревнования.",
-      },
-    ],
-  }),
+  validateSearch: (
+    s: {
+      tab?: string;
+      payment?: string;
+      registration?: string;
+    } & SearchSchemaInput,
+  ) => schema.parse(s),
+  head: () => ({ meta: [{ title: "Мои игры — Sportura" }] }),
   component: MyGames,
 });
-
-type Reg = Awaited<ReturnType<typeof getMyRegistrations>>[number];
-type Activity = {
-  id: string;
-  title: string;
-  sport: string;
-  status: string;
-  location_text: string;
-  time_text: string | null;
-  date_time: string | null;
-  price_text: string | null;
-  entry_fee: number | null;
-  manager_id: string | null;
-  organizer_id: string | null;
-  dispute_window_ends_at: string | null;
-};
-type Filter = "upcoming" | "past";
-
-function activityOf(reg: Reg): Activity | null {
-  return reg.activity as Activity | null;
-}
-function isPast(reg: Reg) {
-  const activity = activityOf(reg);
-  return (
-    reg.status === "attended" ||
-    reg.status === "no_show" ||
-    activity?.status === "completed" ||
-    Boolean(
-      activity?.date_time &&
-      new Date(activity.date_time).getTime() < Date.now(),
-    )
-  );
-}
-function paymentTone(status: string) {
-  if (status === "paid") return "";
-  if (status === "needs_review" || status === "pending")
-    return "feed-status-full";
-  if (status === "rejected") return "feed-status-cancelled";
-  return "feed-status-completed";
-}
-
 function MyGames() {
-  const queryClient = useQueryClient();
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["my-registrations"],
-    queryFn: () => getMyRegistrations(),
+  const query = useQuery({
+    queryKey: ["event-player"],
+    queryFn: () => getPlayerEvents(),
+    refetchInterval: 30000,
   });
-  const [filter, setFilter] = useState<Filter>("upcoming");
-  const [openPanel, setOpenPanel] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-  const [disputeText, setDisputeText] = useState("");
-
-  const regs = ((data ?? []) as Reg[]).filter(
-    (r) => r.status !== "cancelled" && activityOf(r)?.status !== "cancelled",
-  );
-  const upcoming = regs.filter((r) => !isPast(r));
-  const past = regs.filter(isPast);
-  const shown = filter === "upcoming" ? upcoming : past;
-  const pendingPayments = regs.filter(
+  const { tab, payment, registration } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [q, setQ] = useState("");
+  const [sport, setSport] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const regs = query.data?.registrations ?? [];
+  const active = regs.filter(
     (r) =>
-      r.payment_status === "needs_review" || r.payment_status === "pending",
-  ).length;
-
-  async function run(
-    id: string,
-    action: () => Promise<unknown>,
-    success: string,
-  ) {
-    setBusyId(id);
-    try {
-      await action();
-      toast.success(success);
-      await queryClient.invalidateQueries({ queryKey: ["my-registrations"] });
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Не удалось выполнить действие",
-      );
-    } finally {
-      setBusyId(null);
-    }
-  }
-
+      !["cancelled", "rejected"].includes(r.status) &&
+      r.activity.status !== "cancelled",
+  );
+  const upcoming = active
+    .filter((r) => eventPhase(r.activity) !== "past")
+    .sort((a, b) =>
+      (a.activity.date_time ?? "z").localeCompare(b.activity.date_time ?? "z"),
+    );
+  const due = active.filter(
+    (r) =>
+      ["pending", "rejected"].includes(r.payment_status) && r.amount_due !== 0,
+  );
+  const review = active.filter((r) => r.payment_status === "needs_review");
+  const refunds = regs.filter(
+    (r) => r.refund && !["completed", "rejected"].includes(r.refund.status),
+  );
+  const shown = regs
+    .filter((r) => !registration || r.id === registration)
+    .filter((r) => {
+      const phase = eventPhase(r.activity);
+      const cancelled =
+        ["cancelled", "rejected"].includes(r.status) || phase === "cancelled";
+      return tab === "upcoming"
+        ? !cancelled && phase !== "past"
+        : tab === "payments"
+          ? r.amount_due !== 0 &&
+            (!payment ||
+              (payment === "action"
+                ? ["pending", "rejected"].includes(r.payment_status)
+                : r.payment_status === payment))
+          : tab === "cancelled"
+            ? cancelled || !!r.refund
+            : tab === "history"
+              ? !cancelled && phase === "past"
+              : tab === "reviews"
+                ? phase === "past"
+                : true;
+    })
+    .filter(
+      (r) =>
+        (sport === "all" || r.activity.sport === sport) &&
+        (status === "all" || r.status === status) &&
+        `${r.activity.title} ${r.activity.location_text} ${r.activity.host_name}`
+          .toLowerCase()
+          .includes(q.toLowerCase()) &&
+        (!from ||
+          (!!r.activity.date_time &&
+            localDateTime(r.activity.date_time).slice(0, 10) >= from)) &&
+        (!to ||
+          (!!r.activity.date_time &&
+            localDateTime(r.activity.date_time).slice(0, 10) <= to)),
+    )
+    .sort((a, b) =>
+      tab === "upcoming"
+        ? (a.activity.date_time ?? "z").localeCompare(
+            b.activity.date_time ?? "z",
+          )
+        : (b.activity.date_time ?? "").localeCompare(
+            a.activity.date_time ?? "",
+          ),
+    );
+  const go = (next: typeof tab, p?: string) =>
+    void navigate({ search: { tab: next, ...(p ? { payment: p } : {}) } });
   return (
     <AppShell
       workspace
       title="Мои игры"
-      subtitle="Все ваши записи, оплата и итоги в одном месте"
+      subtitle="Ваше расписание, участие и оплата"
     >
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="workspace-stat">
-          <strong>{upcoming.length}</strong>
-          <span>Впереди</span>
-        </div>
-        <div className="workspace-stat">
-          <strong>{past.length}</strong>
-          <span>Прошли</span>
-        </div>
-        <div className="workspace-stat col-span-2 sm:col-span-1">
-          <strong className={pendingPayments ? "workspace-count" : ""}>
-            {pendingPayments}
-          </strong>
-          <span>Ожидают оплаты или проверки</span>
-        </div>
-      </div>
-
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="workspace-segment" role="group" aria-label="Период игр">
-          <button
-            aria-pressed={filter === "upcoming"}
-            onClick={() => setFilter("upcoming")}
-          >
-            Предстоящие{" "}
-            <span className="ml-1 opacity-60">{upcoming.length}</span>
-          </button>
-          <button
-            aria-pressed={filter === "past"}
-            onClick={() => setFilter("past")}
-          >
-            История <span className="ml-1 opacity-60">{past.length}</span>
-          </button>
-        </div>
-        <Link
-          to="/"
-          className="workspace-text-link inline-flex items-center gap-1"
-        >
-          Найти игру <ArrowRight size={15} />
-        </Link>
-      </div>
-
-      {isLoading ? (
-        <div className="feed-grid" aria-label="Загружаем игры">
-          {[1, 2].map((n) => (
-            <div key={n} className="workspace-panel h-52 animate-pulse" />
+      <div className="events-workspace">
+        <div className="event-stats">
+          {[
+            [upcoming.length, "Впереди", () => go("upcoming")],
+            [
+              due.length,
+              "Нужно оплатить или исправить чек",
+              () => go("payments", "action"),
+            ],
+            [
+              review.length,
+              "Чеки на проверке",
+              () => go("payments", "needs_review"),
+            ],
+            [refunds.length, "Возвраты в работе", () => go("cancelled")],
+          ].map(([n, l, fn]) => (
+            <button
+              key={String(l)}
+              className="workspace-stat"
+              onClick={fn as () => void}
+            >
+              <strong>{query.isPending ? "—" : (n as number)}</strong>
+              <span>{l as string}</span>
+            </button>
           ))}
         </div>
-      ) : isError ? (
-        <div className="workspace-panel workspace-empty" role="alert">
-          <div className="workspace-empty-icon">
-            <CalendarDays size={24} />
-          </div>
-          <h2>Не удалось загрузить игры</h2>
-          <p>Проверьте соединение и попробуйте ещё раз.</p>
-          <Button onClick={() => void refetch()}>Повторить</Button>
-        </div>
-      ) : shown.length === 0 ? (
-        <div className="workspace-panel workspace-empty">
-          <div className="workspace-empty-icon">
-            {filter === "upcoming" ? (
-              <CalendarDays size={24} />
+        {upcoming[0] && tab === "upcoming" && (
+          <Panel
+            title={
+              eventPhase(upcoming[0].activity) === "live"
+                ? "Идёт сейчас"
+                : "Ваша ближайшая игра"
+            }
+          >
+            <div className="event-line">
+              <div>
+                <h3 className="text-xl font-bold">
+                  {upcoming[0].activity.title}
+                </h3>
+                <p className="workspace-muted">
+                  {dateLabel(upcoming[0].activity.date_time, true)} ·{" "}
+                  {upcoming[0].activity.location_text}
+                </p>
+              </div>
+              <div className="event-actions">
+                <Link
+                  to="/activity/$id"
+                  params={{ id: upcoming[0].activity.id }}
+                  className="workspace-primary-link"
+                >
+                  Открыть игру
+                </Link>
+                <CalendarButton event={upcoming[0].activity} />
+                <MapLink event={upcoming[0].activity} />
+              </div>
+            </div>
+          </Panel>
+        )}
+        {!!query.data?.notifications.length && tab === "upcoming" && (
+          <Panel title="Требует внимания">
+            <div className="event-notices">
+              {query.data.notifications.slice(0, 5).map((n) => (
+                <a
+                  className="profile-item"
+                  href={
+                    n.href.startsWith("/") && !n.href.startsWith("//")
+                      ? n.href
+                      : "/my-games"
+                  }
+                  key={n.id}
+                >
+                  <strong>{n.title} →</strong>
+                  <p className="workspace-muted text-xs">{n.body}</p>
+                </a>
+              ))}
+            </div>
+          </Panel>
+        )}
+        <nav className="event-tabs" aria-label="Разделы моих игр">
+          {tabs.map((t) => (
+            <button
+              key={t}
+              className={tab === t ? "is-active" : ""}
+              onClick={() => go(t)}
+              aria-current={tab === t ? "page" : undefined}
+            >
+              {labels[t]}
+            </button>
+          ))}
+        </nav>
+        {tab === "help" ? (
+          <Panel
+            title="Помощь по вашим играм"
+            subtitle="Обращения сохраняются в общей истории поддержки профиля."
+          >
+            <div className="event-actions">
+              <HelpLink />
+              <Link
+                className="profile-link"
+                to="/profile"
+                search={{ tab: "help" }}
+              >
+                Мои обращения →
+              </Link>
+              <Link className="profile-link" to="/legal">
+                Правила участия и возвратов →
+              </Link>
+            </div>
+            <p className="workspace-muted mt-4">
+              Чтобы привязать проблему к игре, откройте нужную запись и нажмите
+              «Обратиться в поддержку». Для споров о результатах срок указан в
+              карточке соревнования.
+            </p>
+          </Panel>
+        ) : (
+          <>
+            {registration && (
+              <Button variant="outline" onClick={() => go(tab)}>
+                Показать все мои игры
+              </Button>
+            )}
+            <div className="event-filters">
+              <label>
+                Поиск
+                <Input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Игра, площадка, организатор"
+                />
+              </label>
+              <label>
+                Спорт
+                <select
+                  value={sport}
+                  onChange={(e) => setSport(e.target.value)}
+                >
+                  <option value="all">Все виды</option>
+                  {SPORTS.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Участие
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="all">Все статусы</option>
+                  {Object.entries(REGISTRATION_STATUS_LABEL).map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {tab === "payments" && (
+                <label>
+                  Оплата
+                  <select
+                    value={payment ?? ""}
+                    onChange={(e) => go("payments", e.target.value)}
+                  >
+                    <option value="">Все</option>
+                    <option value="action">Нужно оплатить / исправить</option>
+                    {Object.entries(PAYMENT_STATUS_LABEL).map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label>
+                С даты
+                <Input
+                  type="date"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                />
+              </label>
+              <label>
+                По дату
+                <Input
+                  type="date"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                />
+              </label>
+            </div>
+            {query.isPending ? (
+              <div className="workspace-panel p-8" role="status">
+                Загружаем ваши игры…
+              </div>
+            ) : query.isError ? (
+              <Panel title="Не удалось загрузить игры">
+                <ErrorNotice message={query.error.message} />
+                <Button onClick={() => void query.refetch()}>Повторить</Button>
+              </Panel>
+            ) : !shown.length ? (
+              <Panel
+                title={
+                  regs.length
+                    ? "Нет записей по выбранным условиям"
+                    : "Самое время выбрать первую игру"
+                }
+              >
+                <Empty title="Здесь появятся ваши записи">
+                  <Link className="workspace-primary-link" to="/">
+                    Найти игру →
+                  </Link>
+                </Empty>
+              </Panel>
             ) : (
-              <TicketCheck size={24} />
+              <div className="event-records">
+                {shown.map((r) => (
+                  <GameRecord
+                    key={`${tab}:${r.id}`}
+                    r={r}
+                    tab={tab}
+                    conflict={upcoming.some(
+                      (other) =>
+                        other.id !== r.id &&
+                        overlaps(other.activity, r.activity),
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+function GameRecord({
+  r,
+  tab,
+  conflict,
+}: {
+  r: Registration;
+  tab: string;
+  conflict: boolean;
+}) {
+  const a = r.activity;
+  const action = useEventAction();
+  const [panel, setPanel] = useState(
+    tab === "payments" ? "payment" : tab === "reviews" ? "review" : "",
+  );
+  const [dialog, setDialog] = useState("");
+  const [reason, setReason] = useState("");
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const phase = eventPhase(a);
+  const cancelled =
+    ["cancelled", "rejected"].includes(r.status) || phase === "cancelled";
+  const canReview =
+    r.status === "attended" &&
+    a.status === "completed" &&
+    r.user_id !== (a.manager_id ?? a.organizer_id);
+  const changed =
+    r.terms_snapshot &&
+    (r.terms_snapshot.date_time !== a.date_time ||
+      r.terms_snapshot.location_text !== a.location_text);
+  return (
+    <article className="workspace-panel event-record">
+      <img
+        src={sportImage(a.sport)}
+        alt=""
+        className="event-record-image"
+        loading="lazy"
+      />
+      <div className="event-record-body">
+        <div className="event-line">
+          <span className="workspace-tag">
+            {a.sport} ·{" "}
+            {a.type === "daily_game"
+              ? "Игра"
+              : a.type === "league"
+                ? "Лига"
+                : "Турнир"}
+          </span>
+          <span className="workspace-tag">
+            {cancelled
+              ? "Отменено"
+              : phase === "live"
+                ? "Идёт сейчас"
+                : REGISTRATION_STATUS_LABEL[r.status]}
+          </span>
+        </div>
+        <Link to="/activity/$id" params={{ id: a.id }} className="event-title">
+          {a.title}
+        </Link>
+        <p className="workspace-muted text-sm">
+          {dateLabel(a.date_time, true)}
+          {a.duration_minutes ? ` · ${a.duration_minutes} мин` : ""} ·{" "}
+          {a.location_text}
+        </p>
+        <div className="event-line text-sm">
+          <Link
+            className="profile-link"
+            to="/organizer/$id"
+            params={{ id: a.manager_id ?? a.organizer_id ?? r.user_id }}
+          >
+            {a.host_name}
+          </Link>
+          <span>
+            {r.amount_due === 0
+              ? "Бесплатно"
+              : `${r.amount_due === null ? "Сумма не зафиксирована" : formatKzt(r.amount_due)} · ${PAYMENT_STATUS_LABEL[r.payment_status]}`}
+          </span>
+        </div>
+        {r.team_name && (
+          <details>
+            <summary>Команда: {r.team_name} · вы капитан</summary>
+            <p>{r.team_members.join(", ")}</p>
+          </details>
+        )}
+        {changed && !cancelled && (
+          <p className="feed-notice">
+            Время или площадка изменились после записи. Проверьте актуальные
+            данные выше.
+          </p>
+        )}
+        {conflict && !cancelled && (
+          <p className="feed-notice">
+            Пересекается по времени с другой вашей игрой.
+          </p>
+        )}
+        {cancelled && (
+          <p className="workspace-muted text-sm">
+            {a.status === "cancelled"
+              ? "Отмена организатором"
+              : r.status === "rejected"
+                ? "Запись отклонена"
+                : "Вы отменили запись"}
+            {r.cancelled_at ? ` · ${dateLabel(r.cancelled_at, true)}` : ""}.{" "}
+            {a.cancellation_reason ?? r.cancellation_reason ?? ""}
+          </p>
+        )}
+        <div className="event-actions">
+          <Link
+            className="profile-link"
+            to="/activity/$id"
+            params={{ id: a.id }}
+          >
+            Открыть игру →
+          </Link>
+          <MapLink event={a} />
+          {!cancelled && phase !== "past" && <CalendarButton event={a} />}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setPanel(panel === "payment" ? "" : "payment")}
+          >
+            Оплата и чеки
+          </Button>
+          {r.status === "registered" && phase === "upcoming" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setReason("");
+                setDialog("cancel");
+              }}
+            >
+              Отменить запись
+            </Button>
+          )}
+          {phase === "past" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPanel(panel === "review" ? "" : "review")}
+            >
+              Отзыв
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setPanel(panel === "history" ? "" : "history")}
+          >
+            История
+          </Button>
+        </div>
+        {panel === "payment" && (
+          <div className="event-expanded">
+            <PaymentPanel registration={r} />
+          </div>
+        )}
+        {panel === "history" && (
+          <div className="event-expanded">
+            <History items={r.history ?? []} />
+          </div>
+        )}
+        {panel === "review" && (
+          <div className="event-expanded">
+            {r.review ? (
+              <>
+                <p>Ваша оценка: {"★".repeat(r.review.rating)}</p>
+                <p>{r.review.comment}</p>
+                {r.review.reply && (
+                  <p className="feed-notice">
+                    Ответ организатора: {r.review.reply}
+                  </p>
+                )}
+                <p className="workspace-muted text-xs">
+                  Для исправления опубликованного отзыва обратитесь в поддержку.
+                </p>
+              </>
+            ) : canReview ? (
+              <>
+                <p className="text-sm">Оцените проведение игры</p>
+                <div className="event-actions">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      className={`feed-chip ${rating === n ? "is-active" : ""}`}
+                      aria-label={`${n} из 5`}
+                      key={n}
+                      onClick={() => setRating(n)}
+                    >
+                      {n} ★
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  maxLength={600}
+                  placeholder="Что понравилось или стоит улучшить?"
+                  aria-label="Текст отзыва"
+                />
+                <Button className="mt-3" onClick={() => setDialog("review")}>
+                  Предпросмотр отзыва
+                </Button>
+              </>
+            ) : (
+              <p className="workspace-muted">
+                Отзыв доступен после завершения события и подтверждения вашего
+                посещения организатором.
+              </p>
             )}
           </div>
-          <h2>
-            {filter === "upcoming"
-              ? "Впереди пока нет игр"
-              : "История пока пуста"}
-          </h2>
-          <p>
-            {filter === "upcoming"
-              ? "Найдите ближайшую игру и запишитесь — она появится здесь."
-              : "После первых игр здесь появятся ваши записи и отзывы."}
-          </p>
-          {filter === "upcoming" && (
-            <Link to="/" className="workspace-primary-link mt-2">
-              Смотреть ленту <ArrowRight size={16} />
+        )}
+        {r.refund && (
+          <div className="event-expanded">
+            <h3 className="font-bold">
+              Возврат · {refundLabels[r.refund.status]}
+            </h3>
+            <p>
+              {r.refund.amount === null
+                ? "Сумму уточнит организатор"
+                : formatKzt(r.refund.amount)}
+            </p>
+            <p>{r.refund.response || r.refund.reason}</p>
+            {r.refund.reference && (
+              <p className="workspace-muted">
+                Подтверждение: {r.refund.reference}
+              </p>
+            )}
+          </div>
+        )}
+        {!r.refund &&
+          ["paid", "needs_review"].includes(r.payment_status) &&
+          r.amount_due !== 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setReason("");
+                setDialog("refund");
+              }}
+            >
+              Запросить возврат
+            </Button>
+          )}
+        <div className="event-actions mt-4">
+          <HelpLink
+            registration={r.id}
+            topic={r.status === "no_show" ? "attendance" : "general"}
+          >
+            {r.status === "no_show"
+              ? "Оспорить неявку"
+              : "Обратиться в поддержку"}
+          </HelpLink>
+          {phase === "past" && (
+            <Link
+              to="/"
+              search={{ sport: a.sport, city: a.city }}
+              className="profile-link"
+            >
+              Найти похожую игру →
+            </Link>
+          )}
+          {a.type !== "daily_game" && a.results_submitted_at && (
+            <Link
+              to="/activity/$id"
+              params={{ id: a.id }}
+              hash="competition-results"
+              className="profile-link"
+            >
+              Результаты →
             </Link>
           )}
         </div>
-      ) : (
-        <div className="feed-grid items-start">
-          {shown.map((r) => {
-            const a = activityOf(r);
-            if (!a) return null;
-            const hostId = a.manager_id ?? a.organizer_id;
-            const canDispute = Boolean(
-              a.dispute_window_ends_at &&
-              new Date(a.dispute_window_ends_at).getTime() > Date.now(),
-            );
-            const panel =
-              openPanel === `review-${r.id}`
-                ? "review"
-                : openPanel === `dispute-${r.id}`
-                  ? "dispute"
-                  : null;
-            const busy = busyId === r.id;
-            return (
-              <article key={r.id} className="feed-card account-feed-card">
-                <Link
-                  to="/activity/$id"
-                  params={{ id: a.id }}
-                  className="feed-card-image block"
-                  aria-label={`Открыть игру: ${a.title}`}
-                >
-                  <img
-                    src={sportImage(a.sport)}
-                    alt=""
-                    width={640}
-                    height={360}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="feed-card-badges">
-                    <span className="feed-format">
-                      {
-                        REGISTRATION_STATUS_LABEL[
-                          r.status as RegistrationStatus
-                        ]
-                      }
-                    </span>
-                    <span
-                      className={`feed-status ${paymentTone(r.payment_status)}`}
-                    >
-                      <i aria-hidden="true" />
-                      {PAYMENT_STATUS_LABEL[r.payment_status as PaymentStatus]}
-                    </span>
-                  </div>
-                  <span className="feed-card-sport">{a.sport}</span>
-                  <span className="feed-card-arrow">
-                    <ArrowUpRight size={18} aria-hidden="true" />
-                  </span>
-                </Link>
-                <div className="feed-card-body">
-                  <Link
-                    to="/activity/$id"
-                    params={{ id: a.id }}
-                    className="group inline-flex items-start gap-2 text-left"
-                  >
-                    <h3 className="group-hover:text-[#ff9164]">{a.title}</h3>
-                  </Link>
-                  <div className="feed-card-details">
-                    <p className="feed-card-time">
-                      <Clock3 size={15} aria-hidden="true" />
-                      <span>{timeLabel(a) || "Время уточняется"}</span>
-                    </p>
-                    <p>
-                      <MapPin size={15} aria-hidden="true" />
-                      <span>{a.location_text || "Площадка уточняется"}</span>
-                    </p>
-                  </div>
-                </div>
-                <div className="account-card-actions">
-                  <div className="feed-card-footer account-card-price">
-                    <span className="workspace-overline">
-                      Стоимость участия
-                    </span>
-                    <div className="feed-card-price">
-                      <strong>{priceLabel(a)}</strong>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {r.payment_status === "pending" && !isPast(r) && (
-                      <Link
-                        to="/activity/$id"
-                        params={{ id: a.id }}
-                        className="workspace-primary-link py-2 text-xs"
-                      >
-                        Оплата и чек <ArrowRight size={14} />
-                      </Link>
-                    )}
-                    {r.status === "registered" && !isPast(r) && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="secondary" size="sm" disabled={busy}>
-                            Отменить запись
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="rounded-2xl border-[#30393c] bg-[#1b2123] text-[#f5f7f6]">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Отменить запись?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Вы больше не будете в списке участников «{a.title}
-                              ». Условия возврата зависят от правил события.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Остаться</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() =>
-                                void run(
-                                  r.id,
-                                  () =>
-                                    cancelMyRegistration({
-                                      data: { registrationId: r.id },
-                                    }),
-                                  "Запись отменена",
-                                )
-                              }
-                            >
-                              Отменить запись
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                    {hostId && isPast(r) && (
-                      <Button
-                        variant={panel === "review" ? "default" : "secondary"}
-                        size="sm"
-                        disabled={busy}
-                        aria-expanded={panel === "review"}
-                        onClick={() => {
-                          setOpenPanel(
-                            panel === "review" ? null : `review-${r.id}`,
-                          );
-                          setRating(5);
-                          setComment("");
-                        }}
-                      >
-                        <Star size={14} /> Отзыв
-                      </Button>
-                    )}
-                    {canDispute && (
-                      <Button
-                        variant={panel === "dispute" ? "default" : "secondary"}
-                        size="sm"
-                        disabled={busy}
-                        aria-expanded={panel === "dispute"}
-                        onClick={() => {
-                          setOpenPanel(
-                            panel === "dispute" ? null : `dispute-${r.id}`,
-                          );
-                          setDisputeText("");
-                        }}
-                      >
-                        <MessageSquareText size={14} /> Открыть спор
-                      </Button>
-                    )}
-                  </div>
-                  {panel === "review" && hostId && (
-                    <div className="workspace-panel-raised mt-4 space-y-3 p-4">
-                      <p className="text-xs font-bold">Как прошла игра?</p>
-                      <div
-                        className="flex gap-1"
-                        role="group"
-                        aria-label="Оценка организатору"
-                      >
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <button
-                            key={n}
-                            type="button"
-                            aria-label={`${n} из 5`}
-                            aria-pressed={rating === n}
-                            onClick={() => setRating(n)}
-                            className={`grid size-9 place-items-center rounded-lg ${n <= rating ? "bg-[#ff916425] text-[#ffb38f]" : "bg-[#30393c] text-[#a3afb3]"}`}
-                          >
-                            <Star
-                              size={18}
-                              fill={n <= rating ? "currentColor" : "none"}
-                            />
-                          </button>
-                        ))}
-                      </div>
-                      <Textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Что понравилось?"
-                        aria-label="Текст отзыва"
-                        className="min-h-24 border-[#455054] bg-[#1b2123]"
-                      />
-                      <Button
-                        size="sm"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(
-                            r.id,
-                            async () => {
-                              await leaveReview({
-                                data: {
-                                  activityId: a.id,
-                                  reviewedUserId: hostId,
-                                  rating,
-                                  comment,
-                                },
-                              });
-                              setOpenPanel(null);
-                              setComment("");
-                            },
-                            "Спасибо за отзыв",
-                          )
-                        }
-                      >
-                        Отправить отзыв
-                      </Button>
-                    </div>
-                  )}
-                  {panel === "dispute" && (
-                    <div className="workspace-panel-raised mt-4 space-y-3 p-4">
-                      <p className="text-xs font-bold">Опишите проблему</p>
-                      <Textarea
-                        value={disputeText}
-                        onChange={(e) => setDisputeText(e.target.value)}
-                        placeholder="Не менее 10 символов"
-                        aria-label="Описание проблемы"
-                        className="min-h-24 border-[#455054] bg-[#1b2123]"
-                      />
-                      <Button
-                        size="sm"
-                        disabled={busy || disputeText.trim().length < 10}
-                        onClick={() =>
-                          void run(
-                            r.id,
-                            async () => {
-                              await openDispute({
-                                data: {
-                                  activityId: a.id,
-                                  reason: disputeText.trim(),
-                                },
-                              });
-                              setOpenPanel(null);
-                              setDisputeText("");
-                            },
-                            "Сообщение отправлено администратору",
-                          )
-                        }
-                      >
-                        Отправить
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-    </AppShell>
+        {a.dispute_window_ends_at && (
+          <p className="workspace-muted text-xs mt-3">
+            Спор по результатам можно подать до{" "}
+            {dateLabel(a.dispute_window_ends_at, true)}. Связь с поддержкой
+            доступна и позже.
+          </p>
+        )}
+      </div>
+      <Confirm
+        open={!!dialog}
+        title={
+          dialog === "cancel"
+            ? "Отменить участие?"
+            : dialog === "review"
+              ? "Опубликовать отзыв?"
+              : "Запросить возврат?"
+        }
+        description={
+          dialog === "cancel"
+            ? (r.terms_snapshot?.cancellation_policy ??
+              a.cancellation_policy ??
+              "Запись сохранится в истории. Если участие оплачено, будет создан запрос на рассмотрение возврата.")
+            : dialog === "review"
+              ? "Отзыв увидит организатор. Исправления после публикации рассматривает поддержка."
+              : "Организатор рассмотрит сумму и основания. Создание запроса не выполняет денежный перевод."
+        }
+        onClose={() => setDialog("")}
+        busy={action.busy}
+        onConfirm={() =>
+          void (async () => {
+            if (dialog === "review") {
+              if (
+                await action.mutate(
+                  "review",
+                  { registration_id: r.id, rating, comment },
+                  "Отзыв опубликован",
+                )
+              )
+                setDialog("");
+            } else if (
+              await action.mutate(
+                dialog === "cancel" ? "cancel" : "refund",
+                { registration_id: r.id, reason, status: "requested" },
+                dialog === "cancel" ? "Запись отменена" : "Запрос создан",
+              )
+            )
+              setDialog("");
+          })()
+        }
+      >
+        {dialog === "review" ? (
+          <p>
+            {rating} ★ · {comment || "Без комментария"}
+          </p>
+        ) : (
+          <label>
+            Причина
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={600}
+            />
+          </label>
+        )}
+        <ErrorNotice message={action.error} />
+      </Confirm>
+    </article>
   );
 }

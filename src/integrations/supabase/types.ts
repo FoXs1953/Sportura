@@ -708,6 +708,21 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      profile_maintenance: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
+      event_workspace: {
+        Args: { action: string; payload?: Json };
+        Returns: Json;
+      };
+      event_competition: {
+        Args: { action: string; payload?: Json };
+        Returns: Json;
+      };
+      event_feed: { Args: { filters?: Json; page?: number }; Returns: Json };
+      event_public: { Args: { aid: string; code?: string }; Returns: Json };
+
       profile_preferences_for_feed: {
         Args: Record<string, never>;
         Returns: Json;
