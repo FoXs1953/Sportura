@@ -761,7 +761,11 @@ export type Database = {
         "open" | "nearly_full" | "full" | "completed" | "cancelled";
       activity_type: "daily_game" | "tournament" | "league";
       app_role:
-        "participant" | "sports_manager" | "tournament_organizer" | "admin";
+        | "participant"
+        | "sports_manager"
+        | "tournament_organizer"
+        | "moderator"
+        | "admin";
       application_status: "pending" | "approved" | "rejected";
       payment_status:
         "pending" | "paid" | "needs_review" | "rejected" | "refunded";

@@ -234,4 +234,6 @@ try {
 }
 console.log("DATABASE CHECKS PASSED");
 await (await import('./events-database.mjs')).testEvents(db,as,assert);
+await (await import('./staff-database.mjs')).testStaff(db,as,assert);
+await (await import('./tournament-catalog.mjs')).testCatalog(db,as,assert);
 await db.close();

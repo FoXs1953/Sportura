@@ -1,14 +1,10 @@
+import { DISCIPLINES } from "./disciplines";
 import football from "@/assets/sport-football.jpg";
 import minifootball from "@/assets/sport-minifootball.jpg";
 import basketball from "@/assets/sport-basketball.jpg";
 import volleyball from "@/assets/sport-volleyball.jpg";
 
-export const SPORTS = [
-  "Футбол",
-  "Мини-футбол",
-  "Баскетбол",
-  "Волейбол",
-] as const;
+export const SPORTS = DISCIPLINES.map((d) => d.name);
 export type Sport = (typeof SPORTS)[number];
 
 export const CITIES = ["Астана", "Алматы", "Шымкент", "Караганда"] as const;
@@ -28,7 +24,11 @@ export type PaymentStatus =
 export type RegistrationStatus =
   "registered" | "cancelled" | "no_show" | "attended" | "rejected";
 export type AppRole =
-  "participant" | "sports_manager" | "tournament_organizer" | "admin";
+  | "participant"
+  | "sports_manager"
+  | "tournament_organizer"
+  | "moderator"
+  | "admin";
 export type AccountStatus = "active" | "flagged" | "suspended" | "banned";
 
 export const ACTIVITY_TYPE_LABEL: Record<ActivityType, string> = {
@@ -65,6 +65,7 @@ export const ROLE_LABEL: Record<AppRole, string> = {
   participant: "Участник",
   sports_manager: "Спорт-менеджер",
   tournament_organizer: "Организатор турниров",
+  moderator: "Лид",
   admin: "Администратор",
 };
 

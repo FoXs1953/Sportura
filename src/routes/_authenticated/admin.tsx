@@ -1,3 +1,5 @@
+import { StaffPaymentReview } from "@/components/analytics/payment-review";
+import { AnalyticsDashboard } from "@/components/analytics/dashboard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -61,6 +63,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 type Tab =
+  | "analytics"
   | "overview"
   | "applications"
   | "users"
@@ -97,6 +100,7 @@ function Admin() {
   const queryClient = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => getMe() });
   const isAdmin = Boolean(me?.roles.includes("admin"));
+  const isStaff = isAdmin || Boolean(me?.roles.includes("moderator"));
   const [tab, setTab] = useState<Tab>("overview");
   const [notes, setNotes] = useState("");
   const [restrictionNotes, setRestrictionNotes] = useState<
@@ -116,12 +120,12 @@ function Admin() {
   const overview = useQuery({
     queryKey: ["admin", "overview"],
     queryFn: () => getAdminOverview(),
-    enabled: isAdmin,
+    enabled: isStaff,
   });
   const applications = useQuery({
     queryKey: ["admin", "applications"],
     queryFn: () => listApplicationsAdmin(),
-    enabled: isAdmin && tab === "applications",
+    enabled: isStaff && tab === "applications",
   });
   const users = useQuery({
     queryKey: ["admin", "users"],
@@ -131,17 +135,17 @@ function Admin() {
   const activities = useQuery({
     queryKey: ["admin", "activities"],
     queryFn: () => listActivitiesAdmin(),
-    enabled: isAdmin && tab === "activities",
+    enabled: isStaff && tab === "activities",
   });
   const audit = useQuery({
     queryKey: ["admin", "audit"],
     queryFn: () => listPaymentAudit(),
-    enabled: isAdmin && tab === "payments",
+    enabled: isStaff && tab === "payments",
   });
   const disputes = useQuery({
     queryKey: ["admin", "disputes"],
     queryFn: () => listDisputesAdmin(),
-    enabled: isAdmin && tab === "disputes",
+    enabled: isStaff && tab === "disputes",
   });
   const events = useQuery({
     queryKey: ["admin", "events"],
@@ -151,7 +155,7 @@ function Admin() {
   const commission = useQuery({
     queryKey: ["admin", "commission"],
     queryFn: () => getCommissionReport(),
-    enabled: isAdmin && tab === "reports",
+    enabled: isStaff && tab === "reports",
   });
 
   async function exportCsv(
@@ -168,11 +172,11 @@ function Admin() {
     }
   }
 
-  if (me && !isAdmin) {
+  if (me && !isStaff) {
     return (
       <AppShell title="Администрирование">
         <div className="panel-frost rounded-3xl p-6 text-center text-sm text-muted-foreground">
-          Раздел доступен только администраторам.
+          Раздел доступен лидам и администраторам.
           <Link to="/" className="mt-3 block text-brand underline">
             На главную
           </Link>
@@ -200,11 +204,13 @@ function Admin() {
 
   return (
     <AppShell
-      title="Администрирование"
+      title={isAdmin ? "Администрирование" : "Кабинет лида"}
       subtitle="Пользователи, события, платежи и управление платформой"
       layout="admin"
     >
       <div className="admin-page">
+        {tab === "payments" && isStaff && <StaffPaymentReview />}
+        {tab === "analytics" && isStaff && <AnalyticsDashboard />}
         {(o?.applicationsPending ?? 0) > 0 ||
         (o?.payments.needsReview ?? 0) > 0 ||
         (o?.disputesOpen ?? 0) > 0 ? (
@@ -260,6 +266,7 @@ function Admin() {
           {(
             [
               ["overview", "Обзор", 0],
+              ["analytics", "Аналитика", 0],
               ["applications", "Заявки", o?.applicationsPending ?? 0],
               ["users", "Пользователи", 0],
               ["activities", "Активности", 0],
@@ -277,23 +284,31 @@ function Admin() {
                   0,
               ],
             ] as [Tab, string, number][]
-          ).map(([key, label, count]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={tab === key}
-              onClick={() => setTab(key)}
-              className="press"
-            >
-              {label}
-              {count > 0 ? (
-                <span className="ml-1.5 rounded-full bg-warning/25 px-1.5 py-0.5 text-[10px] font-bold text-warning">
-                  {count}
-                </span>
-              ) : null}
-            </button>
-          ))}
+          )
+            .filter(
+              ([key]) =>
+                isAdmin ||
+                !["users", "settings", "audit", "logs", "support"].includes(
+                  key,
+                ),
+            )
+            .map(([key, label, count]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => setTab(key)}
+                className="press"
+              >
+                {label}
+                {count > 0 ? (
+                  <span className="ml-1.5 rounded-full bg-warning/25 px-1.5 py-0.5 text-[10px] font-bold text-warning">
+                    {count}
+                  </span>
+                ) : null}
+              </button>
+            ))}
         </div>
 
         {tab === "overview" ? (
@@ -468,6 +483,7 @@ function Admin() {
                       "participant",
                       "sports_manager",
                       "tournament_organizer",
+                      "moderator",
                       "admin",
                     ] as AppRole[]
                   ).map((r) => {
@@ -631,32 +647,35 @@ function Admin() {
                       {label}
                     </Button>
                   ))}
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="press"
-                    onClick={() => {
-                      if (
-                        !confirm(
-                          `Удалить «${a.title}» вместе с записями участников?`,
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="press"
+                      onClick={() => {
+                        if (
+                          !confirm(
+                            `Удалить «${a.title}» вместе с записями участников?`,
+                          )
                         )
-                      )
-                        return;
-                      void run(
-                        () =>
-                          moderateActivity({
-                            data: { activityId: a.id, action: "delete" },
-                          }),
-                        "Активность удалена",
-                        ["activities", "overview", "auditlog"],
-                      );
-                    }}
-                  >
-                    Удалить
-                  </Button>
+                          return;
+                        void run(
+                          () =>
+                            moderateActivity({
+                              data: { activityId: a.id, action: "delete" },
+                            }),
+                          "Активность удалена",
+                          ["activities", "overview", "auditlog"],
+                        );
+                      }}
+                    >
+                      Удалить
+                    </Button>
+                  )}
                 </div>
                 {editingId === a.id ? (
                   <ActivityEditor
+                    canEditCommission={isAdmin}
                     activity={a}
                     onClose={() => setEditingId(null)}
                     onSaved={() => {

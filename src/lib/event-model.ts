@@ -1,6 +1,14 @@
 import type { PublicActivity } from "./activities.functions";
 import type { PaymentStatus, RegistrationStatus } from "./sportura";
 export type Event = PublicActivity & {
+  match_settings?: Record<string, string>;
+  tier?: "spark" | "blitz" | null;
+  competition_format?: "single_elimination" | "round_robin";
+  min_participants?: number;
+  team_min?: number;
+  team_max?: number;
+  discipline_id?: string | null;
+
   cover_url: string | null;
   commission_percent: number;
   duration_minutes: number | null;
@@ -45,6 +53,8 @@ export type EventReview = {
   created_at: string;
 };
 export type Registration = {
+  checked_in_at?: string | null;
+  game_nickname?: string;
   id: string;
   activity_id: string;
   user_id: string;
@@ -93,6 +103,15 @@ export type HostDocument = {
   updated_at: string;
 };
 export type EventDraft = {
+  prize_pool?: Record<string, number>;
+  match_settings?: Record<string, string>;
+  tier?: "spark" | "blitz" | null;
+  competition_format?: "single_elimination" | "round_robin";
+  min_participants?: number;
+  team_min?: number;
+  team_max?: number;
+  discipline_id?: string | null;
+
   cover_url: string;
   title: string;
   type: "daily_game" | "tournament" | "league";
@@ -240,6 +259,15 @@ export function isoDateTime(local: string) {
 }
 export function eventDraft(a?: Partial<Event>): EventDraft {
   return {
+    match_settings: a?.match_settings ?? {},
+    prize_pool: a?.prize_pool ?? { "1": 100 },
+    tier: a?.tier ?? (Number(a?.entry_fee ?? 0) > 0 ? "blitz" : "spark"),
+    competition_format:
+      a?.competition_format ??
+      (a?.type === "league" ? "round_robin" : "single_elimination"),
+    min_participants: a?.min_participants ?? 2,
+    team_min: a?.team_min ?? 1,
+    team_max: a?.team_max ?? 50,
     cover_url: a?.cover_url ?? "",
     title: a?.title ?? "",
     type: a?.type ?? "daily_game",

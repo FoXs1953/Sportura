@@ -38,7 +38,10 @@ export function CompetitionView({ data }: { data: CompetitionData }) {
           </p>
         </div>
       )}
-      {data.activity.type === "league" && <Standings data={data} />}
+      {(data.activity.type === "league" ||
+        data.activity.competition_format === "round_robin") && (
+        <Standings data={data} />
+      )}
       <div className="event-grid">
         {data.matches.map((m) => (
           <article className="event-match" key={m.id}>
@@ -131,6 +134,7 @@ export function HostCompetition({
   >(null);
   const [reason, setReason] = useState("");
   const [winner, setWinner] = useState("");
+  const [placements, setPlacements] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState(false);
   const received = registrations
     .filter(
@@ -167,7 +171,7 @@ export function HostCompetition({
     <Panel
       title={a.title}
       description={
-        a.type === "league"
+        a.type === "league" || a.competition_format === "round_robin"
           ? "Лига: один круг, каждый играет с каждым."
           : "Турнир на выбывание. Нечётный участник получает проход без матча."
       }
@@ -205,14 +209,16 @@ export function HostCompetition({
             </Button>
           ) : (
             <>
-              {a.type === "tournament" && !a.results_submitted_at && (
-                <Button
-                  variant="outline"
-                  onClick={() => setDecision("advance")}
-                >
-                  Следующий раунд
-                </Button>
-              )}
+              {a.type === "tournament" &&
+                a.competition_format !== "round_robin" &&
+                !a.results_submitted_at && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setDecision("advance")}
+                  >
+                    Следующий раунд
+                  </Button>
+                )}
               <Button variant="outline" onClick={() => setPreview(!preview)}>
                 {preview ? "Редактировать матчи" : "Предпросмотр итогов"}
               </Button>
@@ -230,7 +236,8 @@ export function HostCompetition({
           <CompetitionView data={d} />
         ) : (
           <>
-            {a.type === "league" && <Standings data={d} />}
+            {(a.type === "league" ||
+              a.competition_format === "round_robin") && <Standings data={d} />}
             <div className="event-grid">
               {d.matches.map((m) => (
                 <MatchEditor
@@ -276,7 +283,12 @@ export function HostCompetition({
                   mutateCompetition({
                     data: {
                       action: decision,
-                      payload: { activity_id: a.id, reason, winner_id: winner },
+                      payload: {
+                        activity_id: a.id,
+                        reason,
+                        winner_id: winner,
+                        placements,
+                      },
                     },
                   }),
                 "Соревнование обновлено",
@@ -287,6 +299,33 @@ export function HostCompetition({
         >
           {decision === "publish_results" && (
             <div className="event-form">
+              {Object.keys(a.prize_pool ?? { "1": 100 })
+                .filter((k) => k !== "1")
+                .map((place) => (
+                  <label key={place}>
+                    Место {place} · {a.prize_pool?.[place]}%
+                    <select
+                      value={placements[place] ?? ""}
+                      onChange={(e) =>
+                        setPlacements({
+                          ...placements,
+                          [place]: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="">Выберите участника по регламенту</option>
+                      {registrations
+                        .filter((r) =>
+                          ["registered", "attended"].includes(r.status),
+                        )
+                        .map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.team_name || r.name || r.id}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                ))}
               <label>
                 Победитель при полном равенстве
                 <select
@@ -409,7 +448,7 @@ function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
           />
         </label>
       </div>
-      {a.type === "tournament" && (
+      {a.type === "tournament" && a.competition_format !== "round_robin" && (
         <label>
           Победитель при равном счёте
           <select

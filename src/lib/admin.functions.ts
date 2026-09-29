@@ -1,3 +1,4 @@
+import { assertStaff } from "@/lib/staff";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -14,7 +15,7 @@ async function assertAdmin(context: { supabase: any; userId: string }) {
 export const getAdminAlerts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const [apps, regs, disputes] = await Promise.all([
       context.supabase
         .from("manager_applications")
@@ -36,7 +37,7 @@ export const getAdminAlerts = createServerFn({ method: "GET" })
 export const getAdminOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { supabase } = context;
     const [
       users,
@@ -46,7 +47,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       applications,
       transactions,
     ] = await Promise.all([
-      supabase.from("profiles").select("id, account_status"),
+      (supabase as any).rpc("staff_overview_counts"),
       supabase
         .from("activities")
         .select(
@@ -80,10 +81,8 @@ export const getAdminOverview = createServerFn({ method: "GET" })
 
     return {
       users: {
-        total: (users.data ?? []).length,
-        flagged: (users.data ?? []).filter(
-          (u: { account_status: string }) => u.account_status !== "active",
-        ).length,
+        total: Number(users.data?.total ?? 0),
+        flagged: Number(users.data?.flagged ?? 0),
       },
       activities: {
         total: acts.length,
@@ -143,7 +142,7 @@ export const listUsersAdmin = createServerFn({ method: "GET" })
 export const listApplicationsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { data, error } = await context.supabase
       .from("manager_applications")
       .select(
@@ -195,36 +194,16 @@ export const reviewApplication = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { supabase, userId } = context;
-    const app = await supabase
-      .from("manager_applications")
-      .select("id, user_id, requested_role")
-      .eq("id", data.applicationId)
-      .maybeSingle();
-    if (!app.data) throw new Error("Заявка не найдена.");
-
-    const { error } = await supabase
-      .from("manager_applications")
-      .update({
-        status: data.approve ? "approved" : "rejected",
-        admin_notes: data.notes ?? null,
-        reviewed_by: userId,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", data.applicationId);
+    await assertStaff(context);
+    const { error } = await (context.supabase as any).rpc(
+      "staff_review_application",
+      {
+        aid: data.applicationId,
+        approve: data.approve,
+        notes: data.notes ?? null,
+      },
+    );
     if (error) throw new Error(error.message);
-
-    if (data.approve) {
-      const { supabaseAdmin } =
-        await import("@/integrations/supabase/client.server");
-      const grant = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: app.data.user_id, role: app.data.requested_role });
-      if (grant.error && !grant.error.message.includes("duplicate")) {
-        throw new Error(grant.error.message);
-      }
-    }
     return { ok: true };
   });
 
@@ -259,7 +238,7 @@ export const setAccountStatus = createServerFn({ method: "POST" })
 export const listActivitiesAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { data, error } = await context.supabase
       .from("activities")
       .select("*")
@@ -272,7 +251,7 @@ export const listActivitiesAdmin = createServerFn({ method: "GET" })
 export const listPaymentAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { data, error } = await context.supabase
       .from("payment_status_history")
       .select(
@@ -287,7 +266,7 @@ export const listPaymentAudit = createServerFn({ method: "GET" })
 export const listDisputesAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { data, error } = await context.supabase
       .from("disputes")
       .select(
@@ -310,7 +289,7 @@ export const resolveDispute = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { error } = await context.supabase
       .from("disputes")
       .update({
@@ -549,7 +528,7 @@ export const exportAdminCsv = createServerFn({ method: "POST" })
 export const getCommissionReport = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { data: rows, error } = await context.supabase
       .from("activities")
       .select(
@@ -584,4 +563,41 @@ export const getCommissionReport = createServerFn({ method: "GET" })
       commissionTotal: list.reduce((s, a) => s + a.commission, 0),
       items: list.slice().reverse(),
     };
+  });
+
+export const listPendingPayments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertStaff(context);
+    const r = await context.supabase
+      .from("registrations")
+      .select(
+        "id,payment_reference,receipt_url,created_at,activity:activities(title)",
+      )
+      .eq("payment_status", "needs_review")
+      .order("created_at")
+      .limit(200);
+    if (r.error) throw Error(r.error.message);
+    return r.data;
+  });
+export const reviewStaffPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        approve: z.boolean(),
+        note: z.string().max(600),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const r = await (context.supabase as any).rpc("staff_payment", {
+      rid: data.id,
+      approve: data.approve,
+      note: data.note,
+    });
+    if (r.error) throw Error(r.error.message);
+    return { ok: true };
   });

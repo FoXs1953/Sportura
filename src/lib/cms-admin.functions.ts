@@ -1,3 +1,4 @@
+import { assertStaff } from "@/lib/staff";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -34,7 +35,9 @@ async function logAction(
 const blockSchema = z.object({
   id: z.string().uuid().optional().nullable(),
   page: z.string().min(1).max(40).default("home"),
-  kind: z.enum(["hero", "banner", "text", "cards", "faq", "cta"]).default("text"),
+  kind: z
+    .enum(["hero", "banner", "text", "cards", "faq", "cta"])
+    .default("text"),
   title: z.string().max(160).optional().nullable(),
   subtitle: z.string().max(240).optional().nullable(),
   body: z.string().max(4000).optional().nullable(),
@@ -42,7 +45,12 @@ const blockSchema = z.object({
   cta_label: z.string().max(60).optional().nullable(),
   cta_url: z.string().max(600).optional().nullable(),
   items: z
-    .array(z.object({ title: z.string().max(160).default(""), text: z.string().max(600).default("") }))
+    .array(
+      z.object({
+        title: z.string().max(160).default(""),
+        text: z.string().max(600).default(""),
+      }),
+    )
     .max(12)
     .default([]),
   position: z.number().int().min(0).max(999).default(0),
@@ -52,7 +60,7 @@ const blockSchema = z.object({
 export const listBlocksAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { data, error } = await context.supabase
       .from("content_blocks")
       .select("*")
@@ -66,7 +74,7 @@ export const saveBlock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => blockSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { id, ...rest } = data;
     const row: any = {
       ...rest,
@@ -74,9 +82,14 @@ export const saveBlock = createServerFn({ method: "POST" })
       updated_by: context.userId,
     };
     if (id) {
-      const { error } = await context.supabase.from("content_blocks").update(row).eq("id", id);
+      const { error } = await context.supabase
+        .from("content_blocks")
+        .update(row)
+        .eq("id", id);
       if (error) throw new Error(error.message);
-      await logAction(context, "block.update", "content_blocks", id, { page: row.page });
+      await logAction(context, "block.update", "content_blocks", id, {
+        page: row.page,
+      });
       return { id };
     }
     const { data: created, error } = await context.supabase
@@ -85,16 +98,23 @@ export const saveBlock = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await logAction(context, "block.create", "content_blocks", created.id, { page: row.page });
+    await logAction(context, "block.create", "content_blocks", created.id, {
+      page: row.page,
+    });
     return created;
   });
 
 export const deleteBlock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { error } = await context.supabase.from("content_blocks").delete().eq("id", data.id);
+    await assertStaff(context);
+    const { error } = await context.supabase
+      .from("content_blocks")
+      .delete()
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     await logAction(context, "block.delete", "content_blocks", data.id);
     return { ok: true };
@@ -103,10 +123,12 @@ export const deleteBlock = createServerFn({ method: "POST" })
 export const moveBlock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ id: z.string().uuid(), direction: z.enum(["up", "down"]) }).parse(input),
+    z
+      .object({ id: z.string().uuid(), direction: z.enum(["up", "down"]) })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const current = await context.supabase
       .from("content_blocks")
       .select("id, page, position")
@@ -129,13 +151,18 @@ export const toggleBlock = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), published: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { error } = await context.supabase
       .from("content_blocks")
       .update({ published: data.published, updated_by: context.userId })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    await logAction(context, data.published ? "block.publish" : "block.hide", "content_blocks", data.id);
+    await logAction(
+      context,
+      data.published ? "block.publish" : "block.hide",
+      "content_blocks",
+      data.id,
+    );
     return { ok: true };
   });
 
@@ -145,7 +172,9 @@ export const listSettingsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { data, error } = await context.supabase.from("site_settings").select("key, value, updated_at");
+    const { data, error } = await context.supabase
+      .from("site_settings")
+      .select("key, value, updated_at");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
@@ -164,11 +193,24 @@ export const saveSetting = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { error } = await context.supabase
       .from("site_settings")
-      .upsert({ key: data.key, value: data.value as any, updated_by: context.userId } as any, {
-        onConflict: "key",
-      });
+      .upsert(
+        {
+          key: data.key,
+          value: data.value as any,
+          updated_by: context.userId,
+        } as any,
+        {
+          onConflict: "key",
+        },
+      );
     if (error) throw new Error(error.message);
-    await logAction(context, "settings.update", "site_settings", data.key, data.value);
+    await logAction(
+      context,
+      "settings.update",
+      "site_settings",
+      data.key,
+      data.value,
+    );
     return { ok: true };
   });
 
@@ -180,7 +222,13 @@ export const setUserRole = createServerFn({ method: "POST" })
     z
       .object({
         userId: z.string().uuid(),
-        role: z.enum(["participant", "sports_manager", "tournament_organizer", "admin"]),
+        role: z.enum([
+          "participant",
+          "sports_manager",
+          "tournament_organizer",
+          "moderator",
+          "admin",
+        ]),
         grant: z.boolean(),
       })
       .parse(input),
@@ -191,13 +239,20 @@ export const setUserRole = createServerFn({ method: "POST" })
       if (data.userId === context.userId) {
         throw new Error("Нельзя снять роль администратора с себя.");
       }
-      const admins = await context.supabase.from("user_roles").select("user_id").eq("role", "admin");
-      if ((admins.data ?? []).length <= 1) throw new Error("Должен остаться хотя бы один администратор.");
+      const admins = await context.supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      if ((admins.data ?? []).length <= 1)
+        throw new Error("Должен остаться хотя бы один администратор.");
     }
     if (data.grant) {
       const { error } = await context.supabase
         .from("user_roles")
-        .upsert({ user_id: data.userId, role: data.role }, { onConflict: "user_id,role" });
+        .upsert(
+          { user_id: data.userId, role: data.role },
+          { onConflict: "user_id,role" },
+        );
       if (error) throw new Error(error.message);
     } else {
       const { error } = await context.supabase
@@ -207,9 +262,15 @@ export const setUserRole = createServerFn({ method: "POST" })
         .eq("role", data.role);
       if (error) throw new Error(error.message);
     }
-    await logAction(context, data.grant ? "role.grant" : "role.revoke", "user_roles", data.userId, {
-      role: data.role,
-    });
+    await logAction(
+      context,
+      data.grant ? "role.grant" : "role.revoke",
+      "user_roles",
+      data.userId,
+      {
+        role: data.role,
+      },
+    );
     return { ok: true };
   });
 
@@ -221,17 +282,33 @@ export const moderateActivity = createServerFn({ method: "POST" })
     z
       .object({
         activityId: z.string().uuid(),
-        action: z.enum(["cancel", "reopen", "complete", "hide", "publish", "delete"]),
+        action: z.enum([
+          "cancel",
+          "reopen",
+          "complete",
+          "hide",
+          "publish",
+          "delete",
+        ]),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { supabase } = context;
     if (data.action === "delete") {
-      const { error } = await supabase.from("activities").delete().eq("id", data.activityId);
+      await assertAdmin(context);
+      const { error } = await supabase
+        .from("activities")
+        .delete()
+        .eq("id", data.activityId);
       if (error) throw new Error(error.message);
-      await logAction(context, "activity.delete", "activities", data.activityId);
+      await logAction(
+        context,
+        "activity.delete",
+        "activities",
+        data.activityId,
+      );
       return { ok: true };
     }
     const patch: any =
@@ -244,9 +321,18 @@ export const moderateActivity = createServerFn({ method: "POST" })
             : data.action === "hide"
               ? { is_private: true }
               : { is_private: false };
-    const { error } = await supabase.from("activities").update(patch).eq("id", data.activityId);
+    const { error } = await supabase
+      .from("activities")
+      .update(patch)
+      .eq("id", data.activityId);
     if (error) throw new Error(error.message);
-    await logAction(context, `activity.${data.action}`, "activities", data.activityId, patch);
+    await logAction(
+      context,
+      `activity.${data.action}`,
+      "activities",
+      data.activityId,
+      patch,
+    );
     return { ok: true };
   });
 
@@ -313,7 +399,7 @@ export const updateActivityAdmin = createServerFn({ method: "POST" })
     return parsed.data;
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertStaff(context);
     const { activityId, entry_fee, ...rest } = data;
     const fee = entry_fee ?? null;
     const patch: any = {
@@ -332,17 +418,23 @@ export const updateActivityAdmin = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!current.data) throw new Error("Активность не найдена.");
     if (patch.max_participants < (current.data.registered_count ?? 0)) {
-      throw new Error("Мест не может быть меньше, чем уже записалось участников.");
+      throw new Error(
+        "Мест не может быть меньше, чем уже записалось участников.",
+      );
     }
     if (patch.is_private && !current.data.invite_code) {
       patch.invite_code = crypto.randomUUID().slice(0, 8);
     }
-    const { error } = await context.supabase.from("activities").update(patch).eq("id", activityId);
+    const { error } = await context.supabase
+      .from("activities")
+      .update(patch)
+      .eq("id", activityId);
     if (error) throw new Error(error.message);
-    await logAction(context, "activity.edit", "activities", activityId, { title: patch.title });
+    await logAction(context, "activity.edit", "activities", activityId, {
+      title: patch.title,
+    });
     return { ok: true };
   });
-
 
 /* ---------------- Admin audit log ---------------- */
 
@@ -356,10 +448,19 @@ export const listAdminLog = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
-    const actors = await context.supabase.from("profiles").select("id, name, email");
+    const actors = await context.supabase
+      .from("profiles")
+      .select("id, name, email");
     const byId: Record<string, { name: string; email: string | null }> = {};
-    for (const p of (actors.data ?? []) as { id: string; name: string; email: string | null }[]) {
+    for (const p of (actors.data ?? []) as {
+      id: string;
+      name: string;
+      email: string | null;
+    }[]) {
       byId[p.id] = { name: p.name, email: p.email };
     }
-    return (data ?? []).map((row: any) => ({ ...row, actor: row.actor_id ? byId[row.actor_id] : null }));
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      actor: row.actor_id ? byId[row.actor_id] : null,
+    }));
   });

@@ -1,3 +1,9 @@
+import {
+  DISCIPLINES,
+  MVP_TIERS,
+  DISCIPLINE_FIELDS,
+  disciplineDefaults,
+} from "@/lib/disciplines";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useProfileForm } from "@/components/profile/shared";
@@ -180,6 +186,48 @@ export function EventWizard({
                   ))}
               </select>
             </label>
+            {v.type !== "daily_game" && (
+              <div className="event-form-grid">
+                <label>
+                  Серия турнира
+                  <select
+                    value={v.tier ?? "spark"}
+                    onChange={(e) =>
+                      update({
+                        tier: e.target.value as "spark" | "blitz",
+                        ...(e.target.value === "spark" ? { entry_fee: 0 } : {}),
+                      })
+                    }
+                  >
+                    {Object.entries(MVP_TIERS).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Сетка
+                  <select
+                    value={
+                      v.type === "league"
+                        ? "round_robin"
+                        : (v.competition_format ?? "single_elimination")
+                    }
+                    disabled={v.type === "league"}
+                    onChange={(e) =>
+                      update({
+                        competition_format: e.target.value as
+                          "single_elimination" | "round_robin",
+                      })
+                    }
+                  >
+                    <option value="single_elimination">На выбывание</option>
+                    <option value="round_robin">Каждый с каждым</option>
+                  </select>
+                </label>
+              </div>
+            )}
             <label>
               Использовать шаблон
               <select
@@ -218,7 +266,18 @@ export function EventWizard({
                 Вид спорта
                 <select
                   value={v.sport}
-                  onChange={(e) => update({ sport: e.target.value })}
+                  onChange={(e) => {
+                    const d = DISCIPLINES.find(
+                      (d) => d.name === e.target.value,
+                    );
+                    update({
+                      sport: e.target.value,
+                      match_settings: disciplineDefaults(e.target.value),
+                      team_min: d?.min ?? 1,
+                      team_max: d?.max ?? 50,
+                      ...(!v.rules ? { rules: d?.rules ?? "" } : {}),
+                    });
+                  }}
                 >
                   {SPORTS.map((s) => (
                     <option key={s}>{s}</option>
@@ -242,6 +301,53 @@ export function EventWizard({
                 "url",
               )}
             </div>
+            <fieldset className="event-form-grid">
+              <legend className="mb-3 font-semibold">
+                Настройки дисциплины
+              </legend>
+              {(
+                DISCIPLINE_FIELDS[
+                  DISCIPLINES.find((d) => d.name === v.sport)?.id ?? ""
+                ] ?? []
+              ).map((f) => (
+                <label key={f.key}>
+                  {f.label}
+                  {f.type === "select" ? (
+                    <select
+                      value={v.match_settings?.[f.key] ?? f.default}
+                      onChange={(e) =>
+                        update({
+                          match_settings: {
+                            ...v.match_settings,
+                            [f.key]: e.target.value,
+                          },
+                        })
+                      }
+                    >
+                      {f.options?.map((o) => (
+                        <option key={o}>{o}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={f.type === "number" ? "number" : "text"}
+                      min={f.min}
+                      max={f.max}
+                      maxLength={300}
+                      value={v.match_settings?.[f.key] ?? f.default}
+                      onChange={(e) =>
+                        update({
+                          match_settings: {
+                            ...v.match_settings,
+                            [f.key]: e.target.value,
+                          },
+                        })
+                      }
+                    />
+                  )}
+                </label>
+              ))}
+            </fieldset>
             <img
               src={v.cover_url || sportImage(v.sport)}
               alt="Предпросмотр обложки"
@@ -380,6 +486,30 @@ export function EventWizard({
                 : "Количество участников",
               "number",
             )}
+            {v.type !== "daily_game" &&
+              field(
+                "min_participants",
+                "Минимум участников для старта",
+                "number",
+              )}
+            {v.participation_mode === "team" && (
+              <div className="event-form-grid">
+                {field("team_min", "Минимум игроков в команде", "number")}
+                {field("team_max", "Максимум с запасными", "number")}
+              </div>
+            )}
+            <button
+              type="button"
+              className="feed-chip"
+              onClick={() =>
+                update({
+                  rules:
+                    DISCIPLINES.find((d) => d.name === v.sport)?.rules ?? "",
+                })
+              }
+            >
+              Вставить регламент дисциплины
+            </button>
             <label>
               Правила и ограничения
               <textarea
@@ -391,7 +521,7 @@ export function EventWizard({
             </label>
             {v.type !== "daily_game" && (
               <p className="workspace-muted">
-                {v.type === "league"
+                {v.type === "league" || v.competition_format === "round_robin"
                   ? "Каждый играет с каждым один раз. Победа — 3 очка, ничья — 1. При равенстве: разница мячей, затем забитые."
                   : "Турнир на выбывание. Пары формируются по порядку записи, нечётный участник проходит раунд без матча."}{" "}
                 До 32 команд или игроков в сетке. Дополнительное правило для
@@ -402,6 +532,25 @@ export function EventWizard({
         )}
         {step === 4 && (
           <>
+            {v.type !== "daily_game" && (
+              <label>
+                Распределение призового фонда
+                <select
+                  value={JSON.stringify(v.prize_pool ?? { "1": 100 })}
+                  onChange={(e) =>
+                    update({ prize_pool: JSON.parse(e.target.value) })
+                  }
+                >
+                  <option value={'{"1":100}'}>Победитель — 100%</option>
+                  <option value={'{"1":60,"2":30,"3":10}'}>
+                    Три места — 60 / 30 / 10%
+                  </option>
+                  <option value={'{"1":50,"2":25,"3":15,"4":10}'}>
+                    Четыре места — 50 / 25 / 15 / 10%
+                  </option>
+                </select>
+              </label>
+            )}
             {field(
               "entry_fee",
               v.participation_mode === "team"

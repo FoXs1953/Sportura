@@ -1,3 +1,5 @@
+import { trackEvent } from "@/lib/analytics";
+import { AnalyticsConsent } from "@/components/analytics/consent";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -145,6 +147,7 @@ function RootComponent() {
     let previous: string | null | undefined;
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       const next = session?.user.id ?? null;
+      if (event === "SIGNED_IN") setTimeout(() => trackEvent("page_view"), 0);
       if (
         event === "SIGNED_OUT" ||
         (previous !== undefined && previous !== next)
@@ -168,8 +171,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      {/* Required: nested routes render here. Removing <Outlet />
+      <AnalyticsConsent /> breaks all child routes. */}
       <Outlet />
+      <AnalyticsConsent />
       <Toaster position="top-center" />
     </QueryClientProvider>
   );

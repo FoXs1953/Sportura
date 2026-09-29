@@ -12,6 +12,7 @@ import type {
   HostDocument,
 } from "./event-model";
 const actions = z.enum([
+  "checkin",
   "favorite",
   "document",
   "delete_document",

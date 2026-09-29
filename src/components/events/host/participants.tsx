@@ -298,6 +298,8 @@ function Participant({
       <div className="event-line">
         <div>
           <h3>{r.team_name || r.name || "Участник"}</h3>
+          {r.game_nickname && <p className="text-sm">Игровой ник: {r.game_nickname}</p>}
+          {r.checked_in_at && <p className="text-sm text-brand">Чек-ин подтверждён</p>}
           <p className="workspace-muted text-sm">
             {a.title} · {dateLabel(r.created_at)}
           </p>

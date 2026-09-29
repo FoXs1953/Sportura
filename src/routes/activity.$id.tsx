@@ -1,3 +1,5 @@
+import { DISCIPLINES, DISCIPLINE_FIELDS } from "@/lib/disciplines";
+import { trackEvent } from "@/lib/analytics";
 import { useState, useEffect } from "react";
 import {
   createFileRoute,
@@ -84,6 +86,7 @@ function EventPage() {
   const [terms, setTerms] = useState(false);
   const [team, setTeam] = useState("");
   const [members, setMembers] = useState("");
+  const [gameNickname, setGameNickname] = useState("");
   const [cancel, setCancel] = useState(false);
   const [reason, setReason] = useState("");
   const a = q.data?.activity;
@@ -302,6 +305,7 @@ function EventPage() {
                         <Button
                           disabled={action.busy}
                           onClick={() => {
+                            trackEvent("register_click");
                             setTerms(false);
                             setConfirm(true);
                           }}
@@ -312,6 +316,7 @@ function EventPage() {
                         <Link
                           className="workspace-primary-link"
                           to="/auth"
+                          onClick={() => trackEvent("register_click")}
                           search={{ redirect }}
                         >
                           Войти и записаться →
@@ -401,6 +406,43 @@ function EventPage() {
               )}
             </Panel>
             <Panel title="Правила участия и отмены">
+              {a.match_settings && (
+                <dl className="mb-4 grid gap-2">
+                  {(DISCIPLINE_FIELDS[a.discipline_id ?? ""] ?? []).map((f) => (
+                    <div key={f.key}>
+                      <dt className="inline text-muted-foreground">
+                        {f.label}:{" "}
+                      </dt>
+                      <dd className="inline">
+                        {a.match_settings?.[f.key] ?? f.default}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              {r?.status === "registered" && (
+                <div className="my-4">
+                  <p className="text-sm">
+                    Чек-ин открывается за час до начала и закрывается через 30
+                    минут после старта.
+                  </p>
+                  <Button
+                    className="mt-2"
+                    disabled={action.busy || !!r.checked_in_at}
+                    onClick={() =>
+                      action.mutate(
+                        "checkin",
+                        { activity_id: a.id },
+                        "Участие подтверждено",
+                      )
+                    }
+                  >
+                    {r.checked_in_at
+                      ? "Вы отметились"
+                      : "Подтвердить присутствие"}
+                  </Button>
+                </div>
+              )}
               <p className="event-description">
                 {a.rules || "Дополнительных ограничений организатор не указал."}
               </p>
@@ -452,6 +494,7 @@ function EventPage() {
                       activity_id: a.id,
                       code,
                       accepted_terms: true,
+                      game_nickname: gameNickname,
                       team_name: team,
                       team_members: members
                         .split("\n")
@@ -465,6 +508,18 @@ function EventPage() {
               }}
             >
               <div className="event-form">
+                {DISCIPLINES.find((d) => d.name === a.sport)?.kind ===
+                  "esport" && (
+                  <label className="block">
+                    Ваш игровой ник
+                    <input
+                      className="workspace-input block"
+                      value={gameNickname}
+                      maxLength={80}
+                      onChange={(e) => setGameNickname(e.target.value)}
+                    />
+                  </label>
+                )}
                 {a.participation_mode === "team" && (
                   <>
                     <label>
@@ -476,7 +531,7 @@ function EventPage() {
                       />
                     </label>
                     <label>
-                      Состав — имя каждого игрока с новой строки
+                      Состав — имя или игровой ник каждого игрока с новой строки
                       <textarea
                         value={members}
                         maxLength={3000}

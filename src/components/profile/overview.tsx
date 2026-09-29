@@ -154,7 +154,11 @@ export function OverviewTab({
         </Link>
         <button className="workspace-stat" onClick={() => go("rating")}>
           <strong>{rating?.toFixed(1) ?? "—"}</strong>
-          <span>{playerReviews.length ? `${playerReviews.length} отзывов · рейтинг игрока` : "Пока нет оценок"}</span>
+          <span>
+            {playerReviews.length
+              ? `${playerReviews.length} отзывов · рейтинг игрока`
+              : "Пока нет оценок"}
+          </span>
         </button>
       </div>
       <Panel
@@ -292,7 +296,7 @@ export function OverviewTab({
             Кабинет организатора →
           </Link>
         )}
-        {me.roles.includes("admin") && (
+        {(me.roles.includes("admin") || me.roles.includes("moderator")) && (
           <Link to="/admin" className="workspace-text-link">
             Администрирование →
           </Link>
