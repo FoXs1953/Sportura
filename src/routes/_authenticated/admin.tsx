@@ -209,8 +209,6 @@ function Admin() {
       layout="admin"
     >
       <div className="admin-page">
-        {tab === "payments" && isStaff && <StaffPaymentReview />}
-        {tab === "analytics" && isStaff && <AnalyticsDashboard />}
         {(o?.applicationsPending ?? 0) > 0 ||
         (o?.payments.needsReview ?? 0) > 0 ||
         (o?.disputesOpen ?? 0) > 0 ? (
@@ -311,6 +309,8 @@ function Admin() {
             ))}
         </div>
 
+        {tab === "analytics" && isStaff && <AnalyticsDashboard />}
+        {tab === "payments" && isStaff && <StaffPaymentReview />}
         {tab === "overview" ? (
           <div className="admin-stats">
             <Stat label="Пользователей" value={o?.users.total ?? "—"} />

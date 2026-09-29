@@ -55,7 +55,16 @@ export function AnalyticsDashboard() {
     if (!a) return;
     const rows = [
       ["Показатель", "Значение"],
-      ...Object.entries(a.funnel).map(([k, v]) => [labels[k], v]),
+      ...[
+        "visitors",
+        "activity_views",
+        "register_clicks",
+        "accounts",
+        "registrations",
+        "paid",
+      ]
+        .map((k) => [k, a.funnel[k]] as const)
+        .map(([k, v]) => [labels[k], v]),
       ["DAU", a.active.dau],
       ["WAU", a.active.wau],
       ["MAU", a.active.mau],
@@ -178,18 +187,28 @@ export function AnalyticsDashboard() {
                   Воронка новых участников
                 </h2>
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Независимые итоги периода, без подтверждения
-                  последовательности действий одного человека.
+                  Последовательность действий новых участников с согласием на
+                  аналитику. Существующие аккаунты не входят в этап создания
+                  аккаунта.
                 </p>
-                {Object.entries(a.funnel).map(([key, n]) => (
-                  <div
-                    key={key}
-                    className="flex justify-between border-b border-white/10 py-3"
-                  >
-                    <span>{labels[key]}</span>
-                    <strong>{n}</strong>
-                  </div>
-                ))}
+                {[
+                  "visitors",
+                  "activity_views",
+                  "register_clicks",
+                  "accounts",
+                  "registrations",
+                  "paid",
+                ]
+                  .map((k) => [k, a.funnel[k]] as const)
+                  .map(([key, n]) => (
+                    <div
+                      key={key}
+                      className="flex justify-between border-b border-white/10 py-3"
+                    >
+                      <span>{labels[key]}</span>
+                      <strong>{n}</strong>
+                    </div>
+                  ))}
               </section>
               <section className="workspace-panel">
                 <h2 className="text-lg font-semibold">Источники визитов</h2>

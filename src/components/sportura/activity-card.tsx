@@ -110,7 +110,11 @@ export function ActivityCard({
           />
           <div className="feed-card-badges">
             <span className="feed-format">
-              {ACTIVITY_TYPE_LABEL[activity.type]}
+              {activity.tier === "spark"
+                ? "Spark"
+                : activity.tier === "blitz"
+                  ? "Blitz Cup"
+                  : ACTIVITY_TYPE_LABEL[activity.type]}
             </span>
             <span className={`feed-status feed-status-${status}`}>
               <i aria-hidden="true" />

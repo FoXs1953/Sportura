@@ -3,9 +3,10 @@ import { z } from "zod";
 import { getPublicSupabase } from "./supabase-public.server";
 
 const PUBLIC_COLUMNS =
-  "id, title, description, type, status, sport, city, location_text, two_gis_url, date_time, time_text, price_text, entry_fee, is_free, max_participants, registered_count, host_name, host_rating, manager_id, organizer_id, kaspi_payment_link, payment_mode, prize_pool, format, age_division, skill_division, skill_level, recurrence, cancellation_policy, notes, registration_deadline, results_submitted_at, dispute_window_ends_at, is_private, invite_code, created_at";
+  "id, title, description, type, status, tier, sport, city, location_text, two_gis_url, date_time, time_text, price_text, entry_fee, is_free, max_participants, registered_count, host_name, host_rating, manager_id, organizer_id, kaspi_payment_link, payment_mode, prize_pool, format, age_division, skill_division, skill_level, recurrence, cancellation_policy, notes, registration_deadline, results_submitted_at, dispute_window_ends_at, is_private, invite_code, created_at";
 
 export type PublicActivity = {
+  tier?: "spark" | "blitz" | null;
   id: string;
   title: string;
   description: string | null;
@@ -75,10 +76,13 @@ export const listActivities = createServerFn({ method: "GET" })
     if (data.skill !== "all") query = query.eq("skill_level", data.skill);
     if (data.price === "free") query = query.eq("is_free", true);
     if (data.price === "paid") query = query.eq("is_free", false);
-    if (data.availability !== "all") query = query.eq("status", data.availability);
+    if (data.availability !== "all")
+      query = query.eq("status", data.availability);
     if (data.search.trim()) {
       const term = `%${data.search.trim()}%`;
-      query = query.or(`title.ilike.${term},location_text.ilike.${term},sport.ilike.${term}`);
+      query = query.or(
+        `title.ilike.${term},location_text.ilike.${term},sport.ilike.${term}`,
+      );
     }
 
     if (data.date !== "all") {
@@ -98,7 +102,9 @@ export const listActivities = createServerFn({ method: "GET" })
         end.setDate(start.getDate() + 1);
         end.setHours(23, 59, 59, 999);
       }
-      query = query.gte("date_time", start.toISOString()).lte("date_time", end.toISOString());
+      query = query
+        .gte("date_time", start.toISOString())
+        .lte("date_time", end.toISOString());
     }
 
     const { data: rows, error } = await query.limit(100);
@@ -107,7 +113,9 @@ export const listActivities = createServerFn({ method: "GET" })
   });
 
 export const getActivity = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
   .handler(async ({ data }): Promise<PublicActivity | null> => {
     const supabase = getPublicSupabase();
     const { data: row, error } = await supabase
@@ -120,7 +128,9 @@ export const getActivity = createServerFn({ method: "GET" })
   });
 
 export const getActivityResults = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
   .handler(async ({ data }) => {
     const supabase = getPublicSupabase();
     const { data: rows, error } = await supabase
@@ -133,9 +143,12 @@ export const getActivityResults = createServerFn({ method: "GET" })
   });
 
 export const getHostReviews = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ userId: z.string().uuid() }).parse(input),
+  )
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("reviews")
       .select("id, rating, comment, created_at")
@@ -153,7 +166,9 @@ export const findActivityByInvite = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ id: string } | null> => {
     const supabase = getPublicSupabase();
-    const { data: id, error } = await supabase.rpc("find_activity_by_invite", { _code: data.code });
+    const { data: id, error } = await supabase.rpc("find_activity_by_invite", {
+      _code: data.code,
+    });
     if (error) throw new Error(error.message);
     return id ? { id: id as unknown as string } : null;
   });

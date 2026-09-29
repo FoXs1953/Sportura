@@ -280,7 +280,12 @@ export function EventWizard({
                   }}
                 >
                   {SPORTS.map((s) => (
-                    <option key={s}>{s}</option>
+                    <option
+                      key={s}
+                      disabled={s === "PUBG Mobile" && v.type !== "daily_game"}
+                    >
+                      {s}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -472,6 +477,16 @@ export function EventWizard({
                 onChange={(e) =>
                   update({
                     participation_mode: e.target.value as "team" | "individual",
+                    ...(e.target.value === "team" && !event
+                      ? {
+                          team_min:
+                            DISCIPLINES.find((d) => d.name === v.sport)?.min ??
+                            1,
+                          team_max:
+                            DISCIPLINES.find((d) => d.name === v.sport)?.max ??
+                            50,
+                        }
+                      : {}),
                   })
                 }
               >
