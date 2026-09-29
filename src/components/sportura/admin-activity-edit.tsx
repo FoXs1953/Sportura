@@ -191,31 +191,8 @@ export function ActivityEditor({
           onChange={(e) => set("registration_deadline", e.target.value)}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Цена текстом">
-          <Input
-            value={form.price_text}
-            onChange={(e) => set("price_text", e.target.value)}
-            placeholder="3000 ₸"
-          />
-        </Field>
-        <Field label="Взнос, ₸ (пусто = бесплатно)">
-          <Input
-            inputMode="numeric"
-            value={form.entry_fee}
-            onChange={(e) =>
-              set("entry_fee", e.target.value.replace(/[^\d]/g, ""))
-            }
-          />
-        </Field>
-      </div>
-      <Field label="Ссылка Kaspi организатора">
-        <Input
-          value={form.kaspi_payment_link}
-          onChange={(e) => set("kaspi_payment_link", e.target.value)}
-          placeholder="https://pay.kaspi.kz/pay/..."
-        />
-      </Field>
+      <div className="grid grid-cols-2 gap-2"></div>
+
       <div className="grid grid-cols-2 gap-2">
         <Field label="Максимум участников">
           <Input
@@ -223,16 +200,6 @@ export function ActivityEditor({
             value={form.max_participants}
             onChange={(e) =>
               set("max_participants", e.target.value.replace(/[^\d]/g, ""))
-            }
-          />
-        </Field>
-        <Field label="Комиссия, %">
-          <Input
-            inputMode="numeric"
-            disabled={!canEditCommission}
-            value={form.commission_percent}
-            onChange={(e) =>
-              set("commission_percent", e.target.value.replace(/[^\d]/g, ""))
             }
           />
         </Field>

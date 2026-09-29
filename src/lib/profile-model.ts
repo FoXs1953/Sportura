@@ -166,7 +166,6 @@ export const ticketStatuses: Record<string, string> = {
 };
 export const ticketTopics: Record<string, string> = {
   general: "Общий вопрос",
-  payment: "Оплата и возврат",
   attendance: "Ошибка посещаемости",
   review: "Жалоба на отзыв",
   restriction: "Обжалование ограничения",

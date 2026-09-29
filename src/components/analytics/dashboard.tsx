@@ -13,7 +13,6 @@ const labels: Record<string, string> = {
   register_clicks: "Нажали «Записаться»",
   accounts: "Создали аккаунт",
   registrations: "Записались на событие",
-  paid: "Оплатили участие",
 };
 const percent = (a: number, b: number) =>
   b ? `${Math.round((a / b) * 100)}%` : "—";
@@ -61,7 +60,6 @@ export function AnalyticsDashboard() {
         "register_clicks",
         "accounts",
         "registrations",
-        "paid",
       ]
         .map((k) => [k, a.funnel[k]] as const)
         .map(([k, v]) => [labels[k], v]),
@@ -197,7 +195,6 @@ export function AnalyticsDashboard() {
                   "register_clicks",
                   "accounts",
                   "registrations",
-                  "paid",
                 ]
                   .map((k) => [k, a.funnel[k]] as const)
                   .map(([key, n]) => (
@@ -283,13 +280,9 @@ export function AnalyticsDashboard() {
             </section>
             <div className="grid gap-6 lg:grid-cols-2">
               <section className="workspace-panel">
-                <h2 className="font-semibold">Участие и оплата</h2>
+                <h2 className="font-semibold">Участие</h2>
                 <p className="mt-3">Записей: {a.activity.registrations}</p>
-                <p>
-                  Оплачено платных записей: {a.activity.paid} /{" "}
-                  {a.activity.chargeable} (
-                  {percent(a.activity.paid, a.activity.chargeable)})
-                </p>
+
                 <p>
                   Отмены: {a.activity.cancelled} · Неявки: {a.activity.no_show}
                 </p>

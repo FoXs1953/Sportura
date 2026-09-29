@@ -28,8 +28,7 @@ export function CompetitionView({ data }: { data: CompetitionData }) {
           <h3 className="font-bold">Опубликованные итоги</h3>
           {data.results.map((r) => (
             <p key={r.id}>
-              {r.placement}. {r.participant_name} · {formatKzt(r.prize_amount)}{" "}
-              · {r.paid_out ? "Выплата подтверждена" : "Ожидает выплаты"}
+              {r.placement}. {r.participant_name}
             </p>
           ))}
           <p className="text-xs">
@@ -177,28 +176,6 @@ export function HostCompetition({
       }
     >
       <div className="space-y-5">
-        <div className="event-muted-box">
-          <p>
-            Подтверждённые оплаты: <strong>{formatKzt(received)}</strong>
-          </p>
-          <p>
-            Призовой фонд:{" "}
-            <strong>
-              {formatKzt(received * (1 - a.commission_percent / 100))}
-            </strong>{" "}
-            · Комиссия {a.commission_percent}% · 1-е место — 100%
-          </p>
-          {unknown && (
-            <p className="event-error-field">
-              Есть старые оплаты без зафиксированной суммы. Они не включены в
-              фонд.
-            </p>
-          )}
-          <p className="workspace-muted text-sm">
-            Выплаты выполняются организатором вручную после окна споров. Число
-            записей не используется как сумма поступлений.
-          </p>
-        </div>
         <p className="event-description">
           {a.rules || "Дополнительный регламент не указан."}
         </p>
@@ -249,14 +226,7 @@ export function HostCompetition({
             </div>
           </>
         )}
-        {d.results.length > 0 && a.results_submitted_at && (
-          <div className="space-y-3">
-            <h3 className="font-bold">Выплаты призов</h3>
-            {d.results.map((r) => (
-              <Payout key={r.id} result={r} event={a} />
-            ))}
-          </div>
-        )}
+
         <Confirm
           open={!!decision}
           title={
@@ -299,33 +269,6 @@ export function HostCompetition({
         >
           {decision === "publish_results" && (
             <div className="event-form">
-              {Object.keys(a.prize_pool ?? { "1": 100 })
-                .filter((k) => k !== "1")
-                .map((place) => (
-                  <label key={place}>
-                    Место {place} · {a.prize_pool?.[place]}%
-                    <select
-                      value={placements[place] ?? ""}
-                      onChange={(e) =>
-                        setPlacements({
-                          ...placements,
-                          [place]: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Выберите участника по регламенту</option>
-                      {registrations
-                        .filter((r) =>
-                          ["registered", "attended"].includes(r.status),
-                        )
-                        .map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.team_name || r.name || r.id}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                ))}
               <label>
                 Победитель при полном равенстве
                 <select
@@ -474,74 +417,5 @@ function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
         Сохранить матч
       </Button>
     </form>
-  );
-}
-function Payout({
-  result: r,
-  event: a,
-}: {
-  result: CompetitionData["results"][number];
-  event: Event;
-}) {
-  const [reference, setReference] = useState("");
-  const [confirm, setConfirm] = useState(false);
-  const action = useEventAction();
-  const ready =
-    !!a.dispute_window_ends_at &&
-    Date.parse(a.dispute_window_ends_at) <= Date.now();
-  return (
-    <div className="event-row space-y-3">
-      <p>
-        {r.participant_name} · {formatKzt(r.prize_amount)} ·{" "}
-        {r.paid_out ? "Выплачено" : "Ожидает выплаты"}
-      </p>
-      {!r.paid_out && (
-        <>
-          {ready ? (
-            <>
-              <label>
-                Подтверждение перевода
-                <input
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  maxLength={200}
-                />
-              </label>
-              <Button
-                disabled={reference.trim().length < 3}
-                onClick={() => setConfirm(true)}
-              >
-                Подтвердить фактическую выплату
-              </Button>
-            </>
-          ) : (
-            <p className="workspace-muted">
-              Окно споров до {dateLabel(a.dispute_window_ends_at)}.
-            </p>
-          )}
-          <Confirm
-            open={confirm}
-            title="Приз уже переведён?"
-            description="Подтверждение сохранит факт ручной выплаты в истории."
-            busy={action.busy}
-            onClose={() => setConfirm(false)}
-            onConfirm={async () => {
-              if (
-                await action.run(() =>
-                  mutateCompetition({
-                    data: {
-                      action: "payout",
-                      payload: { activity_id: a.id, id: r.id, reference },
-                    },
-                  }),
-                )
-              )
-                setConfirm(false);
-            }}
-          />
-        </>
-      )}
-      <ErrorNotice message={action.error} />
-    </div>
   );
 }

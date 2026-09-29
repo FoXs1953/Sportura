@@ -83,8 +83,7 @@ export function OrganizerTab({
           <div className="workspace-panel-raised p-4">
             <h3 className="text-sm font-bold">Спорт-менеджер</h3>
             <p className="workspace-muted mt-2 text-sm">
-              Проводит игры, управляет составом, проверяет оплаты по своей
-              ссылке Kaspi.
+              Проводит игры, управляет составом и отмечает посещаемость.
             </p>
           </div>
           <div className="workspace-panel-raised p-4">
@@ -140,19 +139,6 @@ export function OrganizerTab({
                 value={host.value.host_bio}
                 onChange={(e) => host.patch({ host_bio: e.target.value })}
               />
-            </label>
-            <label>
-              Ссылка для оплаты Kaspi
-              <Input
-                type="url"
-                placeholder="https://pay.kaspi.kz/pay/..."
-                value={host.value.kaspi}
-                onChange={(e) => host.patch({ kaspi: e.target.value })}
-              />
-              <small>
-                Используется при создании событий. Изменение не меняет реквизиты
-                уже опубликованных игр.
-              </small>
             </label>
           </div>
           <SaveRow form={host} />

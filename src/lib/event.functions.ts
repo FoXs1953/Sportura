@@ -13,6 +13,9 @@ import type {
 } from "./event-model";
 const actions = z.enum([
   "checkin",
+  "close_checkin",
+  "waitlist_join",
+  "waitlist_leave",
   "favorite",
   "document",
   "delete_document",
@@ -53,6 +56,8 @@ export const mutateEvent = createServerFn({ method: "POST" })
     z.object({ action: actions, payload: z.record(z.unknown()) }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (["proof", "payment", "refund"].includes(data.action))
+      throw new Error("Платежи отключены");
     if (JSON.stringify(data.payload).length > 40000)
       throw new Error("Слишком много данных");
     const r = await context.supabase.rpc("event_workspace", {
@@ -84,6 +89,7 @@ export const mutateCompetition = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ context, data }) => {
+    if (data.action === "payout") throw new Error("Выплаты отключены");
     const r = await context.supabase.rpc("event_competition", {
       action: data.action,
       payload: data.payload as Json,

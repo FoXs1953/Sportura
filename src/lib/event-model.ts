@@ -182,12 +182,25 @@ export type EventNotification = {
   href: string;
   created_at: string;
 };
+export type WaitlistEntry = {
+  id: string;
+  activity_id: string;
+  user_id: string;
+  created_at: string;
+  team_name: string;
+  team_members: string[];
+  position: number;
+  name?: string;
+  activity?: Event;
+};
 export type PlayerWorkspace = {
+  waitlist?: WaitlistEntry[];
   registrations: Registration[];
   saved: { activity_id: string; reminder: boolean }[];
   notifications: EventNotification[];
 };
 export type HostWorkspace = {
+  waitlist?: WaitlistEntry[];
   activities: Event[];
   registrations: Registration[];
   documents: HostDocument[];

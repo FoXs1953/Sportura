@@ -77,8 +77,6 @@ export const ACCOUNT_STATUS_LABEL: Record<AccountStatus, string> = {
 };
 
 export function sportImage(sport: string): string {
-  if (DISCIPLINES.some((d) => d.name === sport && d.kind === "esport"))
-    return "/sport-esports.svg";
   const key = sport.toLowerCase();
   if (key.includes("мини")) return minifootball;
   if (key.includes("баскет")) return basketball;

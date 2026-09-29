@@ -51,7 +51,7 @@ const tabs = {
   overview: "Обзор",
   events: "Мои события",
   participants: "Участники",
-  payments: "Оплаты и возвраты",
+  payments: "",
   competitions: "Турниры и лиги",
   insights: "Статистика и отзывы",
   settings: "Настройки и помощь",
@@ -84,7 +84,12 @@ export const Route = createFileRoute("/_authenticated/host")({
       section?: string;
       status?: string;
     } & SearchSchemaInput,
-  ) => schema.parse(s),
+  ) =>
+    schema.parse({
+      ...s,
+      ...(s.tab === "payments" ? { tab: "overview" } : {}),
+      ...(s.section === "payments" ? { section: "overview" } : {}),
+    }),
   head: () => ({ meta: [{ title: "Кабинет организатора — Sportura" }] }),
   component: HostPage,
 });
@@ -217,6 +222,7 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
       </div>
       <nav className="event-tabs" aria-label="Кабинет организатора">
         {Object.entries(tabs)
+          .filter(([key]) => key !== "payments")
           .filter(([k]) => k !== "competitions" || canComp)
           .map(([k, l]) => (
             <button
@@ -237,7 +243,6 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
           event={editor.event}
           documents={data.documents}
           competition={canComp}
-          kaspi={me.kaspi_payment_link}
           onClose={() => setEditor(null)}
           onDone={open}
         />
@@ -262,12 +267,12 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
           edit={(a) => setEditor({ key: crypto.randomUUID(), event: a })}
           duplicate={(a) => void duplicate(a)}
         />
-      ) : search.tab === "participants" || search.tab === "payments" ? (
+      ) : search.tab === "participants" ? (
         <Participants
           key={`${search.tab}:${search.event}:${search.status}`}
           data={data}
           eventId={search.event ?? ""}
-          payments={search.tab === "payments"}
+
           initialStatus={search.status ?? "all"}
         />
       ) : search.tab === "competitions" ? (
@@ -408,16 +413,6 @@ function Overview({
             "Записаны",
             () => go("participants", undefined, undefined, "registered"),
           ],
-          [
-            checks.length,
-            "Чеки на проверке",
-            () => go("payments", undefined, undefined, "needs_review"),
-          ],
-          [
-            refunds.length,
-            "Возвраты в работе",
-            () => go("payments", undefined, undefined, "refund"),
-          ],
         ].map(([n, l, fn]) => (
           <button
             key={String(l)}
@@ -442,24 +437,6 @@ function Overview({
       )}
       <Panel title="Требует внимания">
         <div className="event-rows">
-          {checks.length > 0 && (
-            <button
-              className="event-row text-left"
-              onClick={() =>
-                go("payments", undefined, undefined, "needs_review")
-              }
-            >
-              Проверить {checks.length} чеков →
-            </button>
-          )}
-          {refunds.length > 0 && (
-            <button
-              className="event-row text-left"
-              onClick={() => go("payments", undefined, undefined, "refund")}
-            >
-              Рассмотреть {refunds.length} возвратов →
-            </button>
-          )}
           {attention.map((a) => (
             <button
               key={a.id}
@@ -555,18 +532,7 @@ function EventSummary({ a, data }: { a: Event; data: HostWorkspace }) {
         </p>
         <p className="text-sm mt-2">
           {ACTIVITY_TYPE_LABEL[a.type]} · {ACTIVITY_STATUS_LABEL[a.status]} ·{" "}
-          {a.registered_count}/{a.max_participants} мест ·{" "}
-          {formatKzt(a.entry_fee)}
-        </p>
-      </div>
-      <div className="text-sm">
-        <p>
-          {regs.filter((r) => r.payment_status === "paid").length} оплат
-          подтверждено
-        </p>
-        <p>
-          {regs.filter((r) => r.payment_status === "needs_review").length} чеков
-          на проверке
+          {a.registered_count}/{a.max_participants} мест · Бесплатное участие
         </p>
       </div>
     </div>
@@ -877,7 +843,7 @@ function EventManagement({
         {Object.entries({
           overview: "Обзор",
           participants: "Участники",
-          payments: "Оплаты",
+
           results: "Результаты",
           history: "История",
         }).map(([k, l]) => (
@@ -932,13 +898,8 @@ function EventManagement({
             <HelpLink activity={a.id} />
           </div>
         </Panel>
-      ) : section === "participants" || section === "payments" ? (
-        <Participants
-          key={section}
-          data={data}
-          eventId={a.id}
-          payments={section === "payments"}
-        />
+      ) : section === "participants" ? (
+        <Participants key={section} data={data} eventId={a.id} />
       ) : section === "results" ? (
         a.type === "daily_game" ? (
           <Panel title="Результат игры">
@@ -968,7 +929,7 @@ function EventManagement({
         }
         description={
           actionName === "cancelled"
-            ? `Будут уведомлены ${regs.filter((r) => !["cancelled", "rejected"].includes(r.status)).length} участников. Оплаченных записей: ${regs.filter((r) => r.payment_status === "paid").length}. По ним появятся запросы возврата.`
+            ? `Будут уведомлены ${regs.filter((r) => !["cancelled", "rejected"].includes(r.status)).length} участников. `
             : "После завершения участники с отмеченным посещением смогут оставить отзыв."
         }
         busy={action.busy}

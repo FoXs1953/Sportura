@@ -580,24 +580,4 @@ export const listPendingPayments = createServerFn({ method: "GET" })
     if (r.error) throw Error(r.error.message);
     return r.data;
   });
-export const reviewStaffPayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        approve: z.boolean(),
-        note: z.string().max(600),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    await assertStaff(context);
-    const r = await (context.supabase as any).rpc("staff_payment", {
-      rid: data.id,
-      approve: data.approve,
-      note: data.note,
-    });
-    if (r.error) throw Error(r.error.message);
-    return { ok: true };
-  });
+export const reviewStaffPayment = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((input: unknown) => input as any).handler(async () => { throw new Error("Платежи отключены"); });

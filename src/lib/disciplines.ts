@@ -49,54 +49,9 @@ export const DISCIPLINES = [
     max: 2,
     rules: "2×2, до 2 выигранных сетов. Сет до 21, решающий до 15.",
   },
-  {
-    id: "cs2",
-    name: "CS2",
-    kind: "esport",
-    min: 5,
-    max: 6,
-    rules:
-      "5×5 + запасной. Укажите пул карт, BO1/BO3/BO5, вето, регион, античит. Обязательны demo и скриншот результата.",
-  },
-  {
-    id: "dota2",
-    name: "Dota 2",
-    kind: "esport",
-    min: 5,
-    max: 6,
-    rules:
-      "5×5, Captains Mode. Укажите BO1/BO3/BO5, регион сервера, правила пауз и переигровки.",
-  },
-  {
-    id: "pubgm",
-    name: "PUBG Mobile",
-    kind: "esport",
-    min: 4,
-    max: 4,
-    rules:
-      "Сквад из 4 игроков. Укажите карты, число матчей и очки за место и киллы. Формат battle royale требует отдельного подсчёта результатов.",
-  },
-  {
-    id: "mlbb",
-    name: "Mobile Legends",
-    kind: "esport",
-    min: 5,
-    max: 6,
-    rules: "5×5, Draft Pick, BO3, финал BO5. Укажите правила банов и пауз.",
-  },
-  {
-    id: "eafc",
-    name: "EA FC",
-    kind: "esport",
-    min: 1,
-    max: 1,
-    rules:
-      "1×1, тайм 6 минут. Укажите платформу, кроссплей, допустимые составы и правила дисконнекта. Скриншот результата обязателен.",
-  },
 ] as const;
 export const MVP_TIERS = {
   spark: "Spark · бесплатный",
-  blitz: "Blitz Cup · однодневный",
 } as const;
 export type DisciplineField = {
   key: string;
@@ -113,12 +68,6 @@ const series: DisciplineField = {
   type: "select",
   options: ["BO1", "BO3", "BO5"],
   default: "BO3",
-};
-const region: DisciplineField = {
-  key: "region",
-  label: "Регион сервера",
-  type: "text",
-  default: "Казахстан / Центральная Азия",
 };
 export const DISCIPLINE_FIELDS: Record<string, DisciplineField[]> = {
   football: [
@@ -211,92 +160,6 @@ export const DISCIPLINE_FIELDS: Record<string, DisciplineField[]> = {
       min: 15,
       max: 25,
       default: "21",
-    },
-  ],
-  cs2: [
-    series,
-    region,
-    {
-      key: "maps",
-      label: "Пул карт и порядок вето",
-      type: "text",
-      default: "Уточнить в регламенте",
-    },
-    {
-      key: "anticheat",
-      label: "Античит",
-      type: "select",
-      options: ["FACEIT", "Официальный"],
-      default: "FACEIT",
-    },
-  ],
-  dota2: [
-    series,
-    region,
-    {
-      key: "mode",
-      label: "Режим",
-      type: "select",
-      options: ["Captains Mode"],
-      default: "Captains Mode",
-    },
-  ],
-  pubgm: [
-    region,
-    {
-      key: "matches",
-      label: "Число матчей",
-      type: "number",
-      min: 1,
-      max: 12,
-      default: "6",
-    },
-    {
-      key: "scoring",
-      label: "Очки за место и киллы",
-      type: "text",
-      default: "Уточнить в регламенте",
-    },
-  ],
-  mlbb: [
-    series,
-    region,
-    {
-      key: "mode",
-      label: "Режим",
-      type: "select",
-      options: ["Draft Pick"],
-      default: "Draft Pick",
-    },
-  ],
-  eafc: [
-    {
-      key: "platform",
-      label: "Платформа",
-      type: "select",
-      options: ["PS", "Xbox", "PC"],
-      default: "PS",
-    },
-    {
-      key: "crossplay",
-      label: "Кроссплей",
-      type: "select",
-      options: ["Да", "Нет"],
-      default: "Нет",
-    },
-    {
-      key: "half_minutes",
-      label: "Минут в тайме",
-      type: "number",
-      min: 3,
-      max: 15,
-      default: "6",
-    },
-    {
-      key: "squads",
-      label: "Допустимые составы",
-      type: "text",
-      default: "Клубы",
     },
   ],
 };

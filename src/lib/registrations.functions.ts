@@ -64,73 +64,10 @@ export const cancelMyRegistration = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const submitPaymentProof = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        registrationId: z.string().uuid(),
-        payment_reference: z.string().min(2).max(120),
-        receipt_url: z.string().max(500).optional().nullable(),
-        note: z.string().max(400).optional().nullable(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("registrations")
-      .update({
-        payment_reference: data.payment_reference,
-        receipt_url: data.receipt_url ?? null,
-        participant_note: data.note ?? null,
-        payment_status: "needs_review",
-      })
-      .eq("id", data.registrationId)
-      .eq("user_id", context.userId);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
+export const submitPaymentProof = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((input: unknown) => input as any).handler(async () => { throw new Error("Платежи отключены"); });
 
 /** Host- or admin-only manual payment confirmation. Every change is logged by the database. */
-export const setPaymentStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        registrationId: z.string().uuid(),
-        status: z.enum(["pending", "paid", "needs_review", "rejected", "refunded"]),
-        note: z.string().max(400).optional().nullable(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: row, error } = await supabase
-      .from("registrations")
-      .update({
-        payment_status: data.status,
-        paid_at: data.status === "paid" ? new Date().toISOString() : null,
-        confirmed_at: new Date().toISOString(),
-        confirmed_by: userId,
-      })
-      .eq("id", data.registrationId)
-      .select("id, activity_id")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!row) throw new Error("Недостаточно прав для изменения статуса оплаты.");
-    if (data.note) {
-      await supabase
-        .from("payment_status_history")
-        .insert({
-          registration_id: row.id,
-          activity_id: row.activity_id,
-          new_status: data.status,
-          changed_by: userId,
-          note: data.note,
-        });
-    }
-    return { ok: true };
-  });
+export const setPaymentStatus = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((input: unknown) => input as any).handler(async () => { throw new Error("Платежи отключены"); });
 
 export const setRegistrationStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

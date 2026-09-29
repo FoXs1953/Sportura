@@ -356,34 +356,7 @@ function Feed() {
                   onChange={(e) => set({ time_to: e.target.value })}
                 />
               </label>
-              <label>
-                Стоимость от, ₸
-                <input
-                  type="number"
-                  min={0}
-                  value={filters.min ?? ""}
-                  onChange={(e) =>
-                    set({
-                      min:
-                        e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Стоимость до, ₸
-                <input
-                  type="number"
-                  min={0}
-                  value={filters.max ?? ""}
-                  onChange={(e) =>
-                    set({
-                      max:
-                        e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
+
               <label>
                 Площадка
                 <select
@@ -398,14 +371,6 @@ function Feed() {
                 </select>
               </label>
               <div className="event-actions">
-                <label className="event-check">
-                  <input
-                    type="checkbox"
-                    checked={filters.free}
-                    onChange={(e) => set({ free: e.target.checked })}
-                  />
-                  Бесплатно
-                </label>
                 <label className="event-check">
                   <input
                     type="checkbox"
@@ -529,7 +494,7 @@ function Feed() {
               >
                 <option value="available">Сначала открытые</option>
                 <option value="date">По времени</option>
-                <option value="price">Сначала дешевле</option>
+
                 {user && <option value="personal">Для вас</option>}
               </select>
             </label>

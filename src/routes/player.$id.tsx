@@ -62,7 +62,7 @@ function Player() {
             </p>
           )}
           <p className="workspace-muted mt-6 text-xs">
-            Контактные данные и история оплат не публикуются.
+            Контактные данные не публикуются.
           </p>
         </Panel>
       ) : (

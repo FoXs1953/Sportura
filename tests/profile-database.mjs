@@ -16,7 +16,7 @@ ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 CREATE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE sql AS $$ SELECT string_to_array(name,'/') $$;
 GRANT USAGE ON SCHEMA auth,public,storage TO anon,authenticated,service_role;
 GRANT SELECT ON storage.objects TO authenticated;`);
-for (const file of fs.readdirSync("./supabase/migrations").sort()) {
+for (const file of fs.readdirSync("./supabase/migrations").sort().filter(f => f < "20260930100000")) {
   try {
     await db.exec(fs.readFileSync("./supabase/migrations/" + file, "utf8"));
     console.log("PASS migration", file);
@@ -236,4 +236,8 @@ console.log("DATABASE CHECKS PASSED");
 await (await import('./events-database.mjs')).testEvents(db,as,assert);
 await (await import('./staff-database.mjs')).testStaff(db,as,assert);
 await (await import('./tournament-catalog.mjs')).testCatalog(db,as,assert);
+// Verify the historical release before applying the explicit sports-only policy.
+await db.exec("RESET ROLE");
+await db.exec(fs.readFileSync("./supabase/migrations/20260930100000_sports_only_waitlist.sql", "utf8"));
+await (await import('./sports-release.mjs')).testSportsRelease(db,as,assert);
 await db.close();

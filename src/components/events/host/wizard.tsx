@@ -30,7 +30,6 @@ const steps = [
   "Сведения",
   "Место и время",
   "Состав",
-  "Оплата",
   "Доступ",
   "Предпросмотр",
 ];
@@ -39,7 +38,6 @@ export function EventWizard({
   event,
   documents,
   competition,
-  kaspi,
   onDone,
   onClose,
 }: {
@@ -47,7 +45,6 @@ export function EventWizard({
   event?: Event | undefined;
   documents: HostDocument[];
   competition: boolean;
-  kaspi: string | null;
   onDone: (id: string) => void;
   onClose: () => void;
 }) {
@@ -68,7 +65,7 @@ export function EventWizard({
         : {
             ...eventDraft(),
             ...documents.find((d) => d.kind === "defaults")?.data,
-            kaspi_payment_link: kaspi ?? "",
+            kaspi_payment_link: "",
           }),
   );
   const form = useProfileForm("event-draft", initial.current, async (value) => {
@@ -79,7 +76,13 @@ export function EventWizard({
           id: saved.current.id,
           kind: "draft",
           name: value.title || "Новое событие",
-          data: value,
+          data: {
+            ...value,
+            entry_fee: 0,
+            kaspi_payment_link: "",
+            prize_pool: { "1": 100 },
+            tier: value.type === "daily_game" ? null : "spark",
+          },
           ...(event
             ? { activity_id: event.id }
             : document?.activity_id
@@ -122,12 +125,6 @@ export function EventWizard({
       e.max_participants = "От 2 до 200 мест";
     if (v.duration_minutes < 15 || v.duration_minutes > 10080)
       e.duration_minutes = "От 15 минут до 7 дней";
-    if (v.entry_fee < 0) e.entry_fee = "Стоимость не может быть отрицательной";
-    if (
-      v.entry_fee > 0 &&
-      !/^https:\/\/pay\.kaspi\.kz\/pay\//.test(v.kaspi_payment_link)
-    )
-      e.kaspi_payment_link = "Укажите ссылку оплаты Kaspi";
     if (
       v.registration_deadline &&
       Date.parse(v.registration_deadline) > Date.parse(v.date_time)
@@ -194,7 +191,7 @@ export function EventWizard({
                     value={v.tier ?? "spark"}
                     onChange={(e) =>
                       update({
-                        tier: e.target.value as "spark" | "blitz",
+                        tier: "spark",
                         ...(e.target.value === "spark" ? { entry_fee: 0 } : {}),
                       })
                     }
@@ -280,12 +277,7 @@ export function EventWizard({
                   }}
                 >
                   {SPORTS.map((s) => (
-                    <option
-                      key={s}
-                      disabled={s === "PUBG Mobile" && v.type !== "daily_game"}
-                    >
-                      {s}
-                    </option>
+                    <option key={s}>{s}</option>
                   ))}
                 </select>
               </label>
@@ -545,62 +537,8 @@ export function EventWizard({
             )}
           </>
         )}
+
         {step === 4 && (
-          <>
-            {v.type !== "daily_game" && (
-              <label>
-                Распределение призового фонда
-                <select
-                  value={JSON.stringify(v.prize_pool ?? { "1": 100 })}
-                  onChange={(e) =>
-                    update({ prize_pool: JSON.parse(e.target.value) })
-                  }
-                >
-                  <option value={'{"1":100}'}>Победитель — 100%</option>
-                  <option value={'{"1":60,"2":30,"3":10}'}>
-                    Три места — 60 / 30 / 10%
-                  </option>
-                  <option value={'{"1":50,"2":25,"3":15,"4":10}'}>
-                    Четыре места — 50 / 25 / 15 / 10%
-                  </option>
-                </select>
-              </label>
-            )}
-            {field(
-              "entry_fee",
-              v.participation_mode === "team"
-                ? "Стоимость за команду, ₸ (0 — бесплатно)"
-                : "Стоимость, ₸ (0 — бесплатно)",
-              "number",
-            )}
-            {v.entry_fee > 0 &&
-              field("kaspi_payment_link", "Ссылка оплаты Kaspi", "url")}
-            <label>
-              Условия отмены и возврата
-              <textarea
-                maxLength={2000}
-                rows={4}
-                value={v.cancellation_policy}
-                onChange={(e) =>
-                  update({ cancellation_policy: e.target.value })
-                }
-              />
-            </label>
-            <p className="workspace-muted">
-              Оплата поступает организатору напрямую. Чеки, возвраты и выплаты
-              подтверждаются вручную. Цена уже созданных записей сохраняется.
-            </p>
-            {v.type !== "daily_game" && (
-              <p className="profile-callout">
-                Призы: 1-е место — 100% призового фонда. Фонд — подтверждённые
-                оплаты за вычетом комиссии {event?.commission_percent ?? 10}%.
-                Возвращённые суммы исключаются. После первой записи правила
-                фиксируются.
-              </p>
-            )}
-          </>
-        )}
-        {step === 5 && (
           <>
             <label className="event-check">
               <input
@@ -627,7 +565,7 @@ export function EventWizard({
             </label>
           </>
         )}
-        {step === 6 && (
+        {step === 5 && (
           <div className="event-muted-box space-y-3">
             <h3 className="event-title">
               {v.title || "Название не заполнено"}
@@ -678,7 +616,7 @@ export function EventWizard({
           >
             Сохранить черновик
           </Button>
-          {step < 6 ? (
+          {step < 5 ? (
             <Button
               disabled={form.busy}
               onClick={async () => {

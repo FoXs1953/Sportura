@@ -32,7 +32,6 @@ import {
   formatKzt,
   SPORTS,
 } from "@/lib/sportura";
-import { PaymentPanel } from "@/components/events/payment";
 import {
   Panel,
   Empty,
@@ -57,8 +56,8 @@ const tabs = [
 ] as const;
 const labels = {
   upcoming: "Предстоящие",
-  payments: "Оплаты и чеки",
-  cancelled: "Отмены и возвраты",
+  payments: "",
+  cancelled: "Отменённые",
   history: "История",
   reviews: "Отзывы",
   help: "Помощь",
@@ -75,7 +74,11 @@ export const Route = createFileRoute("/_authenticated/my-games")({
       payment?: string;
       registration?: string;
     } & SearchSchemaInput,
-  ) => schema.parse(s),
+  ) =>
+    schema.parse({
+      ...s,
+      ...(s.tab === "payments" ? { tab: "upcoming" } : {}),
+    }),
   head: () => ({ meta: [{ title: "Мои игры — Sportura" }] }),
   component: MyGames,
 });
@@ -162,33 +165,41 @@ function MyGames() {
     <AppShell
       workspace
       title="Мои игры"
-      subtitle="Ваше расписание, участие и оплата"
+      subtitle="Ваше расписание, участие и результаты"
     >
       <div className="events-workspace">
+        {!!query.data?.waitlist?.length && (
+          <Panel
+            title="Лист ожидания"
+            description="Очередь на свободные места. Участие нужно подтвердить после уведомления."
+          >
+            {query.data.waitlist.map((w) => (
+              <div key={w.id} className="event-row">
+                <Link
+                  className="profile-link"
+                  to="/activity/$id"
+                  params={{ id: w.activity_id }}
+                >
+                  {w.activity?.title ?? "Событие"} →
+                </Link>
+                <p className="workspace-muted">Номер в очереди: {w.position}</p>
+              </div>
+            ))}
+          </Panel>
+        )}
         <div className="event-stats">
-          {[
-            [upcoming.length, "Впереди", () => go("upcoming")],
-            [
-              due.length,
-              "Нужно оплатить или исправить чек",
-              () => go("payments", "action"),
-            ],
-            [
-              review.length,
-              "Чеки на проверке",
-              () => go("payments", "needs_review"),
-            ],
-            [refunds.length, "Возвраты в работе", () => go("cancelled")],
-          ].map(([n, l, fn]) => (
-            <button
-              key={String(l)}
-              className="workspace-stat"
-              onClick={fn as () => void}
-            >
-              <strong>{query.isPending ? "—" : (n as number)}</strong>
-              <span>{l as string}</span>
-            </button>
-          ))}
+          {[[upcoming.length, "Впереди", () => go("upcoming")]].map(
+            ([n, l, fn]) => (
+              <button
+                key={String(l)}
+                className="workspace-stat"
+                onClick={fn as () => void}
+              >
+                <strong>{query.isPending ? "—" : (n as number)}</strong>
+                <span>{l as string}</span>
+              </button>
+            ),
+          )}
         </div>
         {upcoming[0] && tab === "upcoming" && (
           <Panel
@@ -243,16 +254,18 @@ function MyGames() {
           </Panel>
         )}
         <nav className="event-tabs" aria-label="Разделы моих игр">
-          {tabs.map((t) => (
-            <button
-              key={t}
-              className={tab === t ? "is-active" : ""}
-              onClick={() => go(t)}
-              aria-current={tab === t ? "page" : undefined}
-            >
-              {labels[t]}
-            </button>
-          ))}
+          {tabs
+            .filter((t) => t !== "payments")
+            .map((t) => (
+              <button
+                key={t}
+                className={tab === t ? "is-active" : ""}
+                onClick={() => go(t)}
+                aria-current={tab === t ? "page" : undefined}
+              >
+                {labels[t]}
+              </button>
+            ))}
         </nav>
         {tab === "help" ? (
           <Panel
@@ -269,7 +282,7 @@ function MyGames() {
                 Мои обращения →
               </Link>
               <Link className="profile-link" to="/legal">
-                Правила участия и возвратов →
+                Правила участия и отмены →
               </Link>
             </div>
             <p className="workspace-muted mt-4">
@@ -320,23 +333,7 @@ function MyGames() {
                   ))}
                 </select>
               </label>
-              {tab === "payments" && (
-                <label>
-                  Оплата
-                  <select
-                    value={payment ?? ""}
-                    onChange={(e) => go("payments", e.target.value)}
-                  >
-                    <option value="">Все</option>
-                    <option value="action">Нужно оплатить / исправить</option>
-                    {Object.entries(PAYMENT_STATUS_LABEL).map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+
               <label>
                 С даты
                 <Input
@@ -470,11 +467,6 @@ function GameRecord({
           >
             {a.host_name}
           </Link>
-          <span>
-            {r.amount_due === 0
-              ? "Бесплатно"
-              : `${r.amount_due === null ? "Сумма не зафиксирована" : formatKzt(r.amount_due)} · ${PAYMENT_STATUS_LABEL[r.payment_status]}`}
-          </span>
         </div>
         {r.team_name && (
           <details>
@@ -514,13 +506,7 @@ function GameRecord({
           </Link>
           <MapLink event={a} />
           {!cancelled && phase !== "past" && <CalendarButton event={a} />}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setPanel(panel === "payment" ? "" : "payment")}
-          >
-            Оплата и чеки
-          </Button>
+
           {r.status === "registered" && phase === "upcoming" && (
             <Button
               size="sm"
@@ -550,11 +536,7 @@ function GameRecord({
             История
           </Button>
         </div>
-        {panel === "payment" && (
-          <div className="event-expanded">
-            <PaymentPanel registration={r} />
-          </div>
-        )}
+
         {panel === "history" && (
           <div className="event-expanded">
             <History items={r.history ?? []} />
@@ -609,38 +591,7 @@ function GameRecord({
             )}
           </div>
         )}
-        {r.refund && (
-          <div className="event-expanded">
-            <h3 className="font-bold">
-              Возврат · {refundLabels[r.refund.status]}
-            </h3>
-            <p>
-              {r.refund.amount === null
-                ? "Сумму уточнит организатор"
-                : formatKzt(r.refund.amount)}
-            </p>
-            <p>{r.refund.response || r.refund.reason}</p>
-            {r.refund.reference && (
-              <p className="workspace-muted">
-                Подтверждение: {r.refund.reference}
-              </p>
-            )}
-          </div>
-        )}
-        {!r.refund &&
-          ["paid", "needs_review"].includes(r.payment_status) &&
-          r.amount_due !== 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setReason("");
-                setDialog("refund");
-              }}
-            >
-              Запросить возврат
-            </Button>
-          )}
+
         <div className="event-actions mt-4">
           <HelpLink
             registration={r.id}
@@ -685,16 +636,16 @@ function GameRecord({
             ? "Отменить участие?"
             : dialog === "review"
               ? "Опубликовать отзыв?"
-              : "Запросить возврат?"
+              : "Отменить участие?"
         }
         description={
           dialog === "cancel"
             ? (r.terms_snapshot?.cancellation_policy ??
               a.cancellation_policy ??
-              "Запись сохранится в истории. Если участие оплачено, будет создан запрос на рассмотрение возврата.")
+              "Запись сохранится в истории.")
             : dialog === "review"
               ? "Отзыв увидит организатор. Исправления после публикации рассматривает поддержка."
-              : "Организатор рассмотрит сумму и основания. Создание запроса не выполняет денежный перевод."
+              : "Запись сохранится в истории."
         }
         onClose={() => setDialog("")}
         busy={action.busy}
@@ -711,7 +662,7 @@ function GameRecord({
                 setDialog("");
             } else if (
               await action.mutate(
-                dialog === "cancel" ? "cancel" : "refund",
+                "cancel",
                 { registration_id: r.id, reason, status: "requested" },
                 dialog === "cancel" ? "Запись отменена" : "Запрос создан",
               )

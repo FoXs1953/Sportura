@@ -144,27 +144,6 @@ export function HostInsights({
                     "past",
               ).length,
             ],
-            [
-              "Получено без возвратов",
-              formatKzt(
-                Math.max(
-                  0,
-                  received -
-                    data.refunds
-                      .filter(
-                        (f) =>
-                          f.status === "completed" &&
-                          regs.some(
-                            (r) =>
-                              r.id === f.registration_id &&
-                              r.amount_due !== null,
-                          ),
-                      )
-                      .reduce((s, f) => s + (f.amount ?? 0), 0),
-                ),
-              ),
-            ],
-            ["Возвращено", formatKzt(returned)],
           ].map(([l, n]) => (
             <a key={l} href="#insight-source" className="event-muted-box">
               <small>{l}</small>
@@ -174,7 +153,7 @@ export function HostInsights({
         </div>
         <p className="event-count-note mt-3">
           Повторные — участники с двумя и более активными записями за выбранный
-          период. Старые оплаты без суммы исключены из денежных показателей.
+          период.
         </p>
         <div className="event-grid mt-5">
           {[

@@ -37,7 +37,6 @@ import {
   useEventAction,
   dateLabel,
 } from "@/components/events/shared";
-import { PaymentPanel } from "@/components/events/payment";
 import { CompetitionView } from "@/components/events/competition";
 import "@/styles/profile.css";
 import "@/styles/events.css";
@@ -86,12 +85,19 @@ function EventPage() {
   const [terms, setTerms] = useState(false);
   const [team, setTeam] = useState("");
   const [members, setMembers] = useState("");
-  const [gameNickname, setGameNickname] = useState("");
+  const [joiningWaitlist, setJoiningWaitlist] = useState(false);
   const [cancel, setCancel] = useState(false);
   const [reason, setReason] = useState("");
   const a = q.data?.activity;
   const r = player.data?.registrations.find((r) => r.activity_id === id);
   const isActive = r && !["cancelled", "rejected"].includes(r.status);
+  const waiting = player.data?.waitlist?.find((w) => w.activity_id === id);
+  useEffect(() => {
+    if (waiting) {
+      setTeam(waiting.team_name);
+      setMembers(waiting.team_members.join("\n"));
+    }
+  }, [waiting?.id]);
   const saved = player.data?.saved.find((s) => s.activity_id === id);
   const conflict =
     a &&
@@ -232,7 +238,7 @@ function EventPage() {
                     Событие отменено:{" "}
                     {a.cancellation_reason ||
                       "Подробности уточняйте у организатора"}
-                    . Оплаченные записи сохранены в разделе возвратов.
+                    .
                   </p>
                 )}
                 {!!conflict?.length && (
@@ -242,6 +248,50 @@ function EventPage() {
                     Проверьте расписание перед записью.
                   </p>
                 )}
+                {waiting && (
+                  <div className="event-muted-box">
+                    <h3 className="font-bold">
+                      Вы в листе ожидания · № {waiting.position}
+                    </h3>
+                    <p>
+                      Сообщим в приложении, когда освободится место. Очередь не
+                      является записью на событие.
+                    </p>
+                    <Button
+                      variant="ghost"
+                      disabled={action.busy}
+                      onClick={() =>
+                        void action.mutate(
+                          "waitlist_leave",
+                          { activity_id: id },
+                          "Вы вышли из очереди",
+                        )
+                      }
+                    >
+                      Выйти из очереди
+                    </Button>
+                  </div>
+                )}
+                {!waiting &&
+                  !isActive &&
+                  user &&
+                  a.registered_count >= a.max_participants &&
+                  eventPhase(a) === "upcoming" &&
+                  (!a.registration_deadline ||
+                    Date.parse(a.registration_deadline) > Date.now()) &&
+                  !q.data?.matches.length && (
+                    <Button
+                      variant="outline"
+                      disabled={action.busy}
+                      onClick={() => {
+                        setJoiningWaitlist(true);
+                        setTerms(false);
+                        setConfirm(true);
+                      }}
+                    >
+                      Встать в лист ожидания
+                    </Button>
+                  )}
                 {user && player.isPending ? (
                   <p role="status">Проверяем вашу запись…</p>
                 ) : user && player.error ? (
@@ -259,14 +309,7 @@ function EventPage() {
                     <h3 className="font-bold">
                       Ваша запись: {REGISTRATION_STATUS_LABEL[r.status]}
                     </h3>
-                    <p>
-                      {r.amount_due === null
-                        ? "Стоимость этой старой записи не зафиксирована"
-                        : r.amount_due === 0
-                          ? "Бесплатно"
-                          : formatKzt(r.amount_due)}{" "}
-                      · {PAYMENT_STATUS_LABEL[r.payment_status]}
-                    </p>
+
                     {r.team_name && (
                       <p>
                         Команда: {r.team_name} · {r.team_members.join(", ")}
@@ -307,6 +350,7 @@ function EventPage() {
                           onClick={() => {
                             trackEvent("register_click");
                             setTerms(false);
+                            setJoiningWaitlist(false);
                             setConfirm(true);
                           }}
                         >
@@ -448,23 +492,14 @@ function EventPage() {
               </p>
               <p className="event-description workspace-muted mt-4">
                 {a.cancellation_policy ||
-                  "Условия уточняйте у организатора до оплаты."}
+                  "Уточните условия участия у организатора."}
               </p>
-              {!a.is_free && (
-                <p className="workspace-muted text-sm mt-4">
-                  Оплата напрямую организатору через Kaspi, проверка чека
-                  вручную. Возврат рассматривается по условиям вашей записи.
-                </p>
-              )}
+
               <Link className="profile-link inline-block mt-4" to="/legal">
                 Общие правила Sportura ↗
               </Link>
             </Panel>
-            {r && (
-              <Panel title="Ваша оплата">
-                <PaymentPanel registration={r} />
-              </Panel>
-            )}
+
             {a.type !== "daily_game" && q.data && (
               <section id="competition-results">
                 <Panel title="Расписание и результаты">
@@ -481,7 +516,13 @@ function EventPage() {
             )}
             <Confirm
               open={confirm}
-              title={r ? "Подтвердить повторную запись" : "Подтвердить участие"}
+              title={
+                joiningWaitlist
+                  ? "Встать в лист ожидания"
+                  : r
+                    ? "Подтвердить повторную запись"
+                    : "Подтвердить участие"
+              }
               description={`${a.title} · ${dateLabel(a.date_time, true)} · ${a.is_free ? "Бесплатно" : formatKzt(a.entry_fee)} ${a.participation_mode === "team" ? "за команду" : ""}`}
               busy={action.busy}
               onClose={() => setConfirm(false)}
@@ -489,37 +530,24 @@ function EventPage() {
                 if (!terms) return;
                 if (
                   await action.mutate(
-                    "join",
+                    joiningWaitlist ? "waitlist_join" : "join",
                     {
                       activity_id: a.id,
                       code,
                       accepted_terms: true,
-                      game_nickname: gameNickname,
                       team_name: team,
                       team_members: members
                         .split("\n")
                         .map((s) => s.trim())
                         .filter(Boolean),
                     },
-                    "Вы записаны",
+                    joiningWaitlist ? "Вы в листе ожидания" : "Вы записаны",
                   )
                 )
                   setConfirm(false);
               }}
             >
               <div className="event-form">
-                {DISCIPLINES.find((d) => d.name === a.sport)?.kind ===
-                  "esport" && (
-                  <label className="block">
-                    Ваш игровой ник
-                    <input
-                      className="workspace-input block"
-                      value={gameNickname}
-                      maxLength={80}
-                      onChange={(e) => setGameNickname(e.target.value)}
-                    />
-                  </label>
-                )}
                 {a.participation_mode === "team" && (
                   <>
                     <label>
@@ -531,7 +559,7 @@ function EventPage() {
                       />
                     </label>
                     <label>
-                      Состав — имя или игровой ник каждого игрока с новой строки
+                      Состав — имя каждого игрока с новой строки
                       <textarea
                         value={members}
                         maxLength={3000}
@@ -553,7 +581,7 @@ function EventPage() {
                     checked={terms}
                     onChange={(e) => setTerms(e.target.checked)}
                   />
-                  Принимаю стоимость, правила участия и условия отмены
+                  Принимаю правила участия и условия отмены
                 </label>
                 {!terms && (
                   <small className="workspace-muted">

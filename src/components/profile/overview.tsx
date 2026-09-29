@@ -181,12 +181,7 @@ export function OverviewTab({
                 {dateLabel(next.activity.date_time, true)} ·{" "}
                 {next.activity.location_text}
               </p>
-              <p className="mt-2 text-xs">
-                Оплата:{" "}
-                {next.activity.is_free
-                  ? "Бесплатно"
-                  : PAYMENT_STATUS_LABEL[next.payment_status as PaymentStatus]}
-              </p>
+
               <div className="mt-4 flex flex-wrap gap-4">
                 <Link
                   className="profile-link"
@@ -234,11 +229,7 @@ export function OverviewTab({
                 Подтвердите email
               </button>
             )}
-            {unpaid.length > 0 && (
-              <Link to="/my-games" className="profile-link block">
-                Проверьте оплату: {unpaid.length} игр
-              </Link>
-            )}
+
             {support.length > 0 && (
               <button className="profile-link block" onClick={() => go("help")}>
                 Поддержка ждёт ответа: {support.length}
@@ -289,7 +280,7 @@ export function OverviewTab({
       </Panel>
       <div className="flex flex-wrap gap-3">
         <Link to="/my-games" className="workspace-primary-link">
-          Мои игры и оплаты
+          Мои игры
         </Link>
         {(hasHost || me.roles.includes("admin")) && (
           <Link to="/host" className="workspace-text-link">

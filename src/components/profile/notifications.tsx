@@ -48,7 +48,7 @@ export function NotificationsTab({
   return (
     <Panel
       title="Уведомления"
-      subtitle="Изменения игр, оплаты и ответы поддержки в одном месте"
+      subtitle="Изменения игр и ответы поддержки в одном месте"
     >
       <div className="profile-tabs-row">
         <button
@@ -132,11 +132,7 @@ export function NotificationsTab({
             checked={form.value.games}
             onChange={(games) => form.patch({ games })}
           />
-          <Toggle
-            label="Оплата и проверка чеков"
-            checked={form.value.payments}
-            onChange={(payments) => form.patch({ payments })}
-          />
+
           <Toggle
             label="Заявки организатора"
             checked={form.value.applications}

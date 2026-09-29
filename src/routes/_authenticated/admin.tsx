@@ -1,4 +1,3 @@
-import { StaffPaymentReview } from "@/components/analytics/payment-review";
 import { AnalyticsDashboard } from "@/components/analytics/dashboard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -50,7 +49,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
       { title: "Администрирование — Sportura" },
       {
         name: "description",
-        content: "Заявки, платежи, споры, комиссии и журналы.",
+        content: "Заявки, события, участники и результаты.",
       },
       { property: "og:title", content: "Администрирование — Sportura" },
       {
@@ -137,25 +136,10 @@ function Admin() {
     queryFn: () => listActivitiesAdmin(),
     enabled: isStaff && tab === "activities",
   });
-  const audit = useQuery({
-    queryKey: ["admin", "audit"],
-    queryFn: () => listPaymentAudit(),
-    enabled: isStaff && tab === "payments",
-  });
   const disputes = useQuery({
     queryKey: ["admin", "disputes"],
     queryFn: () => listDisputesAdmin(),
     enabled: isStaff && tab === "disputes",
-  });
-  const events = useQuery({
-    queryKey: ["admin", "events"],
-    queryFn: () => listPaymentEvents(),
-    enabled: isAdmin && tab === "logs",
-  });
-  const commission = useQuery({
-    queryKey: ["admin", "commission"],
-    queryFn: () => getCommissionReport(),
-    enabled: isStaff && tab === "reports",
   });
 
   async function exportCsv(
@@ -205,13 +189,11 @@ function Admin() {
   return (
     <AppShell
       title={isAdmin ? "Администрирование" : "Кабинет лида"}
-      subtitle="Пользователи, события, платежи и управление платформой"
+      subtitle="Пользователи, события и управление платформой"
       layout="admin"
     >
       <div className="admin-page">
-        {(o?.applicationsPending ?? 0) > 0 ||
-        (o?.payments.needsReview ?? 0) > 0 ||
-        (o?.disputesOpen ?? 0) > 0 ? (
+        {(o?.applicationsPending ?? 0) > 0 || (o?.disputesOpen ?? 0) > 0 ? (
           <div className="mb-4 space-y-2">
             {(o?.applicationsPending ?? 0) > 0 ? (
               <button
@@ -227,20 +209,7 @@ function Admin() {
                 </span>
               </button>
             ) : null}
-            {(o?.payments.needsReview ?? 0) > 0 ? (
-              <button
-                type="button"
-                onClick={() => setTab("payments")}
-                className="press panel-frost flex w-full items-center justify-between rounded-2xl p-4 text-left"
-              >
-                <span className="text-sm font-semibold">
-                  Платежи на проверке
-                </span>
-                <span className="rounded-full bg-brand/20 px-2.5 py-1 text-xs font-semibold text-brand">
-                  {o?.payments.needsReview}
-                </span>
-              </button>
-            ) : null}
+
             {(o?.disputesOpen ?? 0) > 0 ? (
               <button
                 type="button"
@@ -268,9 +237,9 @@ function Admin() {
               ["applications", "Заявки", o?.applicationsPending ?? 0],
               ["users", "Пользователи", 0],
               ["activities", "Активности", 0],
-              ["payments", "Платежи", o?.payments.needsReview ?? 0],
+
               ["disputes", "Споры", o?.disputesOpen ?? 0],
-              ["logs", "Журналы", 0],
+
               ["reports", "Отчёты", 0],
               ["content", "Контент", 0],
               ["settings", "Настройки", 0],
@@ -310,7 +279,7 @@ function Admin() {
         </div>
 
         {tab === "analytics" && isStaff && <AnalyticsDashboard />}
-        {tab === "payments" && isStaff && <StaffPaymentReview />}
+
         {tab === "overview" ? (
           <div className="admin-stats">
             <Stat label="Пользователей" value={o?.users.total ?? "—"} />
@@ -323,17 +292,11 @@ function Admin() {
               label="Соревнований"
               value={o?.activities.competitions ?? "—"}
             />
-            <Stat label="Оплат подтверждено" value={o?.payments.paid ?? "—"} />
-            <Stat label="На проверке" value={o?.payments.needsReview ?? "—"} />
+
             <Stat label="Открытых споров" value={o?.disputesOpen ?? "—"} />
             <Stat
               label="Заявок в ожидании"
               value={o?.applicationsPending ?? "—"}
-            />
-            <Stat label="Эскроу" value={formatKzt(o?.escrowBalance ?? 0)} />
-            <Stat
-              label="Комиссия"
-              value={formatKzt(o?.commissionRevenue ?? 0)}
             />
           </div>
         ) : null}
@@ -693,34 +656,6 @@ function Admin() {
           </div>
         ) : null}
 
-        {tab === "payments" ? (
-          <div className="space-y-3">
-            {(audit.data ?? []).length === 0 ? (
-              <p className="panel-frost rounded-2xl p-5 text-sm text-muted-foreground">
-                Изменений нет.
-              </p>
-            ) : (
-              (audit.data ?? []).map((h) => (
-                <div key={h.id} className="panel-frost rounded-2xl p-4 text-xs">
-                  <p className="font-semibold">
-                    {h.activity?.title ?? "Активность"}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {h.previous_status
-                      ? PAYMENT_STATUS_LABEL[h.previous_status as PaymentStatus]
-                      : "—"}{" "}
-                    → {PAYMENT_STATUS_LABEL[h.new_status as PaymentStatus]}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {new Date(h.created_at).toLocaleString("ru-RU")}
-                    {h.payment_reference ? ` · ${h.payment_reference}` : ""}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        ) : null}
-
         {tab === "disputes" ? (
           <div className="space-y-3">
             {(disputes.data ?? []).length === 0 ? (
@@ -794,35 +729,6 @@ function Admin() {
           </div>
         ) : null}
 
-        {tab === "logs" ? (
-          <div className="space-y-3">
-            {(events.data ?? []).length === 0 ? (
-              <p className="panel-frost rounded-2xl p-5 text-sm text-muted-foreground">
-                Событий платёжных провайдеров пока нет. Здесь появятся вебхуки
-                Kaspi Pay Business, CloudPayments или Paybox после подключения.
-              </p>
-            ) : (
-              (events.data ?? []).map((e) => (
-                <div key={e.id} className="panel-frost rounded-2xl p-4 text-xs">
-                  <p className="font-semibold">
-                    {e.provider} · {e.event_type}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {e.external_payment_id ?? e.external_event_id ?? "—"} ·{" "}
-                    {e.signature_valid
-                      ? "подпись верна"
-                      : "подпись не проверена"}{" "}
-                    · {e.processed ? "обработано" : "в очереди"}
-                  </p>
-                  {e.processing_error ? (
-                    <p className="text-destructive">{e.processing_error}</p>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </div>
-        ) : null}
-
         {tab === "reports" ? (
           <div className="space-y-4">
             <div className="panel-frost space-y-3 rounded-2xl p-5">
@@ -855,55 +761,6 @@ function Admin() {
                 >
                   Записи
                 </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="press"
-                  onClick={() => void exportCsv("payments")}
-                >
-                  Журнал оплат
-                </Button>
-              </div>
-            </div>
-
-            <div className="panel-frost space-y-3 rounded-2xl p-5">
-              <p className="text-sm font-semibold">Комиссия платформы</p>
-              <p className="text-xs text-muted-foreground">
-                Первые 10 платных соревнований — без комиссии. Осталось
-                бесплатных: {commission.data?.freeRemaining ?? "—"}
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <Stat
-                  label="Сборы всего"
-                  value={formatKzt(commission.data?.grossTotal ?? 0)}
-                />
-                <Stat
-                  label="Комиссия"
-                  value={formatKzt(commission.data?.commissionTotal ?? 0)}
-                />
-              </div>
-              <div className="space-y-2">
-                {(commission.data?.items ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Платных соревнований пока нет.
-                  </p>
-                ) : (
-                  (commission.data?.items ?? []).map((item) => (
-                    <div
-                      key={item.id}
-                      className="panel-frost-2 rounded-2xl p-3 text-xs"
-                    >
-                      <p className="font-semibold">{item.title}</p>
-                      <p className="text-muted-foreground">
-                        Сборы {formatKzt(item.gross)} · комиссия{" "}
-                        {item.commission_free
-                          ? "0 (без комиссии)"
-                          : formatKzt(item.commission)}{" "}
-                        · призовой фонд {formatKzt(item.prize_pool)}
-                      </p>
-                    </div>
-                  ))
-                )}
               </div>
             </div>
           </div>
