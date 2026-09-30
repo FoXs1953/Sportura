@@ -90,12 +90,21 @@ function Feed() {
     retry: false,
   });
   const set = useCallback(
-    (patch: Partial<DiscoveryFilters>) =>
+    (patch: Partial<DiscoveryFilters>) => {
+      if (patch.city !== undefined) {
+        setReadyCity(true);
+        try {
+          localStorage.setItem("sportura-feed-city", patch.city);
+        } catch {
+          /* Storage is optional in private browser modes. */
+        }
+      }
       void navigate({
         search: (prev) => ({ ...prev, ...patch }),
         replace: true,
         resetScroll: false,
-      }),
+      });
+    },
     [navigate],
   );
   useEffect(() => {
@@ -194,12 +203,6 @@ function Feed() {
               value={filters.city}
               onChange={(e) => {
                 set({ city: e.target.value, district: "" });
-                setReadyCity(true);
-                try {
-                  localStorage.setItem("sportura-feed-city", e.target.value);
-                } catch {
-                  /* Storage is optional in private browser modes. */
-                }
               }}
             >
               <option value="all">Все города</option>
