@@ -413,6 +413,7 @@
   outline-offset: 4px;
 }
 .feed-results {
+  margin-top: 18px;
   padding-top: 24px;
   border-top: 1px solid var(--feed-line);
 }
