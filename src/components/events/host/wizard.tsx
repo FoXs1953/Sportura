@@ -185,9 +185,18 @@ export function EventWizard({
               <select
                 value={v.type}
                 disabled={!!event || !!document?.activity_id}
-                onChange={(e) =>
-                  update({ type: e.target.value as EventDraft["type"] })
-                }
+                onChange={(e) => {
+                  const nextType = e.target.value as EventDraft["type"];
+                  update({
+                    type: nextType,
+                    ...(nextType === "tournament"
+                      ? {}
+                      : {
+                          tier: nextType === "league" ? "spark" : null,
+                          entry_fee: 0,
+                        }),
+                  });
+                }}
               >
                 {Object.entries(ACTIVITY_TYPE_LABEL)
                   .filter(([t]) => t === "daily_game" || competition)
