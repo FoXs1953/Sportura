@@ -6,9 +6,8 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { getAuthCapabilities } from "@/lib/profile.functions";
+import { getAuthCapabilities, signIn, signUp } from "@/lib/auth.functions";
 import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,30 +58,13 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { name: name || "Игрок" },
-          },
-        });
-        if (error) throw error;
-        if (!data.session) {
-          toast.success(
-            "Мы отправили письмо для подтверждения. Проверьте почту.",
-          );
-          return;
-        }
-        window.location.assign(redirect);
+        await signUp({ data: { email, password, name } });
+        toast.success("Мы отправили письмо для подтверждения. Проверьте почту.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        window.location.assign(redirect);
+        await signIn({ data: { email, password } });
       }
+      // Full reload so every query starts with the new session cookie.
+      window.location.assign(redirect);
     } catch (err) {
       const raw = err instanceof Error ? err.message : "";
       const low = raw.toLowerCase();
@@ -106,22 +88,11 @@ function AuthPage() {
     }
   }
 
-  async function google() {
+  function google() {
     setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${window.location.origin}${redirect}` },
-      });
-      if (error) throw error;
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Не удалось войти через Google",
-      );
-      setBusy(false);
-    }
+    window.location.assign(
+      `/api/auth/google?redirect=${encodeURIComponent(redirect)}`,
+    );
   }
 
   return (

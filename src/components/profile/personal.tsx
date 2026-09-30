@@ -12,15 +12,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import { type MyProfile } from "@/lib/me.functions";
+import { updateMyAvatar, updateMyContact } from "@/lib/profile.functions";
 import {
-  updateMyAvatar,
-  updateMyContact,
-  getAuthCapabilities,
-} from "@/lib/profile.functions";
+  requestEmailChange,
+  resendConfirmation,
+} from "@/lib/auth.functions";
 import { type ProfileWorkspace, positions, levels } from "@/lib/profile-model";
-import { uploadAvatar, signedAvatarUrl } from "@/lib/storage";
+import {
+  uploadAvatar,
+  signedAvatarUrl,
+  deleteFiles,
+  AVATARS_BUCKET,
+} from "@/lib/storage";
 import { SPORTS, CITIES } from "@/lib/sportura";
 import { normalizeKzPhone, KZ_PHONE_MESSAGE } from "@/lib/kz-validation";
 import {
@@ -101,7 +105,7 @@ export function AvatarEditor({ me }: { me: MyProfile }) {
       toast.success("Фото обновлено");
     } catch (e) {
       setError(errorText(e));
-      if (uploaded) await supabase.storage.from("avatars").remove([uploaded]);
+      if (uploaded) await deleteFiles(AVATARS_BUCKET, [uploaded]);
     } finally {
       setBusy(false);
     }
@@ -509,10 +513,6 @@ export function PersonalTab({
   );
 }
 function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
-  const capabilities = useQuery({
-    queryKey: ["auth-capabilities"],
-    queryFn: () => getAuthCapabilities(),
-  });
   const form = useProfileForm(
     "contact",
     { phone: me.phone ?? "" },
@@ -523,20 +523,14 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
     },
   );
   const [email, setEmail] = useState(me.email ?? "");
-  const [otp, setOtp] = useState("");
-  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const qc = useQueryClient();
-  async function run(
-    fn: () => Promise<{ error: { message: string } | null }>,
-    success: string,
-  ) {
+  async function run(fn: () => Promise<unknown>, success: string) {
     setBusy(true);
     setError("");
     try {
-      const result = await fn();
-      if (result.error) throw new Error(result.error.message);
+      await fn();
       toast.success(success);
       await qc.invalidateQueries({ queryKey: ["profile-workspace"] });
     } catch (e) {
@@ -575,14 +569,8 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
             disabled={busy || email === me.email || !/.+@.+\..+/.test(email)}
             onClick={() =>
               void run(
-                () =>
-                  supabase.auth.updateUser(
-                    { email },
-                    {
-                      emailRedirectTo: `${window.location.origin}/profile?tab=personal`,
-                    },
-                  ),
-                "Письма для подтверждения изменения отправлены. Проверьте старый и новый адрес.",
+                () => requestEmailChange({ data: { email } }),
+                "Письмо для подтверждения отправлено на новый адрес.",
               )
             }
           >
@@ -593,17 +581,7 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
               variant="ghost"
               disabled={busy}
               onClick={() =>
-                void run(
-                  () =>
-                    supabase.auth.resend({
-                      type: "signup",
-                      email: me.email!,
-                      options: {
-                        emailRedirectTo: `${window.location.origin}/profile?tab=personal`,
-                      },
-                    }),
-                  "Письмо отправлено",
-                )
+                void run(() => resendConfirmation(), "Письмо отправлено")
               }
             >
               Отправить подтверждение
@@ -636,49 +614,6 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
             SMS-подтверждение доступно после подключения оператора рассылки.
             Контактный телефон можно сохранить без SMS.
           </p>
-          <Button
-            variant="outline"
-            disabled={busy || !phone || form.dirty || !capabilities.data?.phone}
-            onClick={() =>
-              void run(async () => {
-                const result = await supabase.auth.updateUser({
-                  phone: phone!,
-                });
-                if (!result.error) setSent(true);
-                return result;
-              }, "Код отправлен по SMS")
-            }
-          >
-            Подтвердить телефон
-          </Button>
-          {sent && (
-            <div className="mt-3 flex gap-2">
-              <Input
-                aria-label="Код из SMS"
-                value={otp}
-                maxLength={8}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                onChange={(e) => setOtp(e.target.value)}
-              />
-              <Button
-                disabled={busy || otp.length < 6}
-                onClick={() =>
-                  void run(
-                    () =>
-                      supabase.auth.verifyOtp({
-                        phone: phone!,
-                        token: otp,
-                        type: "phone_change",
-                      }),
-                    "Телефон подтверждён",
-                  )
-                }
-              >
-                Проверить
-              </Button>
-            </div>
-          )}
         </div>
       )}
       <ErrorNotice message={error} />

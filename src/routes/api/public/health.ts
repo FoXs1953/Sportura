@@ -4,15 +4,12 @@ export const Route = createFileRoute("/api/public/health")({
   server: {
     handlers: {
       GET: async () => {
-        const url = process.env["SUPABASE_URL"];
-        const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
         let database: "ok" | "unreachable" | "not_configured" = "not_configured";
-        if (url && key) {
+        if (process.env["DATABASE_URL"]) {
           try {
-            const res = await fetch(`${url}/rest/v1/activities?select=id&limit=1`, {
-              headers: { apikey: key },
-            });
-            database = res.ok ? "ok" : "unreachable";
+            const { asAnon } = await import("@/lib/db.server");
+            await asAnon((tx) => tx`SELECT id FROM public.activities LIMIT 1`);
+            database = "ok";
           } catch {
             database = "unreachable";
           }

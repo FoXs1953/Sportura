@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { useSessionUser } from "@/lib/use-session";
 import { AppShell } from "@/components/sportura/shell";
 import { Button } from "@/components/ui/button";
 import { CapacityMeter } from "@/components/sportura/activity-card";
@@ -51,25 +51,9 @@ export const Route = createFileRoute("/activity/$id")({
 function EventPage() {
   const { id } = Route.useParams();
   const { code } = Route.useSearch();
-  const [user, setUser] = useState<string | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active) {
-        setUser(data.session?.user.id ?? null);
-        setAuthReady(true);
-      }
-    });
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => {
-      setUser(s?.user.id ?? null);
-      setAuthReady(true);
-    });
-    return () => {
-      active = false;
-      data.subscription.unsubscribe();
-    };
-  }, []);
+  const session = useSessionUser();
+  const user = session.data?.id ?? null;
+  const authReady = !session.isPending;
   const q = useQuery({
     queryKey: ["event-public", id, code, user],
     queryFn: () => readEvent({ data: { id, code } }),

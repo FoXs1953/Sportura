@@ -1,0 +1,11 @@
+node_modules
+.output
+.vercel
+.tanstack
+.git
+.github
+.env
+.env.*
+*.log
+deploy
+tests

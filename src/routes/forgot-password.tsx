@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { requestPasswordReset } from "@/lib/auth.functions";
 import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,16 +27,12 @@ function ForgotPasswordPage() {
     setBusy(true);
     setError("");
     try {
-      const { error: requestError } = await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        { redirectTo: `${window.location.origin}/reset-password` },
-      );
-      if (requestError) throw requestError;
+      await requestPasswordReset({ data: { email: email.trim() } });
       setSent(true);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "";
       setError(
-        /rate limit|too many/i.test(message)
+        /rate limit|too many|Слишком много/i.test(message)
           ? "Слишком много запросов. Попробуй позже."
           : "Не удалось отправить письмо. Проверь соединение и попробуй ещё раз.",
       );

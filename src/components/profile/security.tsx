@@ -11,15 +11,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import {
   checkAccountDeletion,
   exportMyData,
-  getAuthCapabilities,
   getMySessions,
   revokeMySession,
   saveProfileSection,
 } from "@/lib/profile.functions";
+import {
+  changePassword,
+  getAuthCapabilities,
+  getIdentities,
+  signOut,
+  unlinkGoogle,
+} from "@/lib/auth.functions";
 import { type MyProfile } from "@/lib/me.functions";
 import { type ProfileWorkspace } from "@/lib/profile-model";
 import { ACCOUNT_STATUS_LABEL } from "@/lib/sportura";
@@ -59,11 +64,7 @@ export function SecurityTab({
   });
   const identity = useQuery({
     queryKey: ["profile-identity"],
-    queryFn: async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return data.user;
-    },
+    queryFn: () => getIdentities(),
   });
   const capabilities = useQuery({
     queryKey: ["auth-capabilities"],
@@ -74,7 +75,7 @@ export function SecurityTab({
     queryFn: () => checkAccountDeletion(),
     enabled: deleting,
   });
-  const identities = identity.data?.identities ?? [];
+  const identities = identity.data ?? [];
   const google = identities.find((i) => i.provider === "google");
   const hasEmail = identities.some((i) => i.provider === "email");
   async function run(fn: () => Promise<void>) {
@@ -116,17 +117,10 @@ export function SecurityTab({
               variant="outline"
               className="mt-3"
               disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const result = await supabase.auth.linkIdentity({
-                    provider: "google",
-                    options: {
-                      redirectTo: `${window.location.origin}/profile?tab=security`,
-                    },
-                  });
-                  if (result.error) throw result.error;
-                })
-              }
+              onClick={() => {
+                setBusy(true);
+                window.location.assign("/api/auth/google?mode=link");
+              }}
             >
               Подключить Google
             </Button>
@@ -140,8 +134,7 @@ export function SecurityTab({
                 void run(async () => {
                   if (identities.length < 2)
                     throw new Error("Нельзя отключить последний способ входа");
-                  const result = await supabase.auth.unlinkIdentity(google);
-                  if (result.error) throw result.error;
+                  await unlinkGoogle();
                   await qc.invalidateQueries({
                     queryKey: ["profile-identity"],
                   });
@@ -205,11 +198,9 @@ export function SecurityTab({
             }
             onClick={() =>
               void run(async () => {
-                const result = await supabase.auth.updateUser({
-                  password,
-                  ...(hasEmail ? { current_password: current } : {}),
+                await changePassword({
+                  data: { password, ...(hasEmail ? { current } : {}) },
                 });
-                if (result.error) throw result.error;
                 setCurrent("");
                 setPassword("");
                 setConfirm("");
@@ -283,8 +274,7 @@ export function SecurityTab({
           disabled={busy}
           onClick={() =>
             void run(async () => {
-              const result = await supabase.auth.signOut({ scope: "others" });
-              if (result.error) throw result.error;
+              await signOut({ data: { scope: "others" } });
               await sessions.refetch();
               toast.success("Остальные сеансы завершены");
             })
@@ -293,8 +283,7 @@ export function SecurityTab({
           Выйти на других устройствах
         </Button>
         <p className="workspace-muted mt-3 text-xs">
-          Обновление доступа прекращается сразу. Уже выданный доступ может
-          действовать до истечения токена.
+          Завершённые сеансы теряют доступ сразу.
         </p>
       </Panel>
       <Panel
@@ -390,8 +379,7 @@ export function SecurityTab({
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                const result = await supabase.auth.signOut({ scope: "local" });
-                if (result.error) throw result.error;
+                await signOut({ data: { scope: "local" } });
                 await qc.cancelQueries();
                 qc.clear();
                 await navigate({ to: "/auth", replace: true });

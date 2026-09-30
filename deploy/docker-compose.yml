@@ -1,0 +1,75 @@
+# Staging stack on the VPS (/opt/sportura). GitHub Actions uploads this file,
+# writes .env next to it from the STAGING_ENV_FILE secret, and sets IMAGE.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sportura
+      POSTGRES_USER: sportura
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:?set DB_OWNER_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432" # SSH tunnel access only; never public
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sportura -d sportura"]
+      interval: 5s
+      retries: 20
+
+  # One-shot: docker compose run --rm migrate
+  migrate:
+    image: ${IMAGE:?set IMAGE}
+    profiles: ["tools"]
+    command: ["node", "scripts/db-migrate.mjs"]
+    environment:
+      DATABASE_URL: postgres://sportura:${DB_OWNER_PASSWORD}@db:5432/sportura
+      APP_DB_USER: sportura_app
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    image: ${IMAGE:?set IMAGE}
+    restart: unless-stopped
+    # Only what the app needs; the owner password stays out of this container.
+    environment:
+      DATABASE_URL: postgres://sportura_app:${APP_DB_PASSWORD}@db:5432/sportura
+      APP_URL: https://${STAGING_DOMAIN}
+      FILE_URL_SECRET: ${FILE_URL_SECRET:?set FILE_URL_SECRET in .env}
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+      CRON_SECRET_PREVIOUS: ${CRON_SECRET_PREVIOUS:-}
+      # Optional: without SMTP_URL emails are written to the app log.
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # Optional: Google sign-in appears only when both are set.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    volumes:
+      - uploads:/data/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:?set STAGING_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  db-data:
+  uploads:
+  caddy-data:
+  caddy-config:

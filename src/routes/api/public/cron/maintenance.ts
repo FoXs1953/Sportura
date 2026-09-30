@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
+import { authenticateCronRequest } from "@/lib/cron-auth";
 
 const DISPUTE_WINDOW_HOURS = 48;
 const NEEDS_REVIEW_ALERT_HOURS = 24;
 
 async function runMaintenance() {
-  const { supabaseAdmin } =
-    await import("@/integrations/supabase/client.server");
+  const { asService } = await import("@/lib/db.server");
   const now = new Date();
   const nowIso = now.toISOString();
   const report = {
@@ -19,20 +18,17 @@ async function runMaintenance() {
 
   // Event completion is explicit; registration eligibility is checked by date and deadline.
   // Open disputes require a human decision, even after the submission window closes.
-  const maintenance = await supabaseAdmin.rpc("profile_maintenance");
-  if (maintenance.error) throw new Error(maintenance.error.message);
-
   // 5. Count payments stuck in "needs_review" for more than 24h (admin signal).
   const staleSince = new Date(
     now.getTime() - NEEDS_REVIEW_ALERT_HOURS * 3600_000,
   ).toISOString();
-  const stale = await supabaseAdmin
-    .from("registrations")
-    .select("id", { count: "exact", head: true })
-    .eq("payment_status", "needs_review")
-    .lt("updated_at", staleSince);
-  if (stale.error) throw new Error(stale.error.message);
-  report.staleNeedsReview = stale.count ?? 0;
+  const [stale] = await asService(async (tx) => {
+    await tx`SELECT public.profile_maintenance()`;
+    return tx<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM public.registrations
+      WHERE payment_status = 'needs_review' AND updated_at < ${staleSince}`;
+  });
+  report.staleNeedsReview = stale?.n ?? 0;
 
   return { ok: true, ranAt: nowIso, ...report };
 }

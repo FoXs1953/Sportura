@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "./auth-middleware";
 import { z } from "zod";
-import type { Json } from "@/integrations/supabase/types";
 export type Dispute = {
   id: string;
   activity_id: string;
@@ -17,8 +16,9 @@ export type Dispute = {
     from_host: boolean;
   }[];
 };
+const db = () => import("./db.server");
 export const disputeAction = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -28,12 +28,15 @@ export const disputeAction = createServerFn({ method: "POST" })
       .parse(v),
   )
   .handler(async ({ data, context }) => {
-    const result = await context.supabase.rpc("event_disputes", {
-      action: data.action,
-      payload: data.payload as Json,
-    });
-    if (result.error) throw new Error(result.error.message);
-    return result.data as unknown as Dispute[];
+    const { asUser } = await db();
+    const [row] = await asUser(
+      context.caller,
+      (tx) =>
+        tx<
+          { result: unknown }[]
+        >`SELECT public.event_disputes(${data.action}, ${tx.json(data.payload as never)}) AS result`,
+    );
+    return row?.result as Dispute[];
   });
 export type HostTrust = {
   level: "novice" | "verified" | "partner";
@@ -42,19 +45,23 @@ export type HostTrust = {
   rating: number;
 };
 export const getHostTrust = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((v: unknown) =>
     z.object({ id: z.string().uuid().optional() }).parse(v),
   )
   .handler(async ({ data, context }) => {
-    const r = await context.supabase.rpc("organizer_trust", {
-      uid: data.id ?? context.userId,
-    });
-    if (r.error) throw new Error(r.error.message);
-    return r.data as unknown as HostTrust;
+    const { asUser } = await db();
+    const [row] = await asUser(
+      context.caller,
+      (tx) =>
+        tx<
+          { result: unknown }[]
+        >`SELECT public.organizer_trust(${data.id ?? context.caller.userId}) AS result`,
+    );
+    return row?.result as HostTrust;
   });
 export const setHostPartner = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -65,11 +72,11 @@ export const setHostPartner = createServerFn({ method: "POST" })
       .parse(v),
   )
   .handler(async ({ data, context }) => {
-    const r = await context.supabase.rpc("set_organizer_partner", {
-      uid: data.id,
-      enabled: data.enabled,
-      note: data.note,
-    });
-    if (r.error) throw new Error(r.error.message);
+    const { asUser } = await db();
+    await asUser(
+      context.caller,
+      (tx) =>
+        tx`SELECT public.set_organizer_partner(${data.id}, ${data.enabled}, ${data.note})`,
+    );
     return { ok: true };
   });

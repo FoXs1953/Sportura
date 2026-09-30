@@ -1,0 +1,6 @@
+# HTTPS certificates are issued automatically once DNS points at the VPS.
+{$STAGING_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+	header X-Robots-Tag "noindex, nofollow"
+}

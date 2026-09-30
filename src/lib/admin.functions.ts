@@ -1,189 +1,159 @@
-import { assertStaff } from "@/lib/staff";
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "./auth-middleware";
 import { z } from "zod";
+import type { Tables } from "./database.types";
+import type { Caller, Tx } from "./db.server";
+import { asStaff } from "./staff";
 
-async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
+/** Runs fn as the caller after checking the admin role; RLS still applies. */
+async function asAdmin<T>(caller: Caller, fn: (tx: Tx) => Promise<T>) {
+  const { asUser } = await import("./db.server");
+  return asUser(caller, async (tx) => {
+    const [row] = await tx<{ admin: boolean }[]>`
+      SELECT public.has_role(${caller.userId}, 'admin') AS admin`;
+    if (!row?.admin) throw new Error("Доступ только для администраторов.");
+    return fn(tx);
   });
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error("Доступ только для администраторов.");
 }
 
-export const getAdminAlerts = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaff(context);
-    const [apps, regs, disputes] = await Promise.all([
-      context.supabase
-        .from("manager_applications")
-        .select("id")
-        .eq("status", "pending"),
-      context.supabase
-        .from("registrations")
-        .select("id")
-        .eq("payment_status", "needs_review"),
-      context.supabase.from("disputes").select("id").eq("status", "open"),
-    ]);
-    return {
-      applications: (apps.data ?? []).length,
-      payments: (regs.data ?? []).length,
-      disputes: (disputes.data ?? []).length,
-    };
-  });
-
 export const getAdminOverview = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaff(context);
-    const { supabase } = context;
-    const [
-      users,
-      activities,
-      registrations,
-      disputes,
-      applications,
-      transactions,
-    ] = await Promise.all([
-      (supabase as any).rpc("staff_overview_counts"),
-      supabase
-        .from("activities")
-        .select(
-          "id, type, status, entry_fee, commission_percent, registered_count",
-        ),
-      supabase.from("registrations").select("id, payment_status"),
-      supabase.from("disputes").select("id, status"),
-      supabase.from("manager_applications").select("id, status"),
-      supabase.from("transactions").select("id, type, amount, status"),
-    ]);
-
-    const regs = (registrations.data ?? []) as { payment_status: string }[];
-    const acts = (activities.data ?? []) as {
-      type: string;
-      status: string;
-      entry_fee: number | null;
-      commission_percent: number;
-      registered_count: number;
-    }[];
-
-    const commission = acts
-      .filter((a) => a.type !== "daily_game" && a.entry_fee)
-      .reduce(
-        (sum, a) =>
-          sum +
-          (a.entry_fee ?? 0) *
-            a.registered_count *
-            (a.commission_percent / 100),
-        0,
-      );
-
-    return {
-      users: {
-        total: Number(users.data?.total ?? 0),
-        flagged: Number(users.data?.flagged ?? 0),
-      },
-      activities: {
-        total: acts.length,
-        dailyGames: acts.filter((a) => a.type === "daily_game").length,
-        competitions: acts.filter((a) => a.type !== "daily_game").length,
-        cancelled: acts.filter((a) => a.status === "cancelled").length,
-      },
-      payments: {
-        total: regs.length,
-        paid: regs.filter((r) => r.payment_status === "paid").length,
-        pending: regs.filter((r) => r.payment_status === "pending").length,
-        needsReview: regs.filter((r) => r.payment_status === "needs_review")
-          .length,
-        rejected: regs.filter((r) => r.payment_status === "rejected").length,
-      },
-      disputesOpen: ((disputes.data ?? []) as { status: string }[]).filter(
-        (d) => d.status === "open",
-      ).length,
-      applicationsPending: (
-        (applications.data ?? []) as { status: string }[]
-      ).filter((a) => a.status === "pending").length,
-      escrowBalance: (
-        (transactions.data ?? []) as {
-          type: string;
-          amount: number;
-          status: string;
+  .middleware([requireAuth])
+  .handler(async ({ context }) =>
+    asStaff(context.caller, async (tx) => {
+      const [counts] = await tx<
+        {
+          users: number;
+          flagged: number;
+          applications_pending: number;
+          disputes_open: number;
+          escrow: number;
         }[]
-      )
-        .filter((t) => t.status === "pending")
-        .reduce((s, t) => s + Number(t.amount), 0),
-      commissionRevenue: Math.round(commission),
-    };
-  });
+      >`SELECT
+          (public.staff_overview_counts()->>'total')::int AS users,
+          (public.staff_overview_counts()->>'flagged')::int AS flagged,
+          (SELECT count(*) FROM public.manager_applications WHERE status = 'pending')::int AS applications_pending,
+          (SELECT count(*) FROM public.disputes WHERE status = 'open')::int AS disputes_open,
+          (SELECT COALESCE(sum(amount), 0) FROM public.transactions WHERE status = 'pending')::float8 AS escrow`;
+      const regs = await tx<{ payment_status: string }[]>`
+        SELECT payment_status FROM public.registrations`;
+      const acts = await tx<
+        {
+          type: string;
+          status: string;
+          entry_fee: number | null;
+          commission_percent: number;
+          registered_count: number;
+        }[]
+      >`SELECT type, status, entry_fee, commission_percent, registered_count FROM public.activities`;
+
+      const commission = acts
+        .filter((a) => a.type !== "daily_game" && a.entry_fee)
+        .reduce(
+          (sum, a) =>
+            sum +
+            (a.entry_fee ?? 0) *
+              a.registered_count *
+              (a.commission_percent / 100),
+          0,
+        );
+
+      return {
+        users: { total: counts!.users, flagged: counts!.flagged },
+        activities: {
+          total: acts.length,
+          dailyGames: acts.filter((a) => a.type === "daily_game").length,
+          competitions: acts.filter((a) => a.type !== "daily_game").length,
+          cancelled: acts.filter((a) => a.status === "cancelled").length,
+        },
+        payments: {
+          total: regs.length,
+          paid: regs.filter((r) => r.payment_status === "paid").length,
+          pending: regs.filter((r) => r.payment_status === "pending").length,
+          needsReview: regs.filter((r) => r.payment_status === "needs_review")
+            .length,
+          rejected: regs.filter((r) => r.payment_status === "rejected").length,
+        },
+        disputesOpen: counts!.disputes_open,
+        applicationsPending: counts!.applications_pending,
+        escrowBalance: counts!.escrow,
+        commissionRevenue: Math.round(commission),
+      };
+    }),
+  );
+
+type UserRow = Pick<
+  Tables<"profiles">,
+  | "id"
+  | "name"
+  | "phone"
+  | "email"
+  | "city"
+  | "verified"
+  | "rating"
+  | "rating_count"
+  | "no_show_count"
+  | "dispute_count"
+  | "cancellation_count"
+  | "account_status"
+  | "created_at"
+>;
 
 export const listUsersAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertAdmin(context);
-    const { data, error } = await context.supabase
-      .from("profiles")
-      .select(
-        "id, name, phone, email, city, verified, rating, rating_count, no_show_count, dispute_count, cancellation_count, account_status, created_at",
-      )
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw new Error(error.message);
-    const roles = await context.supabase
-      .from("user_roles")
-      .select("user_id, role");
-    const byUser: Record<string, string[]> = {};
-    for (const r of (roles.data ?? []) as { user_id: string; role: string }[]) {
-      (byUser[r.user_id] ??= []).push(r.role);
-    }
-    return (data ?? []).map((u) => ({ ...u, roles: byUser[u.id] ?? [] }));
-  });
+  .middleware([requireAuth])
+  .handler(async ({ context }) =>
+    asAdmin(context.caller, async (tx) => {
+      const rows = await tx<(UserRow & { roles: string[] })[]>`
+        SELECT p.id, p.name, p.phone, p.email, p.city, p.verified, p.rating, p.rating_count,
+               p.no_show_count, p.dispute_count, p.cancellation_count, p.account_status, p.created_at,
+               COALESCE((SELECT array_agg(r.role::text) FROM public.user_roles r WHERE r.user_id = p.id), '{}') AS roles
+        FROM public.profiles p
+        ORDER BY p.created_at DESC
+        LIMIT 200`;
+      return [...rows];
+    }),
+  );
+
+type AppProfile = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  verified: boolean;
+  rating: number | null;
+  account_status: string;
+};
+type AppRow = {
+  id: string;
+  user_id: string;
+  requested_role: string;
+  motivation: string | null;
+  status: string;
+  admin_notes: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+  profile: AppProfile | null;
+};
 
 export const listApplicationsAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaff(context);
-    const { data, error } = await context.supabase
-      .from("manager_applications")
-      .select(
-        "id, user_id, requested_role, motivation, status, admin_notes, created_at, reviewed_at",
-      )
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    type AppProfile = {
-      id: string;
-      name: string | null;
-      email: string | null;
-      phone: string | null;
-      verified: boolean;
-      rating: number | null;
-      account_status: string;
-    };
-    type AppRow = {
-      id: string;
-      user_id: string;
-      requested_role: string;
-      motivation: string | null;
-      status: string;
-      admin_notes: string | null;
-      created_at: string;
-      reviewed_at: string | null;
-    };
-    const rows = (data ?? []) as AppRow[];
-    const ids = [...new Set(rows.map((r) => r.user_id))];
-    const profiles = ids.length
-      ? await context.supabase
-          .from("profiles")
-          .select("id, name, email, phone, verified, rating, account_status")
-          .in("id", ids)
-      : { data: [] as AppProfile[] };
-    const byId: Record<string, AppProfile> = {};
-    for (const p of (profiles.data ?? []) as AppProfile[]) byId[p.id] = p;
-    return rows.map((r) => ({ ...r, profile: byId[r.user_id] ?? null }));
-  });
+  .middleware([requireAuth])
+  .handler(async ({ context }) =>
+    asStaff(context.caller, async (tx) => {
+      const rows = await tx<AppRow[]>`
+        SELECT a.id, a.user_id, a.requested_role, a.motivation, a.status, a.admin_notes,
+               a.created_at, a.reviewed_at,
+               CASE WHEN p.id IS NULL THEN NULL ELSE jsonb_build_object(
+                 'id', p.id, 'name', p.name, 'email', p.email, 'phone', p.phone,
+                 'verified', p.verified, 'rating', p.rating, 'account_status', p.account_status
+               ) END AS profile
+        FROM public.manager_applications a
+        LEFT JOIN public.profiles p ON p.id = a.user_id
+        ORDER BY a.created_at DESC`;
+      return [...rows];
+    }),
+  );
 
 export const reviewApplication = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -194,21 +164,16 @@ export const reviewApplication = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertStaff(context);
-    const { error } = await (context.supabase as any).rpc(
-      "staff_review_application",
-      {
-        aid: data.applicationId,
-        approve: data.approve,
-        notes: data.notes ?? null,
-      },
+    await asStaff(
+      context.caller,
+      (tx) =>
+        tx`SELECT public.staff_review_application(${data.applicationId}, ${data.approve}, ${data.notes ?? null})`,
     );
-    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 export const setAccountStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -220,65 +185,76 @@ export const setAccountStatus = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { error } = await context.supabase
-      .from("profiles")
-      .update({
-        account_status: data.status,
-        restriction_reason:
-          data.status === "active" ? null : (data.notes ?? null),
-        restriction_until:
-          data.status === "active" ? null : (data.restrictionUntil ?? null),
-      })
-      .eq("id", data.userId);
-    if (error) throw new Error(error.message);
+    const active = data.status === "active";
+    await asAdmin(
+      context.caller,
+      (tx) => tx`UPDATE public.profiles
+                 SET account_status = ${data.status},
+                     restriction_reason = ${active ? null : (data.notes ?? null)},
+                     restriction_until = ${active ? null : (data.restrictionUntil ?? null)}
+                 WHERE id = ${data.userId}`,
+    );
     return { ok: true };
   });
 
 export const listActivitiesAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaff(context);
-    const { data, error } = await context.supabase
-      .from("activities")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  });
+  .middleware([requireAuth])
+  .handler(async ({ context }) =>
+    asStaff(context.caller, async (tx) => [
+      ...(await tx<Tables<"activities">[]>`
+        SELECT * FROM public.activities ORDER BY created_at DESC LIMIT 200`),
+    ]),
+  );
+
+type AuditRow = {
+  id: string;
+  previous_status: string | null;
+  new_status: string;
+  note: string | null;
+  payment_reference: string | null;
+  created_at: string;
+  changed_by: string | null;
+  activity: { title: string } | null;
+};
 
 export const listPaymentAudit = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaff(context);
-    const { data, error } = await context.supabase
-      .from("payment_status_history")
-      .select(
-        "id, previous_status, new_status, note, payment_reference, created_at, changed_by, activity:activities(title)",
-      )
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  });
+  .middleware([requireAuth])
+  .handler(async ({ context }) =>
+    asStaff(context.caller, async (tx) => [
+      ...(await tx<AuditRow[]>`
+        SELECT h.id, h.previous_status, h.new_status, h.note, h.payment_reference, h.created_at, h.changed_by,
+               CASE WHEN a.id IS NULL THEN NULL ELSE jsonb_build_object('title', a.title) END AS activity
+        FROM public.payment_status_history h
+        LEFT JOIN public.activities a ON a.id = h.activity_id
+        ORDER BY h.created_at DESC
+        LIMIT 200`),
+    ]),
+  );
 
 export const listDisputesAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaff(context);
-    const { data, error } = await context.supabase
-      .from("disputes")
-      .select(
-        "id, reason, status, admin_notes, created_at, user_id, activity:activities(id, title)",
-      )
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  });
+  .middleware([requireAuth])
+  .handler(async ({ context }) =>
+    asStaff(context.caller, async (tx) => [
+      ...(await tx<
+        {
+          id: string;
+          reason: string;
+          status: string;
+          admin_notes: string | null;
+          created_at: string;
+          user_id: string;
+          activity: { id: string; title: string } | null;
+        }[]
+      >`SELECT d.id, d.reason, d.status, d.admin_notes, d.created_at, d.user_id,
+               CASE WHEN a.id IS NULL THEN NULL ELSE jsonb_build_object('id', a.id, 'title', a.title) END AS activity
+        FROM public.disputes d
+        LEFT JOIN public.activities a ON a.id = d.activity_id
+        ORDER BY d.created_at DESC`),
+    ]),
+  );
 
 export const resolveDispute = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -289,34 +265,40 @@ export const resolveDispute = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertStaff(context);
-    const { error } = await context.supabase
-      .from("disputes")
-      .update({
-        status: data.status,
-        admin_notes: data.notes ?? null,
-        resolved_by: context.userId,
-        resolved_at: new Date().toISOString(),
-      })
-      .eq("id", data.disputeId);
-    if (error) throw new Error(error.message);
+    await asStaff(
+      context.caller,
+      (tx) => tx`UPDATE public.disputes
+                 SET status = ${data.status}, admin_notes = ${data.notes ?? null},
+                     resolved_by = ${context.caller.userId}, resolved_at = now()
+                 WHERE id = ${data.disputeId}`,
+    );
     return { ok: true };
   });
 
 export const listPaymentEvents = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertAdmin(context);
-    const { data, error } = await context.supabase
-      .from("payment_events")
-      .select(
-        "id, provider, event_type, external_event_id, external_payment_id, signature_valid, processed, processing_error, created_at",
-      )
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  });
+  .middleware([requireAuth])
+  .handler(async ({ context }) =>
+    asAdmin(context.caller, async (tx) => [
+      ...(await tx<
+        Pick<
+          Tables<"payment_events">,
+          | "id"
+          | "provider"
+          | "event_type"
+          | "external_event_id"
+          | "external_payment_id"
+          | "signature_valid"
+          | "processed"
+          | "processing_error"
+          | "created_at"
+        >[]
+      >`SELECT id, provider, event_type, external_event_id, external_payment_id,
+               signature_valid, processed, processing_error, created_at
+        FROM public.payment_events
+        ORDER BY created_at DESC
+        LIMIT 100`),
+    ]),
+  );
 
 const CSV_KINDS = ["users", "activities", "registrations", "payments"] as const;
 
@@ -332,224 +314,245 @@ function toCsv(headers: string[], rows: unknown[][]): string {
     ...rows.map((r) => r.map(csvEscape).join(";")),
   ];
   // BOM so Excel on Windows reads Cyrillic correctly
-  return `\uFEFF${lines.join("\r\n")}`;
+  return `﻿${lines.join("\r\n")}`;
 }
+
+const ruDate = (value: string | null) =>
+  value ? new Date(value).toLocaleString("ru-RU") : "";
 
 /** Admin-only CSV export for reporting and reconciliation. */
 export const exportAdminCsv = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((input: unknown) =>
     z.object({ kind: z.enum(CSV_KINDS) }).parse(input),
   )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { supabase } = context;
+  .handler(async ({ data, context }) =>
+    asAdmin(context.caller, async (tx) => {
+      if (data.kind === "users") {
+        const rows = await tx<Tables<"profiles">[]>`
+          SELECT id, name, email, phone, city, verified, account_status, rating, rating_count,
+                 reliability_rating, no_show_count, cancellation_count, dispute_count, created_at
+          FROM public.profiles ORDER BY created_at DESC LIMIT 5000`;
+        return {
+          filename: "sportura-users.csv",
+          csv: toCsv(
+            [
+              "ID",
+              "Имя",
+              "Email",
+              "Телефон",
+              "Город",
+              "Подтверждён",
+              "Статус аккаунта",
+              "Рейтинг",
+              "Отзывов",
+              "Надёжность",
+              "Пропуски",
+              "Отмены",
+              "Споры",
+              "Регистрация",
+            ],
+            rows.map((u) => [
+              u.id,
+              u.name,
+              u.email,
+              u.phone,
+              u.city,
+              u.verified ? "да" : "нет",
+              u.account_status,
+              u.rating,
+              u.rating_count,
+              u.reliability_rating,
+              u.no_show_count,
+              u.cancellation_count,
+              u.dispute_count,
+              ruDate(u.created_at),
+            ]),
+          ),
+        };
+      }
 
-    if (data.kind === "users") {
-      const { data: rows, error } = await supabase
-        .from("profiles")
-        .select(
-          "id, name, email, phone, city, verified, account_status, rating, rating_count, reliability_rating, no_show_count, cancellation_count, dispute_count, created_at",
-        )
-        .order("created_at", { ascending: false })
-        .limit(5000);
-      if (error) throw new Error(error.message);
-      return {
-        filename: "sportura-users.csv",
-        csv: toCsv(
-          [
-            "ID",
-            "Имя",
-            "Email",
-            "Телефон",
-            "Город",
-            "Подтверждён",
-            "Статус аккаунта",
-            "Рейтинг",
-            "Отзывов",
-            "Надёжность",
-            "Пропуски",
-            "Отмены",
-            "Споры",
-            "Регистрация",
-          ],
-          (rows ?? []).map((u: any) => [
-            u.id,
-            u.name,
-            u.email,
-            u.phone,
-            u.city,
-            u.verified ? "да" : "нет",
-            u.account_status,
-            u.rating,
-            u.rating_count,
-            u.reliability_rating,
-            u.no_show_count,
-            u.cancellation_count,
-            u.dispute_count,
-            new Date(u.created_at).toLocaleString("ru-RU"),
-          ]),
-        ),
-      };
-    }
+      if (data.kind === "activities") {
+        const rows = await tx<Tables<"activities">[]>`
+          SELECT id, title, type, status, sport, city, location_text, host_name, date_time, time_text,
+                 entry_fee, is_free, commission_percent, registered_count, max_participants, created_at
+          FROM public.activities ORDER BY created_at DESC LIMIT 5000`;
+        return {
+          filename: "sportura-activities.csv",
+          csv: toCsv(
+            [
+              "ID",
+              "Название",
+              "Тип",
+              "Статус",
+              "Спорт",
+              "Город",
+              "Локация",
+              "Организатор",
+              "Дата",
+              "Время",
+              "Взнос",
+              "Бесплатно",
+              "Комиссия %",
+              "Записано",
+              "Мест",
+              "Создано",
+            ],
+            rows.map((a) => [
+              a.id,
+              a.title,
+              a.type,
+              a.status,
+              a.sport,
+              a.city,
+              a.location_text,
+              a.host_name,
+              ruDate(a.date_time),
+              a.time_text,
+              a.entry_fee,
+              a.is_free ? "да" : "нет",
+              a.commission_percent,
+              a.registered_count,
+              a.max_participants,
+              ruDate(a.created_at),
+            ]),
+          ),
+        };
+      }
 
-    if (data.kind === "activities") {
-      const { data: rows, error } = await supabase
-        .from("activities")
-        .select(
-          "id, title, type, status, sport, city, location_text, host_name, date_time, time_text, entry_fee, is_free, commission_percent, registered_count, max_participants, created_at",
-        )
-        .order("created_at", { ascending: false })
-        .limit(5000);
-      if (error) throw new Error(error.message);
-      return {
-        filename: "sportura-activities.csv",
-        csv: toCsv(
-          [
-            "ID",
-            "Название",
-            "Тип",
-            "Статус",
-            "Спорт",
-            "Город",
-            "Локация",
-            "Организатор",
-            "Дата",
-            "Время",
-            "Взнос",
-            "Бесплатно",
-            "Комиссия %",
-            "Записано",
-            "Мест",
-            "Создано",
-          ],
-          (rows ?? []).map((a: any) => [
-            a.id,
-            a.title,
-            a.type,
-            a.status,
-            a.sport,
-            a.city,
-            a.location_text,
-            a.host_name,
-            a.date_time ? new Date(a.date_time).toLocaleString("ru-RU") : "",
-            a.time_text,
-            a.entry_fee,
-            a.is_free ? "да" : "нет",
-            a.commission_percent,
-            a.registered_count,
-            a.max_participants,
-            new Date(a.created_at).toLocaleString("ru-RU"),
-          ]),
-        ),
-      };
-    }
+      if (data.kind === "registrations") {
+        const rows = await tx<
+          {
+            id: string;
+            status: string;
+            payment_status: string;
+            payment_reference: string | null;
+            created_at: string;
+            paid_at: string | null;
+            title: string | null;
+            sport: string | null;
+            entry_fee: number | null;
+            name: string | null;
+            phone: string | null;
+            email: string | null;
+          }[]
+        >`SELECT r.id, r.status, r.payment_status, r.payment_reference, r.created_at, r.paid_at,
+                 a.title, a.sport, a.entry_fee, p.name, p.phone, p.email
+          FROM public.registrations r
+          LEFT JOIN public.activities a ON a.id = r.activity_id
+          LEFT JOIN public.profiles p ON p.id = r.user_id
+          ORDER BY r.created_at DESC LIMIT 5000`;
+        return {
+          filename: "sportura-registrations.csv",
+          csv: toCsv(
+            [
+              "ID",
+              "Активность",
+              "Спорт",
+              "Участник",
+              "Телефон",
+              "Email",
+              "Статус записи",
+              "Оплата",
+              "Номер платежа",
+              "Взнос",
+              "Записан",
+              "Оплачено",
+            ],
+            rows.map((r) => [
+              r.id,
+              r.title,
+              r.sport,
+              r.name,
+              r.phone,
+              r.email,
+              r.status,
+              r.payment_status,
+              r.payment_reference,
+              r.entry_fee,
+              ruDate(r.created_at),
+              ruDate(r.paid_at),
+            ]),
+          ),
+        };
+      }
 
-    if (data.kind === "registrations") {
-      const { data: rows, error } = await supabase
-        .from("registrations")
-        .select(
-          "id, status, payment_status, payment_reference, created_at, paid_at, activity:activities(title, sport, entry_fee), profile:profiles(name, phone, email)",
-        )
-        .order("created_at", { ascending: false })
-        .limit(5000);
-      if (error) throw new Error(error.message);
+      const rows = await tx<
+        {
+          id: string;
+          previous_status: string | null;
+          new_status: string;
+          payment_reference: string | null;
+          note: string | null;
+          created_at: string;
+          changed_by: string | null;
+          title: string | null;
+        }[]
+      >`SELECT h.id, h.previous_status, h.new_status, h.payment_reference, h.note, h.created_at,
+               h.changed_by, a.title
+        FROM public.payment_status_history h
+        LEFT JOIN public.activities a ON a.id = h.activity_id
+        ORDER BY h.created_at DESC LIMIT 5000`;
       return {
-        filename: "sportura-registrations.csv",
+        filename: "sportura-payment-audit.csv",
         csv: toCsv(
           [
             "ID",
             "Активность",
-            "Спорт",
-            "Участник",
-            "Телефон",
-            "Email",
-            "Статус записи",
-            "Оплата",
+            "Было",
+            "Стало",
             "Номер платежа",
-            "Взнос",
-            "Записан",
-            "Оплачено",
+            "Заметка",
+            "Кто изменил",
+            "Когда",
           ],
-          (rows ?? []).map((r: any) => [
-            r.id,
-            r.activity?.title,
-            r.activity?.sport,
-            r.profile?.name,
-            r.profile?.phone,
-            r.profile?.email,
-            r.status,
-            r.payment_status,
-            r.payment_reference,
-            r.activity?.entry_fee,
-            new Date(r.created_at).toLocaleString("ru-RU"),
-            r.paid_at ? new Date(r.paid_at).toLocaleString("ru-RU") : "",
+          rows.map((h) => [
+            h.id,
+            h.title,
+            h.previous_status,
+            h.new_status,
+            h.payment_reference,
+            h.note,
+            h.changed_by,
+            ruDate(h.created_at),
           ]),
         ),
       };
-    }
-
-    const { data: rows, error } = await supabase
-      .from("payment_status_history")
-      .select(
-        "id, previous_status, new_status, payment_reference, note, created_at, changed_by, activity:activities(title)",
-      )
-      .order("created_at", { ascending: false })
-      .limit(5000);
-    if (error) throw new Error(error.message);
-    return {
-      filename: "sportura-payment-audit.csv",
-      csv: toCsv(
-        [
-          "ID",
-          "Активность",
-          "Было",
-          "Стало",
-          "Номер платежа",
-          "Заметка",
-          "Кто изменил",
-          "Когда",
-        ],
-        (rows ?? []).map((h: any) => [
-          h.id,
-          h.activity?.title,
-          h.previous_status,
-          h.new_status,
-          h.payment_reference,
-          h.note,
-          h.changed_by,
-          new Date(h.created_at).toLocaleString("ru-RU"),
-        ]),
-      ),
-    };
-  });
+    }),
+  );
 
 /** Commission report: the first 10 paid competitions are commission-free. */
 export const getCommissionReport = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
-    await assertStaff(context);
-    const { data: rows, error } = await context.supabase
-      .from("activities")
-      .select(
-        "id, title, type, entry_fee, commission_percent, registered_count, created_at",
-      )
-      .neq("type", "daily_game")
-      .eq("is_free", false)
-      .order("created_at", { ascending: true })
-      .limit(500);
-    if (error) throw new Error(error.message);
+    const rows = await asStaff(
+      context.caller,
+      (tx) => tx<
+        {
+          id: string;
+          title: string;
+          entry_fee: number | null;
+          commission_percent: number | null;
+          registered_count: number | null;
+          created_at: string;
+        }[]
+      >`SELECT id, title, entry_fee, commission_percent, registered_count, created_at
+        FROM public.activities
+        WHERE type <> 'daily_game' AND is_free = false
+        ORDER BY created_at ASC
+        LIMIT 500`,
+    );
 
-    const list = (rows ?? []).map((a: any, index: number) => {
+    const list = rows.map((a, index) => {
       const gross = Number(a.entry_fee ?? 0) * Number(a.registered_count ?? 0);
       const free = index < 10;
       const commission = free
         ? 0
         : Math.round((gross * Number(a.commission_percent ?? 10)) / 100);
       return {
-        id: a.id as string,
-        title: a.title as string,
-        created_at: a.created_at as string,
+        id: a.id,
+        title: a.title,
+        created_at: a.created_at,
         gross,
         commission,
         commission_free: free,
@@ -566,18 +569,30 @@ export const getCommissionReport = createServerFn({ method: "GET" })
   });
 
 export const listPendingPayments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaff(context);
-    const r = await context.supabase
-      .from("registrations")
-      .select(
-        "id,payment_reference,receipt_url,created_at,activity:activities(title)",
-      )
-      .eq("payment_status", "needs_review")
-      .order("created_at")
-      .limit(200);
-    if (r.error) throw Error(r.error.message);
-    return r.data;
+  .middleware([requireAuth])
+  .handler(async ({ context }) =>
+    asStaff(context.caller, async (tx) => [
+      ...(await tx<
+        {
+          id: string;
+          payment_reference: string | null;
+          receipt_url: string | null;
+          created_at: string;
+          activity: { title: string } | null;
+        }[]
+      >`SELECT r.id, r.payment_reference, r.receipt_url, r.created_at,
+               CASE WHEN a.id IS NULL THEN NULL ELSE jsonb_build_object('title', a.title) END AS activity
+        FROM public.registrations r
+        LEFT JOIN public.activities a ON a.id = r.activity_id
+        WHERE r.payment_status = 'needs_review'
+        ORDER BY r.created_at
+        LIMIT 200`),
+    ]),
+  );
+
+export const reviewStaffPayment = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((input: unknown) => input)
+  .handler(async () => {
+    throw new Error("Платежи отключены");
   });
-export const reviewStaffPayment = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((input: unknown) => input as any).handler(async () => { throw new Error("Платежи отключены"); });

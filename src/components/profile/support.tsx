@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
 import { getSupportAdmin, saveProfileSection } from "@/lib/profile.functions";
 import {
   ticketStatuses,
@@ -13,7 +12,12 @@ import {
   type SupportTicket,
   type ProfileWorkspace,
 } from "@/lib/profile-model";
-import { signedFileUrl } from "@/lib/storage";
+import {
+  deleteFiles,
+  signedFileUrl,
+  uploadSupportFiles,
+  SUPPORT_BUCKET,
+} from "@/lib/storage";
 import {
   Panel,
   Empty,
@@ -61,7 +65,7 @@ export function TicketComposer({
           data: { action: "ticket", payload: { ...value, attachments } },
         });
       } catch (e) {
-        await supabase.storage.from("support").remove(attachments);
+        await deleteFiles(SUPPORT_BUCKET, attachments);
         throw e;
       }
     },
@@ -144,34 +148,6 @@ export function TicketComposer({
       </Button>
     </div>
   );
-}
-async function uploadSupportFiles(files: File[]) {
-  if (!files.length) return [];
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) throw new Error("Войдите в аккаунт");
-  const paths: string[] = [];
-  try {
-    for (const file of files) {
-      const ext = {
-        "image/jpeg": "jpg",
-        "image/png": "png",
-        "image/webp": "webp",
-        "application/pdf": "pdf",
-      }[file.type];
-      if (!ext || file.size > 10485760)
-        throw new Error("Выберите изображение или PDF до 10 МБ");
-      const path = `${data.user.id}/${crypto.randomUUID()}.${ext}`;
-      const uploaded = await supabase.storage
-        .from("support")
-        .upload(path, file, { contentType: file.type });
-      if (uploaded.error) throw new Error(uploaded.error.message);
-      paths.push(path);
-    }
-    return paths;
-  } catch (e) {
-    if (paths.length) await supabase.storage.from("support").remove(paths);
-    throw e;
-  }
 }
 function AttachmentInput({
   files,
@@ -259,7 +235,7 @@ export function TicketThread({
       toast.success("Ответ отправлен");
     } catch (e) {
       if (attachments.length)
-        await supabase.storage.from("support").remove(attachments);
+        await deleteFiles(SUPPORT_BUCKET, attachments);
       setError(errorText(e));
     } finally {
       setBusy(false);

@@ -1,4 +1,3 @@
-import { trackEvent } from "@/lib/analytics";
 import { AnalyticsConsent } from "@/components/analytics/consent";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -9,9 +8,8 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
-import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "../components/ui/sonner";
 import { AppShell } from "../components/sportura/shell";
 import { themeScript } from "@/lib/theme";
@@ -145,32 +143,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  useEffect(() => {
-    let previous: string | null | undefined;
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      const next = session?.user.id ?? null;
-      if (event === "SIGNED_IN") setTimeout(() => trackEvent("page_view"), 0);
-      if (
-        event === "SIGNED_OUT" ||
-        (previous !== undefined && previous !== next)
-      )
-        queryClient.clear();
-      previous = next;
-    });
-    return () => data.subscription.unsubscribe();
-  }, [queryClient]);
-
-  useEffect(() => {
-    // Some auth configurations redirect to the site root instead of the requested path.
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    if (
-      hash.get("type") === "recovery" &&
-      window.location.pathname !== "/reset-password"
-    ) {
-      window.location.replace(`/reset-password${window.location.hash}`);
-    }
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet />
