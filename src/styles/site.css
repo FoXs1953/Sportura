@@ -61,7 +61,10 @@
 }
 
 .feed-shell
-  :is(input:not([type="checkbox"]), textarea, select):not(.feed-search input) {
+  :is(input:not([type="checkbox"]), textarea, select):not(
+    .feed-search input,
+    .feed-location select
+  ) {
   min-height: 44px;
   color: var(--feed-text);
   border-color: var(--feed-line);
@@ -70,13 +73,15 @@
 }
 .feed-shell
   :is(input:not([type="checkbox"]), textarea, select):not(
-    .feed-search input
+    .feed-search input,
+    .feed-location select
   )::placeholder {
   color: #89979b;
 }
 .feed-shell
   :is(input:not([type="checkbox"]), textarea, select):not(
-    .feed-search input
+    .feed-search input,
+    .feed-location select
   ):focus-visible {
   border-color: var(--feed-accent);
   outline: none;

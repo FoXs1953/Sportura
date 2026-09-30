@@ -1122,3 +1122,93 @@
     transform: none;
   }
 }
+
+/* Discovery controls share a compact, consistent shape. */
+.feed-location {
+  position: relative;
+  min-height: 42px;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--feed-line);
+  border-radius: 12px;
+  background: var(--feed-surface);
+  color: var(--feed-text);
+}
+.feed-location:hover {
+  border-color: #627074;
+}
+.feed-location:focus-within {
+  outline: 2px solid var(--feed-accent);
+  outline-offset: 3px;
+}
+.feed-location select {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  padding: 10px 24px 10px 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+}
+.feed-location select:focus-visible {
+  outline: none;
+}
+.feed-location svg {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.feed-location svg:last-child {
+  position: absolute;
+  right: 12px;
+  color: var(--feed-muted);
+}
+.feed-location option {
+  background: var(--feed-surface);
+  color: var(--feed-text);
+}
+.feed-chip {
+  gap: 7px;
+}
+.feed-sports {
+  padding-bottom: 16px;
+}
+.feed-sports .feed-chip.is-active:not(:first-child) {
+  background: #ff916418;
+  color: var(--feed-accent);
+  border-color: #ff91646b;
+}
+.feed-active-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  max-width: 100%;
+  padding: 5px 7px 5px 12px;
+  border: 1px solid var(--feed-line);
+  border-radius: 9px;
+  background: var(--feed-surface);
+  color: var(--feed-muted);
+  font-size: 12px;
+  text-align: left;
+}
+.feed-filter-remove {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--feed-raised);
+  color: var(--feed-text);
+}
+.feed-active-filter:hover {
+  border-color: #627074;
+  color: var(--feed-text);
+}
+.feed-active-filter:hover .feed-filter-remove {
+  background: #ff916426;
+  color: var(--feed-accent);
+}

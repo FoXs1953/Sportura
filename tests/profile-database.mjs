@@ -283,4 +283,12 @@ await db.exec(
 await (
   await import("./paid-tournament-drafts.mjs")
 ).testPaidTournamentDrafts(db, as, assert);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930130000_feed_multi_sport.sql",
+    "utf8",
+  ),
+);
+await (await import("./discovery-database.mjs")).testDiscovery(db, assert);
 await db.close();

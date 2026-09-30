@@ -13,6 +13,8 @@ import {
   Bookmark,
   MapPin,
   ArrowRight,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FeedShell } from "@/components/sportura/feed-shell";
@@ -141,8 +143,16 @@ function Feed() {
       !["view", "sort"].includes(k) &&
       v !== discoveryDefaults[k as keyof DiscoveryFilters] &&
       v !== "" &&
-      v !== null,
+      v !== null &&
+      (!Array.isArray(v) || v.length > 0),
   );
+  const districts = [
+    ...new Set(
+      [...(feed.data?.pages[0]?.districts ?? []), filters.district].filter(
+        Boolean,
+      ),
+    ),
+  ];
   const names: Record<string, string> = {
     city: "Город",
     district: "Район",
@@ -178,13 +188,12 @@ function Feed() {
       <section className="feed-intro">
         <div>
           <label className="feed-location">
-            <MapPin size={14} />
+            <MapPin size={17} aria-hidden="true" />
             <select
               aria-label="Город"
-              className="bg-transparent"
               value={filters.city}
               onChange={(e) => {
-                set({ city: e.target.value });
+                set({ city: e.target.value, district: "" });
                 setReadyCity(true);
                 try {
                   localStorage.setItem("sportura-feed-city", e.target.value);
@@ -202,6 +211,7 @@ function Feed() {
                 </option>
               ))}
             </select>
+            <ChevronDown size={15} aria-hidden="true" />
           </label>
           <h1>
             Игры рядом<span className="feed-title-dot">.</span>
@@ -256,7 +266,7 @@ function Feed() {
             )}
           </div>
           <button
-            className="feed-filter-toggle"
+            className={`feed-filter-toggle ${expanded ? "is-active" : ""}`}
             aria-expanded={expanded}
             aria-controls="discovery-filters"
             onClick={() => setExpanded(!expanded)}
@@ -271,137 +281,223 @@ function Feed() {
             ...[...new Set([...SPORTS, ...(site.data?.catalog.sports ?? [])])],
           ].map((s) => (
             <button
-              className={`feed-chip ${filters.sport === s ? "is-active" : ""}`}
+              className={`feed-chip ${(s === "all" ? filters.sport.length === 0 : filters.sport.includes(s)) ? "is-active" : ""}`}
               key={s}
-              aria-pressed={filters.sport === s}
-              onClick={() => set({ sport: s })}
+              aria-pressed={
+                s === "all"
+                  ? filters.sport.length === 0
+                  : filters.sport.includes(s)
+              }
+              onClick={() =>
+                set({
+                  sport:
+                    s === "all"
+                      ? []
+                      : filters.sport.includes(s)
+                        ? filters.sport.filter((sport) => sport !== s)
+                        : [...filters.sport, s],
+                })
+              }
             >
+              {s !== "all" && filters.sport.includes(s) && (
+                <Check size={14} aria-hidden="true" />
+              )}
               {s === "all" ? "Все виды спорта" : s}
             </button>
           ))}
         </div>
-        <div className="event-actions mt-3">
-          {[
-            ["all", "Любая дата"],
-            ["today", "Сегодня"],
-            ["tomorrow", "Завтра"],
-            ["weekend", "Выходные"],
-            ["custom", "Выбрать даты"],
-          ].map(([v, l]) => (
-            <button
-              className={`feed-chip ${filters.date === v ? "is-active" : ""}`}
-              key={v}
-              onClick={() => {
-                set({ date: v as DiscoveryFilters["date"] });
-                if (v === "custom") setExpanded(true);
-              }}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
         {expanded && (
-          <div className="feed-filter-panel" id="discovery-filters">
-            <div className="event-form-grid">
-              <label>
+          <div
+            className="feed-filter-panel feed-discovery-panel"
+            id="discovery-filters"
+          >
+            <div className="feed-filter-heading">
+              <div>
+                <h2>Найти свою игру</h2>
+                <p>Выберите удобные дату, время и условия</p>
+              </div>
+              <button
+                className="feed-icon-button"
+                aria-label="Закрыть фильтры"
+                onClick={() => setExpanded(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <fieldset className="feed-filter-group">
+              <legend>Когда играем</legend>
+              <div className="feed-filter-options">
+                {(
+                  [
+                    ["all", "Любая дата"],
+                    ["today", "Сегодня"],
+                    ["tomorrow", "Завтра"],
+                    ["weekend", "Выходные"],
+                    ["week", "Ближайшие 7 дней"],
+                    ["custom", "Выбрать даты"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={`feed-chip ${filters.date === value ? "is-active" : ""}`}
+                    aria-pressed={filters.date === value}
+                    onClick={() =>
+                      set({
+                        date: value,
+                        ...(value !== "custom" ? { from: "", to: "" } : {}),
+                      })
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {filters.date === "custom" && (
+                <div className="feed-date-range">
+                  <label>
+                    С
+                    <input
+                      type="date"
+                      value={filters.from}
+                      max={filters.to || undefined}
+                      onChange={(e) => set({ from: e.target.value })}
+                    />
+                  </label>
+                  <span aria-hidden="true">—</span>
+                  <label>
+                    По
+                    <input
+                      type="date"
+                      value={filters.to}
+                      min={filters.from || undefined}
+                      onChange={(e) => set({ to: e.target.value })}
+                    />
+                  </label>
+                </div>
+              )}
+            </fieldset>
+            <fieldset className="feed-filter-group">
+              <legend>
+                Время начала <span>по Казахстану</span>
+              </legend>
+              <div className="feed-filter-options">
+                {(
+                  [
+                    ["", "", "Любое время"],
+                    ["06:00", "11:59", "Утром · 06–12"],
+                    ["12:00", "17:59", "Днём · 12–18"],
+                    ["18:00", "23:59", "Вечером · 18–24"],
+                  ] as const
+                ).map(([from, to, label]) => (
+                  <button
+                    key={label}
+                    className={`feed-chip ${filters.time_from === from && filters.time_to === to ? "is-active" : ""}`}
+                    aria-pressed={
+                      filters.time_from === from && filters.time_to === to
+                    }
+                    onClick={() => set({ time_from: from, time_to: to })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <div className="feed-filter-columns">
+              <fieldset className="feed-filter-group">
+                <legend>Уровень игроков</legend>
+                <div className="feed-filter-options">
+                  {["all", ...SKILL_LEVELS].map((skill) => (
+                    <button
+                      key={skill}
+                      className={`feed-chip ${filters.skill === skill ? "is-active" : ""}`}
+                      aria-pressed={filters.skill === skill}
+                      onClick={() => set({ skill })}
+                    >
+                      {skill === "all"
+                        ? "Все уровни"
+                        : skill === "Любой"
+                          ? "Без ограничений"
+                          : skill}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="feed-filter-group">
+                <legend>Площадка</legend>
+                <div className="feed-filter-options">
+                  {(
+                    [
+                      ["all", "Любая"],
+                      ["indoor", "В помещении"],
+                      ["outdoor", "На улице"],
+                    ] as const
+                  ).map(([venue, label]) => (
+                    <button
+                      key={venue}
+                      className={`feed-chip ${filters.venue === venue ? "is-active" : ""}`}
+                      aria-pressed={filters.venue === venue}
+                      onClick={() => set({ venue })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+            <div className="feed-filter-bottom">
+              <label className="feed-district">
                 Район
-                <input
+                <select
                   value={filters.district}
                   onChange={(e) => set({ district: e.target.value })}
-                />
-              </label>
-              <label>
-                Уровень
-                <select
-                  value={filters.skill}
-                  onChange={(e) => set({ skill: e.target.value })}
                 >
-                  <option value="all">Все уровни</option>
-                  {SKILL_LEVELS.map((s) => (
-                    <option key={s}>{s}</option>
+                  <option value="">Все районы</option>
+                  {districts.map((district) => (
+                    <option key={district}>{district}</option>
                   ))}
                 </select>
               </label>
-              <label>
-                Дата с
+              <label className="feed-availability">
                 <input
-                  type="date"
-                  value={filters.from}
-                  onChange={(e) =>
-                    set({ date: "custom", from: e.target.value })
-                  }
+                  type="checkbox"
+                  checked={filters.open}
+                  onChange={(e) => set({ open: e.target.checked })}
                 />
+                <span>
+                  Можно записаться
+                  <small>Есть места и открыта регистрация</small>
+                </span>
               </label>
-              <label>
-                Дата по
-                <input
-                  type="date"
-                  value={filters.to}
-                  onChange={(e) => set({ date: "custom", to: e.target.value })}
-                />
-              </label>
-              <label>
-                Начало с · Казахстан
-                <input
-                  type="time"
-                  value={filters.time_from}
-                  onChange={(e) => set({ time_from: e.target.value })}
-                />
-              </label>
-              <label>
-                Начало до
-                <input
-                  type="time"
-                  value={filters.time_to}
-                  onChange={(e) => set({ time_to: e.target.value })}
-                />
-              </label>
-
-              <label>
-                Площадка
-                <select
-                  value={filters.venue}
-                  onChange={(e) =>
-                    set({ venue: e.target.value as DiscoveryFilters["venue"] })
-                  }
-                >
-                  <option value="all">Любая</option>
-                  <option value="indoor">В помещении</option>
-                  <option value="outdoor">На улице</option>
-                </select>
-              </label>
-              <div className="event-actions">
-                <label className="event-check">
-                  <input
-                    type="checkbox"
-                    checked={filters.open}
-                    onChange={(e) => set({ open: e.target.checked })}
-                  />
-                  Регистрация открыта
-                </label>
-              </div>
+              <button
+                className="feed-primary"
+                onClick={() => setExpanded(false)}
+              >
+                Показать события{!feed.isFetching && ` · ${total}`}
+              </button>
             </div>
-            <button
-              className="feed-primary mt-5"
-              onClick={() => setExpanded(false)}
-            >
-              Показать события
-            </button>
           </div>
         )}
         {!!active.length && (
           <div className="event-actions mt-4">
             {active.map(([k, v]) => (
               <button
-                className="feed-chip"
+                className="feed-active-filter"
+                aria-label={`Убрать фильтр «${names[k]}»`}
                 key={k}
                 onClick={() =>
-                  set({ [k]: discoveryDefaults[k as keyof DiscoveryFilters] })
+                  set({
+                    [k]: discoveryDefaults[k as keyof DiscoveryFilters],
+                    ...(k === "date" ? { from: "", to: "" } : {}),
+                  })
                 }
               >
                 {names[k]}
-                {v === true ? "" : `: ${values[String(v)] ?? v}`}{" "}
-                <X size={12} />
+                {v === true
+                  ? ""
+                  : `: ${Array.isArray(v) ? v.join(", ") : (values[String(v)] ?? v)}`}
+                <span className="feed-filter-remove">
+                  <X size={13} aria-hidden="true" />
+                </span>
               </button>
             ))}
             <button

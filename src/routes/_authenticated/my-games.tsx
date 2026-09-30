@@ -611,7 +611,7 @@ function GameRecord({
           {phase === "past" && (
             <Link
               to="/"
-              search={{ sport: a.sport, city: a.city }}
+              search={{ sport: [a.sport], city: a.city }}
               className="profile-link"
             >
               Найти похожую игру →
