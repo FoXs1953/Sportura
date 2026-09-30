@@ -145,7 +145,7 @@ export type PlayerProgress = {
     starts_at: string | null;
   }[];
   season: string;
-  reliability: number;
+  reliability: number | null;
   tournament_wins: number;
   win_streak: number;
   ratings: {

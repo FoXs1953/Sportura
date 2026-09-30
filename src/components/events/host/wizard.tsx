@@ -228,7 +228,7 @@ export function EventWizard({
             {v.type !== "daily_game" && (
               <div className="event-form-grid">
                 <label>
-                  Серия турнира
+                  Тип участия
                   <select
                     value={v.tier ?? "spark"}
                     onChange={(e) =>

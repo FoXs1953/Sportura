@@ -38,8 +38,9 @@ export function SportsProgress({
         ))}
       </div>
       <p className="text-sm">
-        Надёжность: {data.reliability}/5 · Побед в турнирах:{" "}
-        {data.tournament_wins}
+        Надёжность:{" "}
+        {data.reliability == null ? "пока нет данных" : `${data.reliability}/5`}{" "}
+        · Побед в турнирах: {data.tournament_wins}
       </p>
       {!!data.matches?.length && (
         <details className="event-muted-box">
