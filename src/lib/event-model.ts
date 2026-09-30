@@ -164,6 +164,7 @@ export type Standing = {
   points: number;
 };
 export type CompetitionData = {
+  waitlist_count?: number;
   activity: Event;
   matches: Match[];
   standings: Standing[];
@@ -183,6 +184,8 @@ export type EventNotification = {
   created_at: string;
 };
 export type WaitlistEntry = {
+  offered_at?: string | null;
+  offer_expires_at?: string | null;
   id: string;
   activity_id: string;
   user_id: string;

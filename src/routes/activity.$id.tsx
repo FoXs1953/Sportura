@@ -92,6 +92,10 @@ function EventPage() {
   const r = player.data?.registrations.find((r) => r.activity_id === id);
   const isActive = r && !["cancelled", "rejected"].includes(r.status);
   const waiting = player.data?.waitlist?.find((w) => w.activity_id === id);
+  const offered =
+    !!waiting?.offer_expires_at &&
+    Date.parse(waiting.offer_expires_at) > Date.now();
+  const queueHasPriority = (q.data?.waitlist_count ?? 0) > 0 && !offered;
   useEffect(() => {
     if (waiting) {
       setTeam(waiting.team_name);
@@ -226,6 +230,16 @@ function EventPage() {
                       registered={a.registered_count}
                       max={a.max_participants}
                     />
+                    {a.type !== "daily_game" && (
+                      <p className="workspace-muted text-sm">
+                        Минимум для старта: {a.min_participants ?? 2}{" "}
+                        {a.participation_mode === "team"
+                          ? "команд"
+                          : "участников"}
+                        . При недоборе к закрытию регистрации турнир отменится
+                        автоматически.
+                      </p>
+                    )}
                     {a.registration_deadline && (
                       <p className="text-xs workspace-muted">
                         Запись до {dateLabel(a.registration_deadline, true)}
@@ -254,8 +268,10 @@ function EventPage() {
                       Вы в листе ожидания · № {waiting.position}
                     </h3>
                     <p>
-                      Сообщим в приложении, когда освободится место. Очередь не
-                      является записью на событие.
+                      {offered
+                        ? `Место предложено вам. Подтвердите участие до ${dateLabel(waiting.offer_expires_at ?? null, true)} (UTC+5).`
+                        : "Сообщим в приложении, когда освободится место. На подтверждение — до 15 минут, но не позже закрытия регистрации или начала события."}{" "}
+                      Очередь не является записью на событие.
                     </p>
                     <Button
                       variant="ghost"
@@ -275,7 +291,8 @@ function EventPage() {
                 {!waiting &&
                   !isActive &&
                   user &&
-                  a.registered_count >= a.max_participants &&
+                  (a.registered_count >= a.max_participants ||
+                    queueHasPriority) &&
                   eventPhase(a) === "upcoming" &&
                   (!a.registration_deadline ||
                     Date.parse(a.registration_deadline) > Date.now()) &&
@@ -343,7 +360,7 @@ function EventPage() {
                         . {r.cancellation_reason}
                       </p>
                     )}
-                    {registrationOpen(a) ? (
+                    {registrationOpen(a) && !queueHasPriority ? (
                       user ? (
                         <Button
                           disabled={action.busy}
@@ -354,7 +371,11 @@ function EventPage() {
                             setConfirm(true);
                           }}
                         >
-                          {r ? "Записаться снова" : "Записаться на событие"}
+                          {offered
+                            ? "Подтвердить предложенное место"
+                            : r
+                              ? "Записаться снова"
+                              : "Записаться на событие"}
                         </Button>
                       ) : (
                         <Link
@@ -368,9 +389,11 @@ function EventPage() {
                       )
                     ) : (
                       <p className="workspace-muted">
-                        {a.registered_count >= a.max_participants
-                          ? "Свободных мест нет."
-                          : "Запись на это событие закрыта."}
+                        {queueHasPriority && registrationOpen(a)
+                          ? "Свободные места предложены участникам очереди. Дождитесь своего предложения."
+                          : a.registered_count >= a.max_participants
+                            ? "Свободных мест нет."
+                            : "Запись на это событие закрыта."}
                       </p>
                     )}
                   </div>

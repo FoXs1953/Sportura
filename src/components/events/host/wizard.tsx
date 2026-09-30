@@ -499,6 +499,14 @@ export function EventWizard({
                 "Минимум участников для старта",
                 "number",
               )}
+            {v.type !== "daily_game" && (
+              <p className="workspace-muted">
+                Если к дедлайну регистрации минимум не набран, турнир отменится
+                автоматически. Без отдельного дедлайна проверка выполняется при
+                наступлении времени старта. Для командной записи считаются
+                команды.
+              </p>
+            )}
             {v.participation_mode === "team" && (
               <div className="event-form-grid">
                 {field("team_min", "Минимум игроков в команде", "number")}

@@ -116,14 +116,18 @@ export function Participants({
         <section className="event-muted-box mb-5">
           <h3 className="font-bold">Лист ожидания · {queue.length}</h3>
           <p className="workspace-muted">
-            Места предлагаются по порядку записи. Участник подтверждает
-            вступление сам.
+            Места предлагаются по порядку записи. На подтверждение — до 15
+            минут, но не позже закрытия регистрации или начала события. Затем
+            место предлагается следующему участнику.
           </p>
           {queue.map((w) => (
             <p key={w.id}>
               {w.name || "Участник"}
               {w.team_name ? ` · ${w.team_name}` : ""} ·{" "}
               {dateLabel(w.created_at)}
+              {w.offer_expires_at && Date.parse(w.offer_expires_at) > Date.now()
+                ? ` · Ждём подтверждения до ${dateLabel(w.offer_expires_at, true)} (UTC+5)`
+                : " · Ожидает места"}
             </p>
           ))}
         </section>

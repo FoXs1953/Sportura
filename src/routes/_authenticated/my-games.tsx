@@ -171,7 +171,7 @@ function MyGames() {
         {!!query.data?.waitlist?.length && (
           <Panel
             title="Лист ожидания"
-            description="Очередь на свободные места. Участие нужно подтвердить после уведомления."
+            description="После предложения места у вас до 15 минут на подтверждение, но не позже закрытия регистрации или начала события."
           >
             {query.data.waitlist.map((w) => (
               <div key={w.id} className="event-row">
@@ -183,6 +183,13 @@ function MyGames() {
                   {w.activity?.title ?? "Событие"} →
                 </Link>
                 <p className="workspace-muted">Номер в очереди: {w.position}</p>
+                {w.offer_expires_at &&
+                  Date.parse(w.offer_expires_at) > Date.now() && (
+                    <p className="font-semibold">
+                      Место предложено · подтвердите до{" "}
+                      {dateLabel(w.offer_expires_at, true)} (UTC+5)
+                    </p>
+                  )}
               </div>
             ))}
           </Panel>
