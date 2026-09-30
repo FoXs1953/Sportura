@@ -20,6 +20,8 @@ import type {
 const actions = z.enum([
   "checkin",
   "close_checkin",
+  "replace_no_show",
+  "skip_waiter",
   "waitlist_join",
   "waitlist_leave",
   "favorite",

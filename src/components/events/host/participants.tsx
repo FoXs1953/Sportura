@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { REGISTRATION_STATUS_LABEL } from "@/lib/sportura";
-import type { HostWorkspace, Registration } from "@/lib/event-model";
+import type {
+  HostWorkspace,
+  Registration,
+  WaitlistEntry,
+} from "@/lib/event-model";
 import {
   Panel,
   Empty,
@@ -26,6 +30,10 @@ export function Participants({
     [status, setStatus] = useState(initialStatus);
   const action = useEventAction();
   const [release, setRelease] = useState(false);
+  const [replacement, setReplacement] = useState<{
+    waiter: WaitlistEntry;
+    skip: boolean;
+  } | null>(null);
   const rows = data.registrations.filter(
     (r) =>
       (!event || r.activity_id === event) &&
@@ -40,6 +48,20 @@ export function Participants({
   const selected = data.activities.find((a) => a.id === event);
   const queue = (data.waitlist ?? []).filter(
     (w) => !event || w.activity_id === event,
+  );
+  const canReplace =
+    !!selected?.date_time &&
+    (data.checkin_closures ?? []).includes(selected.id) &&
+    Date.now() <
+      Date.parse(selected.date_time) +
+        (selected.duration_minutes ?? 120) * 60000 &&
+    !["completed", "cancelled"].includes(selected.status) &&
+    !data.matches.some((match) => match.activity_id === selected.id);
+  const hasAbsent = data.registrations.some(
+    (r) =>
+      r.activity_id === event &&
+      r.status === "no_show" &&
+      !(data.replaced_registrations ?? []).includes(r.id),
   );
   return (
     <Panel
@@ -104,6 +126,7 @@ export function Participants({
         </Button>
         {selected?.date_time &&
           Date.now() > Date.parse(selected.date_time) + 30 * 60000 &&
+          !(data.checkin_closures ?? []).includes(event) &&
           !data.matches.some((m) => m.activity_id === event) &&
           !["completed", "cancelled"].includes(selected.status) && (
             <Button variant="outline" onClick={() => setRelease(true)}>
@@ -116,19 +139,41 @@ export function Participants({
         <section className="event-muted-box mb-5">
           <h3 className="font-bold">Лист ожидания · {queue.length}</h3>
           <p className="workspace-muted">
-            Места предлагаются по порядку записи. На подтверждение — до 15
-            минут, но не позже закрытия регистрации или начала события. Затем
-            место предлагается следующему участнику.
+            {canReplace
+              ? "Чек-ин закрыт. Подтвердите присутствие первого участника очереди, чтобы заменить неявившегося. Если его нет на площадке, отметьте отсутствие и переходите к следующему. После создания сетки замены закрываются."
+              : "Места предлагаются по порядку записи. На подтверждение — до 15 минут, но не позже закрытия регистрации или начала события. Затем место предлагается следующему участнику."}
           </p>
           {queue.map((w) => (
-            <p key={w.id}>
-              {w.name || "Участник"}
-              {w.team_name ? ` · ${w.team_name}` : ""} ·{" "}
-              {dateLabel(w.created_at)}
-              {w.offer_expires_at && Date.parse(w.offer_expires_at) > Date.now()
-                ? ` · Ждём подтверждения до ${dateLabel(w.offer_expires_at, true)} (UTC+5)`
-                : " · Ожидает места"}
-            </p>
+            <div key={w.id} className="mt-3">
+              <p>
+                {w.name || "Участник"}
+                {w.team_name ? ` · ${w.team_name}` : ""} ·{" "}
+                {dateLabel(w.created_at)}
+                {w.offer_expires_at &&
+                Date.parse(w.offer_expires_at) > Date.now()
+                  ? ` · Ждём подтверждения до ${dateLabel(w.offer_expires_at, true)} (UTC+5)`
+                  : " · Ожидает места"}
+              </p>
+              {canReplace && w.id === queue[0]?.id && (
+                <div className="event-actions mt-2">
+                  <Button
+                    size="sm"
+                    disabled={!hasAbsent || action.busy}
+                    onClick={() => setReplacement({ waiter: w, skip: false })}
+                  >
+                    На площадке · добавить
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={action.busy}
+                    onClick={() => setReplacement({ waiter: w, skip: true })}
+                  >
+                    Не пришёл · следующий
+                  </Button>
+                </div>
+              )}
+            </div>
           ))}
         </section>
       )}
@@ -143,6 +188,36 @@ export function Participants({
           />
         )}
       </div>
+      <Confirm
+        open={!!replacement}
+        title={
+          replacement?.skip
+            ? "Участника нет на площадке?"
+            : "Добавить участника из очереди?"
+        }
+        description={
+          replacement?.skip
+            ? `${replacement.waiter.team_name || replacement.waiter.name || "Участник"} будет удалён из очереди и получит уведомление. Следующим станет участник за ним.`
+            : `${replacement?.waiter.team_name || replacement?.waiter.name || "Участник"} должен быть на площадке и готов играть. Его запись и состав сохранятся, чек-ин будет подтверждён, одна неявка будет заменена.`
+        }
+        busy={action.busy}
+        onClose={() => setReplacement(null)}
+        onConfirm={async () => {
+          if (
+            replacement &&
+            (await action.mutate(
+              replacement.skip ? "skip_waiter" : "replace_no_show",
+              {
+                activity_id: replacement.waiter.activity_id,
+                waitlist_id: replacement.waiter.id,
+                confirmed_present: !replacement.skip,
+                confirmed_absent: replacement.skip,
+              },
+            ))
+          )
+            setReplacement(null);
+        }}
+      />
       <Confirm
         open={release}
         title="Отметить неявки?"
@@ -187,7 +262,13 @@ function Participant({
           : "Чек-ин не пройден"}
       </p>
       {!!r.team_members.length && <p>Состав: {r.team_members.join(", ")}</p>}
-      {!["cancelled", "rejected"].includes(r.status) &&
+      {(data.replaced_registrations ?? []).includes(r.id) && (
+        <p className="workspace-muted">
+          Место передано участнику очереди. История неявки сохранена.
+        </p>
+      )}
+      {!(data.replaced_registrations ?? []).includes(r.id) &&
+        !["cancelled", "rejected"].includes(r.status) &&
         a.status !== "cancelled" && (
           <div className="event-actions">
             {a.date_time && Date.parse(a.date_time) <= Date.now() && (

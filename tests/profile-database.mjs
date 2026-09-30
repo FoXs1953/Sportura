@@ -291,4 +291,14 @@ await db.exec(
   ),
 );
 await (await import("./discovery-database.mjs")).testDiscovery(db, assert);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930140000_checkin_replacements.sql",
+    "utf8",
+  ),
+);
+await (
+  await import("./checkin-replacements.mjs")
+).testReplacements(db, as, assert);
 await db.close();

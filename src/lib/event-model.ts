@@ -203,6 +203,8 @@ export type PlayerWorkspace = {
   notifications: EventNotification[];
 };
 export type HostWorkspace = {
+  checkin_closures?: string[];
+  replaced_registrations?: string[];
   waitlist?: WaitlistEntry[];
   activities: Event[];
   registrations: Registration[];
