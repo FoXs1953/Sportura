@@ -1,3 +1,4 @@
+import { disputeAction } from "@/lib/competition-admin.functions";
 import { WeatherReschedule } from "@/components/events/prizes";
 import { EventDisputes } from "@/components/events/disputes";
 import { OrganizerTrust } from "@/components/events/host/trust";
@@ -371,6 +372,16 @@ function Overview({
     status?: string,
   ) => void;
 }) {
+  const disputes = useQuery({
+    queryKey: ["disputes", "all"],
+    queryFn: () => disputeAction({ data: { action: "list", payload: {} } }),
+  });
+  const openDisputes =
+    disputes.data?.filter(
+      (item) =>
+        item.status === "open" &&
+        d.activities.some((a) => a.id === item.activity_id),
+    ).length ?? 0;
   const future = d.activities
     .filter((a) => ["upcoming", "live"].includes(eventPhase(a)))
     .sort((a, b) => (a.date_time ?? "z").localeCompare(b.date_time ?? "z"));
@@ -451,6 +462,15 @@ function Overview({
         </Panel>
       )}
       <Panel title="Требует внимания">
+        {openDisputes > 0 && (
+          <Button
+            className="mb-3"
+            variant="outline"
+            onClick={() => go("disputes")}
+          >
+            Открытые споры: {openDisputes} →
+          </Button>
+        )}
         <div className="event-rows">
           {attention.map((a) => (
             <button

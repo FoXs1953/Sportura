@@ -376,4 +376,21 @@ assert(
   ).rows[0].n === 0,
   "Legacy match scores preserved with playoff stage",
 );
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930220000_progress_attendance.sql",
+    "utf8",
+  ),
+);
+assert(
+  (
+    await as(
+      "99000000-0000-4000-8000-000000000001",
+      "SELECT player_progress($1) p",
+      ["99000000-0000-4000-8000-000000000001"],
+    )
+  ).rows[0].p !== null,
+  "Attendance progress uses event chronology",
+);
 await db.close();
