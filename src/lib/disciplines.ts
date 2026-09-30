@@ -52,6 +52,8 @@ export const DISCIPLINES = [
 ] as const;
 export const MVP_TIERS = {
   spark: "Spark · бесплатный",
+  blitz: "Blitz · платный, один день",
+  marathon: "Marathon · платный, несколько дней",
 } as const;
 export type DisciplineField = {
   key: string;

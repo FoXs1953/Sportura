@@ -6,7 +6,7 @@ const PUBLIC_COLUMNS =
   "id, title, description, type, status, tier, sport, city, location_text, two_gis_url, date_time, time_text, price_text, entry_fee, is_free, max_participants, registered_count, host_name, host_rating, manager_id, organizer_id, kaspi_payment_link, payment_mode, prize_pool, format, age_division, skill_division, skill_level, recurrence, cancellation_policy, notes, registration_deadline, results_submitted_at, dispute_window_ends_at, is_private, invite_code, created_at";
 
 export type PublicActivity = {
-  tier?: "spark" | "blitz" | null;
+  tier?: "spark" | "blitz" | "marathon" | null;
   id: string;
   title: string;
   description: string | null;

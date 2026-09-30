@@ -273,4 +273,14 @@ for (const historical of historicalStatuses) {
     "lifecycle migration preserves a historical event",
   );
 }
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930120000_paid_tournament_drafts.sql",
+    "utf8",
+  ),
+);
+await (
+  await import("./paid-tournament-drafts.mjs")
+).testPaidTournamentDrafts(db, as, assert);
 await db.close();

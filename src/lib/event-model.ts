@@ -2,7 +2,7 @@ import type { PublicActivity } from "./activities.functions";
 import type { PaymentStatus, RegistrationStatus } from "./sportura";
 export type Event = PublicActivity & {
   match_settings?: Record<string, string>;
-  tier?: "spark" | "blitz" | null;
+  tier?: "spark" | "blitz" | "marathon" | null;
   competition_format?: "single_elimination" | "round_robin";
   min_participants?: number;
   team_min?: number;
@@ -105,7 +105,7 @@ export type HostDocument = {
 export type EventDraft = {
   prize_pool?: Record<string, number>;
   match_settings?: Record<string, string>;
-  tier?: "spark" | "blitz" | null;
+  tier?: "spark" | "blitz" | "marathon" | null;
   competition_format?: "single_elimination" | "round_robin";
   min_participants?: number;
   team_min?: number;

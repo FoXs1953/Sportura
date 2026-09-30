@@ -78,10 +78,10 @@ export function EventWizard({
           name: value.title || "Новое событие",
           data: {
             ...value,
-            entry_fee: 0,
+            entry_fee: value.type === "daily_game" ? 0 : value.entry_fee,
             kaspi_payment_link: "",
             prize_pool: { "1": 100 },
-            tier: value.type === "daily_game" ? null : "spark",
+            tier: value.type === "daily_game" ? null : value.tier,
           },
           ...(event
             ? { activity_id: event.id }
@@ -125,6 +125,21 @@ export function EventWizard({
       e.max_participants = "От 2 до 200 мест";
     if (v.duration_minutes < 15 || v.duration_minutes > 10080)
       e.duration_minutes = "От 15 минут до 7 дней";
+    if (v.type === "tournament") {
+      if (v.tier === "spark" && v.entry_fee !== 0)
+        e.entry_fee = "Бесплатная серия Spark не имеет взноса";
+      if (
+        v.tier === "blitz" &&
+        (v.entry_fee <= 0 || v.entry_fee > 100000 || v.duration_minutes > 1440)
+      )
+        e.entry_fee = "Blitz: взнос больше 0 ₸ и длительность до одного дня";
+      if (
+        v.tier === "marathon" &&
+        (v.entry_fee <= 0 || v.entry_fee > 100000 || v.duration_minutes <= 1440)
+      )
+        e.entry_fee =
+          "Marathon: взнос больше 0 ₸ и длительность больше одного дня";
+    }
     if (
       v.registration_deadline &&
       Date.parse(v.registration_deadline) > Date.parse(v.date_time)
@@ -191,16 +206,29 @@ export function EventWizard({
                     value={v.tier ?? "spark"}
                     onChange={(e) =>
                       update({
-                        tier: "spark",
-                        ...(e.target.value === "spark" ? { entry_fee: 0 } : {}),
+                        tier: e.target.value as "spark" | "blitz" | "marathon",
+                        ...(e.target.value === "spark"
+                          ? { entry_fee: 0 }
+                          : { entry_fee: Math.max(v.entry_fee, 1000) }),
+                        ...(e.target.value === "marathon" &&
+                        v.duration_minutes <= 1440
+                          ? { duration_minutes: 2880 }
+                          : e.target.value === "blitz" &&
+                              v.duration_minutes > 1440
+                            ? { duration_minutes: 240 }
+                            : {}),
                       })
                     }
                   >
-                    {Object.entries(MVP_TIERS).map(([key, label]) => (
-                      <option key={key} value={key}>
-                        {label}
-                      </option>
-                    ))}
+                    {Object.entries(MVP_TIERS)
+                      .filter(([key]) =>
+                        v.type === "league" ? key === "spark" : true,
+                      )
+                      .map(([key, label]) => (
+                        <option key={key} value={key}>
+                          {label}
+                        </option>
+                      ))}
                   </select>
                 </label>
                 <label>
@@ -499,6 +527,20 @@ export function EventWizard({
                 "Минимум участников для старта",
                 "number",
               )}
+            {v.type === "tournament" && v.tier !== "spark" && (
+              <>
+                {field(
+                  "entry_fee",
+                  "Взнос за участника или команду, ₸",
+                  "number",
+                )}
+                <p className="workspace-muted">
+                  Платный турнир можно подготовить и сохранить как черновик.
+                  Публикация и запись откроются после подключения платёжного
+                  провайдера Sportura.
+                </p>
+              </>
+            )}
             {v.type !== "daily_game" && (
               <p className="workspace-muted">
                 Если к дедлайну регистрации минимум не набран, турнир отменится
@@ -635,13 +677,19 @@ export function EventWizard({
             </Button>
           ) : (
             <Button
-              disabled={form.busy || action.busy}
+              disabled={form.busy || action.busy || v.entry_fee > 0}
               onClick={() => {
                 if (validate()) setConfirm(true);
               }}
             >
               Опубликовать
             </Button>
+          )}
+          {step === 5 && v.entry_fee > 0 && (
+            <p className="workspace-muted">
+              Платный турнир сохраните как черновик. Публикация станет доступна
+              после подключения платёжного провайдера Sportura.
+            </p>
           )}
           <Button
             variant="ghost"
