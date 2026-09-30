@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { disputeAction } from "@/lib/competition-admin.functions";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,10 @@ export function HostInsights({
   data: HostWorkspace;
   onSelect: (id: string) => void;
 }) {
+  const disputes = useQuery({
+    queryKey: ["disputes", "all"],
+    queryFn: () => disputeAction({ data: { action: "list", payload: {} } }),
+  });
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sport, setSport] = useState("all");
@@ -39,6 +45,23 @@ export function HostInsights({
     if (!["cancelled", "rejected"].includes(r.status))
       users.set(r.user_id, (users.get(r.user_id) ?? 0) + 1);
   });
+  const participantDates = new Map<string, number[]>();
+  regs
+    .filter((r) => ["registered", "attended"].includes(r.status))
+    .forEach((r) => {
+      const date = events.find((a) => a.id === r.activity_id)?.date_time;
+      if (date)
+        participantDates.set(r.user_id, [
+          ...(participantDates.get(r.user_id) ?? []),
+          Date.parse(date),
+        ]);
+    });
+  const eligible = [...participantDates.values()].filter((d) =>
+    d.some((t) => t <= Date.now() - 14 * 86400000),
+  );
+  const returned14 = eligible.filter((d) =>
+    d.some((t) => d.some((next) => next > t && next <= t + 14 * 86400000)),
+  ).length;
   const completed = events.filter((a) => a.status === "completed");
   const reviews = data.reviews.filter((r) => ids.has(r.activity_id));
   const active = regs.filter(
@@ -103,11 +126,23 @@ export function HostInsights({
         <div className="event-stats">
           {[
             ["Проведено", completed.length],
+            [
+              "Возврат за 14 дней · цель 40%",
+              eligible.length
+                ? `${Math.round((returned14 / eligible.length) * 100)}%`
+                : "—",
+            ],
+            [
+              "Без споров · цель 90%",
+              completed.length && disputes.data
+                ? `${Math.round((completed.filter((a) => !disputes.data.some((d) => d.activity_id === a.id)).length / completed.length) * 100)}%`
+                : "—",
+            ],
             ["Отменено", events.filter((a) => a.status === "cancelled").length],
             ["Записей всего", regs.length],
             ["Уникальных участников", users.size],
             [
-              "Средняя заполненность",
+              "Заполненность · цель 80%",
               occupancy.length
                 ? Math.round(
                     (occupancy.reduce(
@@ -152,8 +187,9 @@ export function HostInsights({
           ))}
         </div>
         <p className="event-count-note mt-3">
-          Повторные — участники с двумя и более активными записями за выбранный
-          период.
+          Возврат за 14 дней считается по датам событий для участников, у
+          которых прошло полное окно наблюдения. Повторные — участники с двумя и
+          более активными записями за выбранный период.
         </p>
         <div className="event-grid mt-5">
           {[

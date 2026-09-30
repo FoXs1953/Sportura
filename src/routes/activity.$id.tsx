@@ -1,3 +1,5 @@
+import { EVENT_SERIES } from "@/lib/event-series";
+import { EventDisputes } from "@/components/events/disputes";
 import { DISCIPLINES, DISCIPLINE_FIELDS } from "@/lib/disciplines";
 import { trackEvent } from "@/lib/analytics";
 import { useState, useEffect } from "react";
@@ -526,7 +528,28 @@ function EventPage() {
             {a.type !== "daily_game" && q.data && (
               <section id="competition-results">
                 <Panel title="Расписание и результаты">
+                  {a.event_extras?.series && (
+                    <p className="workspace-tag">
+                      {EVENT_SERIES[a.event_extras.series]}
+                    </p>
+                  )}
+                  {a.event_extras?.series === "rookie_cup" && (
+                    <p>Рейтинг до {a.event_extras.rating_limit ?? 1100}</p>
+                  )}
+                  {a.event_extras?.qualifier_id && (
+                    <p>Для призёров отборочного турнира, места 1–4.</p>
+                  )}
                   <CompetitionView data={q.data} />
+                  {r && (
+                    <EventDisputes
+                      activityId={a.id}
+                      canOpen={
+                        !!a.results_submitted_at &&
+                        !!a.dispute_window_ends_at &&
+                        Date.parse(a.dispute_window_ends_at) > Date.now()
+                      }
+                    />
+                  )}
                   {user && (
                     <div className="mt-5">
                       <HelpLink activity={a.id}>

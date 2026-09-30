@@ -1,3 +1,4 @@
+import { SportsProgress } from "@/components/profile/progress";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/sportura/shell";
@@ -61,6 +62,7 @@ function Player() {
               отзывов
             </p>
           )}
+          <SportsProgress data={p.progress} />
           <p className="workspace-muted mt-6 text-xs">
             Контактные данные не публикуются.
           </p>

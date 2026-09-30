@@ -1,3 +1,6 @@
+import { WeatherReschedule } from "@/components/events/prizes";
+import { EventDisputes } from "@/components/events/disputes";
+import { OrganizerTrust } from "@/components/events/host/trust";
 import { useState } from "react";
 import {
   createFileRoute,
@@ -53,6 +56,7 @@ const tabs = {
   participants: "Участники",
   payments: "",
   competitions: "Турниры и лиги",
+  disputes: "Споры",
   insights: "Статистика и отзывы",
   settings: "Настройки и помощь",
 };
@@ -64,6 +68,7 @@ const schema = z.object({
       "participants",
       "payments",
       "competitions",
+      "disputes",
       "insights",
       "settings",
     ])
@@ -208,6 +213,13 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
   }
   return (
     <>
+      {["overview", "settings"].includes(search.tab) && (
+        <OrganizerTrust
+          firstSpark={data.activities.some(
+            (a) => a.type === "tournament" && a.tier === "spark",
+          )}
+        />
+      )}
       <div className="event-toolbar">
         <p className="workspace-kicker">SPORTURA / ORGANIZER</p>
         <Button
@@ -242,6 +254,7 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
           document={editor.document}
           event={editor.event}
           documents={data.documents}
+          qualifiers={data.activities}
           competition={canComp}
           onClose={() => setEditor(null)}
           onDone={open}
@@ -319,6 +332,8 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
             />
           )}
         </>
+      ) : search.tab === "disputes" ? (
+        <EventDisputes host />
       ) : search.tab === "insights" ? (
         <HostInsights data={data} onSelect={open} />
       ) : search.tab === "settings" ? (
@@ -801,6 +816,7 @@ function EventManagement({
   const regs = data.registrations.filter((r) => r.activity_id === a.id);
   return (
     <>
+      <WeatherReschedule event={a} />
       <Panel
         title={a.title}
         description={`${ACTIVITY_TYPE_LABEL[a.type]} · ${ACTIVITY_STATUS_LABEL[a.status]}`}

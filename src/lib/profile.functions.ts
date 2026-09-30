@@ -75,6 +75,7 @@ export const getPublicPlayer = createServerFn({ method: "GET" })
     });
     fail(result.error);
     const publicProfile = result.data as {
+      progress?: import("./profile-model").PlayerProgress | null;
       id: string;
       name: string;
       city: string;

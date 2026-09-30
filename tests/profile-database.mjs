@@ -301,4 +301,79 @@ await db.exec(
 await (
   await import("./checkin-replacements.mjs")
 ).testReplacements(db, as, assert);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930150000_competition_formats.sql",
+    "utf8",
+  ),
+);
+await (await import("./competition-formats.mjs")).testFormats(db, as, assert);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930160000_season_progress.sql",
+    "utf8",
+  ),
+);
+await (await import("./season-progress.mjs")).testProgress(db, as, assert);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930170000_host_trust_disputes.sql",
+    "utf8",
+  ),
+);
+await (await import("./trust-disputes.mjs")).testTrustDisputes(db, as, assert);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930180000_competition_calendar.sql",
+    "utf8",
+  ),
+);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930190000_event_series_prizes.sql",
+    "utf8",
+  ),
+);
+await (
+  await import("./calendar-prizes.mjs")
+).testCalendarPrizes(db, as, assert);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930200000_competition_tiebreaks.sql",
+    "utf8",
+  ),
+);
+const recentProgress = (
+  await as(
+    "99000000-0000-4000-8000-000000000001",
+    "SELECT player_progress($1) p",
+    ["99000000-0000-4000-8000-000000000001"],
+  )
+).rows[0].p;
+assert(
+  Array.isArray(recentProgress.matches),
+  "Public progress includes match history",
+);
+await (await import("./competition-formats.mjs")).testFormats(db, as, assert);
+await db.exec("RESET ROLE");
+await db.exec(
+  fs.readFileSync(
+    "./supabase/migrations/20260930210000_competition_compatibility.sql",
+    "utf8",
+  ),
+);
+assert(
+  (
+    await db.query(
+      "SELECT count(*) n FROM event_matches m JOIN activities a ON a.id=m.activity_id WHERE a.competition_format='single_elimination' AND m.stage='main'",
+    )
+  ).rows[0].n === 0,
+  "Legacy match scores preserved with playoff stage",
+);
 await db.close();

@@ -1,9 +1,12 @@
+import type { EventExtras } from "./event-series";
+import type { CompetitionFormat } from "./competition-formats";
 import type { PublicActivity } from "./activities.functions";
 import type { PaymentStatus, RegistrationStatus } from "./sportura";
 export type Event = PublicActivity & {
+  event_extras?: EventExtras;
   match_settings?: Record<string, string>;
   tier?: "spark" | "blitz" | "marathon" | null;
-  competition_format?: "single_elimination" | "round_robin";
+  competition_format?: CompetitionFormat;
   min_participants?: number;
   team_min?: number;
   team_max?: number;
@@ -103,10 +106,11 @@ export type HostDocument = {
   updated_at: string;
 };
 export type EventDraft = {
+  event_extras?: EventExtras;
   prize_pool?: Record<string, number>;
   match_settings?: Record<string, string>;
   tier?: "spark" | "blitz" | "marathon" | null;
-  competition_format?: "single_elimination" | "round_robin";
+  competition_format?: CompetitionFormat;
   min_participants?: number;
   team_min?: number;
   team_max?: number;
@@ -136,6 +140,8 @@ export type EventDraft = {
   is_private: boolean;
 };
 export type Match = {
+  stage?: string;
+  group_number?: number | null;
   id: string;
   activity_id: string;
   round: number;
@@ -152,6 +158,8 @@ export type Match = {
   away_name?: string;
 };
 export type Standing = {
+  group_number?: number | null;
+  buchholz?: number;
   registration_id: string;
   name: string;
   played: number;
@@ -164,6 +172,20 @@ export type Standing = {
   points: number;
 };
 export type CompetitionData = {
+  item_prizes?: {
+    id: string;
+    name: string;
+    sponsor: string;
+    registration_id: string | null;
+    recipient: string | null;
+    delivered_at: string | null;
+  }[];
+  byes?: {
+    registration_id: string;
+    round: number;
+    name: string;
+    points: number;
+  }[];
   waitlist_count?: number;
   activity: Event;
   matches: Match[];
@@ -277,6 +299,7 @@ export function isoDateTime(local: string) {
 }
 export function eventDraft(a?: Partial<Event>): EventDraft {
   return {
+    event_extras: a?.event_extras ?? {},
     match_settings: a?.match_settings ?? {},
     prize_pool: a?.prize_pool ?? { "1": 100 },
     tier: a?.tier ?? (Number(a?.entry_fee ?? 0) > 0 ? "blitz" : "spark"),

@@ -158,6 +158,19 @@ function OrganizerPage() {
                   года
                 </span>
               </div>
+              {profile.contact &&
+                /^https:\/\/t\.me\/[A-Za-z0-9_]{5,32}$/.test(
+                  profile.contact,
+                ) && (
+                  <a
+                    className="profile-link inline-block mt-3"
+                    href={profile.contact}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Связаться с организатором ↗
+                  </a>
+                )}
               {profile.bio && (
                 <p className="mt-4 whitespace-pre-wrap text-sm">
                   {profile.bio}

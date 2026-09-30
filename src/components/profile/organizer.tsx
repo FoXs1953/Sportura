@@ -44,19 +44,21 @@ export function OrganizerTab({
       city: me.city,
       venues: "",
       experience: "",
+      links: "",
       frequency: "Еженедельно",
     },
     (v) =>
       applyForHostRole({
         data: {
           requested_role: v.role,
-          motivation: `Город: ${v.city}\nСпорт: ${v.sports.join(", ")}\nПлощадки: ${v.venues}\nОпыт: ${v.experience}\nЧастота: ${v.frequency}`,
+          motivation: `Город: ${v.city}\nСпорт: ${v.sports.join(", ")}\nПлощадки: ${v.venues}\nОпыт: ${v.experience}\nСсылки: ${v.links}\nЧастота: ${v.frequency}`,
         },
       }),
   );
   const host = useSectionForm(
     "host",
     {
+      host_contact: data.preferences.host_contact ?? "",
       host_name: data.preferences.host_name,
       host_bio: data.preferences.host_bio,
       kaspi: me.kaspi_payment_link ?? "",
@@ -129,6 +131,15 @@ export function OrganizerTab({
                 maxLength={80}
                 value={host.value.host_name}
                 onChange={(e) => host.patch({ host_name: e.target.value })}
+              />
+            </label>
+            <label>
+              Публичная ссылка Telegram
+              <Input
+                value={host.value.host_contact}
+                maxLength={120}
+                onChange={(e) => host.patch({ host_contact: e.target.value })}
+                placeholder="https://t.me/your_name"
               />
             </label>
             <label>
@@ -216,6 +227,15 @@ export function OrganizerTab({
                 maxLength={500}
                 value={form.value.experience}
                 onChange={(e) => form.patch({ experience: e.target.value })}
+              />
+            </label>
+            <label>
+              Публичный профиль или канал (необязательно)
+              <Input
+                value={form.value.links}
+                maxLength={300}
+                onChange={(e) => form.patch({ links: e.target.value })}
+                placeholder="Ссылка на ваши прошлые события"
               />
             </label>
             <label>

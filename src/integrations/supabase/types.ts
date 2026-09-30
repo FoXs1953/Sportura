@@ -708,6 +708,15 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      event_disputes: {
+        Args: { action: string; payload?: Json };
+        Returns: Json;
+      };
+      organizer_trust: { Args: { uid: string }; Returns: Json };
+      set_organizer_partner: {
+        Args: { uid: string; enabled: boolean; note: string };
+        Returns: undefined;
+      };
       profile_maintenance: {
         Args: Record<PropertyKey, never>;
         Returns: undefined;

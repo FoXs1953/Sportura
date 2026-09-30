@@ -87,6 +87,11 @@ export const mutateCompetition = createServerFn({ method: "POST" })
       .object({
         action: z.enum([
           "generate",
+          "schedule",
+          "prize_add",
+          "prize_award",
+          "prize_deliver",
+          "weather",
           "advance",
           "match",
           "publish_results",

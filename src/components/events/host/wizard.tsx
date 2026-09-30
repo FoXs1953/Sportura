@@ -1,3 +1,8 @@
+import { EVENT_SERIES, type EventExtras } from "@/lib/event-series";
+import {
+  COMPETITION_FORMATS,
+  type CompetitionFormat,
+} from "@/lib/competition-formats";
 import {
   DISCIPLINES,
   MVP_TIERS,
@@ -37,6 +42,7 @@ export function EventWizard({
   document,
   event,
   documents,
+  qualifiers = [],
   competition,
   onDone,
   onClose,
@@ -44,6 +50,7 @@ export function EventWizard({
   document?: HostDocument | undefined;
   event?: Event | undefined;
   documents: HostDocument[];
+  qualifiers?: Event[];
   competition: boolean;
   onDone: (id: string) => void;
   onClose: () => void;
@@ -123,8 +130,14 @@ export function EventWizard({
       e.date_time = "Выберите будущее время";
     if (v.max_participants < 2 || v.max_participants > 200)
       e.max_participants = "От 2 до 200 мест";
-    if (v.duration_minutes < 15 || v.duration_minutes > 10080)
-      e.duration_minutes = "От 15 минут до 7 дней";
+    if (
+      v.duration_minutes < 15 ||
+      v.duration_minutes > (v.type === "league" ? 100800 : 10080)
+    )
+      e.duration_minutes =
+        v.type === "league"
+          ? "От 15 минут до 10 недель"
+          : "От 15 минут до 7 дней";
     if (v.type === "tournament") {
       if (v.tier === "spark" && v.entry_fee !== 0)
         e.entry_fee = "Бесплатная серия Spark не имеет взноса";
@@ -189,6 +202,11 @@ export function EventWizard({
                   const nextType = e.target.value as EventDraft["type"];
                   update({
                     type: nextType,
+                    competition_format:
+                      nextType === "league"
+                        ? "league_playoff"
+                        : "single_elimination",
+                    duration_minutes: nextType === "league" ? 40320 : 180,
                     ...(nextType === "tournament"
                       ? {}
                       : {
@@ -244,22 +262,125 @@ export function EventWizard({
                   Сетка
                   <select
                     value={
-                      v.type === "league"
+                      v.competition_format ??
+                      (v.type === "league"
                         ? "round_robin"
-                        : (v.competition_format ?? "single_elimination")
+                        : "single_elimination")
                     }
-                    disabled={v.type === "league"}
                     onChange={(e) =>
                       update({
-                        competition_format: e.target.value as
-                          "single_elimination" | "round_robin",
+                        competition_format: e.target.value as CompetitionFormat,
                       })
                     }
                   >
-                    <option value="single_elimination">На выбывание</option>
-                    <option value="round_robin">Каждый с каждым</option>
+                    {Object.entries(COMPETITION_FORMATS).map(
+                      ([key, format]) => (
+                        <option key={key} value={key}>
+                          {format.label}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </label>
+              </div>
+            )}
+            {v.competition_format === "league_playoff" && (
+              <label>
+                Кругов лиги
+                <select
+                  value={v.match_settings?.["league_legs"] ?? "1"}
+                  onChange={(e) =>
+                    update({
+                      match_settings: {
+                        ...v.match_settings,
+                        league_legs: e.target.value,
+                      },
+                    })
+                  }
+                >
+                  <option value="1">Один — одна встреча с каждым</option>
+                  <option value="2">Два — дома и в гостях</option>
+                </select>
+              </label>
+            )}
+            {v.type !== "daily_game" && (
+              <div className="event-form-grid">
+                <label>
+                  Серия
+                  <select
+                    value={v.event_extras?.series ?? "open"}
+                    onChange={(e) =>
+                      update({
+                        event_extras: {
+                          ...v.event_extras,
+                          series: e.target.value as NonNullable<
+                            EventExtras["series"]
+                          >,
+                        },
+                      })
+                    }
+                  >
+                    {Object.entries(EVENT_SERIES).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {v.event_extras?.series === "rookie_cup" && (
+                  <label>
+                    Максимальный рейтинг
+                    <select
+                      value={v.event_extras.rating_limit ?? 1100}
+                      onChange={(e) =>
+                        update({
+                          event_extras: {
+                            ...v.event_extras,
+                            rating_limit: Number(e.target.value),
+                          },
+                        })
+                      }
+                    >
+                      {[1000, 1100, 1200, 1300, 1400].map((n) => (
+                        <option key={n}>{n}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label>
+                  Отбор на участие
+                  <select
+                    value={v.event_extras?.qualifier_id ?? ""}
+                    onChange={(e) =>
+                      update({
+                        event_extras: {
+                          ...v.event_extras,
+                          qualifier_id: e.target.value,
+                        },
+                      })
+                    }
+                  >
+                    <option value="">Открытая регистрация</option>
+                    {qualifiers
+                      .filter(
+                        (a) =>
+                          a.status === "completed" &&
+                          !a.is_private &&
+                          a.sport === v.sport &&
+                          a.dispute_window_ends_at &&
+                          Date.parse(a.dispute_window_ends_at) <= Date.now(),
+                      )
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          Призёры 1–4: {a.title}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <p className="workspace-muted text-xs wide">
+                  Название серии не меняет дату и стоимость. Для платных
+                  форматов доступны только черновики.
+                </p>
               </div>
             )}
             <label>
@@ -476,7 +597,32 @@ export function EventWizard({
                   <span className="event-error-field">{errors.date_time}</span>
                 )}
               </label>
-              {field("duration_minutes", "Продолжительность, минут", "number")}
+              {v.type === "league" ? (
+                <label>
+                  Длительность сезона
+                  <select
+                    value={v.duration_minutes}
+                    onChange={(e) =>
+                      update({ duration_minutes: Number(e.target.value) })
+                    }
+                  >
+                    {![40320, 60480, 80640, 100800].includes(
+                      v.duration_minutes,
+                    ) && (
+                      <option value={v.duration_minutes}>
+                        {v.duration_minutes} минут (текущее значение)
+                      </option>
+                    )}
+                    {[4, 6, 8, 10].map((weeks) => (
+                      <option key={weeks} value={weeks * 10080}>
+                        {weeks} недель
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                field("duration_minutes", "Продолжительность, минут", "number")
+              )}
               <label>
                 Окончание регистрации
                 <input
@@ -587,11 +733,13 @@ export function EventWizard({
             </label>
             {v.type !== "daily_game" && (
               <p className="workspace-muted">
-                {v.type === "league" || v.competition_format === "round_robin"
-                  ? "Каждый играет с каждым один раз. Победа — 3 очка, ничья — 1. При равенстве: разница мячей, затем забитые."
-                  : "Турнир на выбывание. Пары формируются по порядку записи, нечётный участник проходит раунд без матча."}{" "}
-                До 32 команд или игроков в сетке. Дополнительное правило для
-                ничьей укажите в регламенте.
+                {
+                  COMPETITION_FORMATS[
+                    v.competition_format ?? "single_elimination"
+                  ].description
+                }{" "}
+                До 128 команд или игроков. Дополнительные правила укажите в
+                регламенте.
               </p>
             )}
           </>

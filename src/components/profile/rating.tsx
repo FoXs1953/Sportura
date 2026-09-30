@@ -1,3 +1,4 @@
+import { SportsProgress } from "./progress";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
@@ -39,6 +40,7 @@ export function RatingTab({
   };
   return (
     <>
+      <SportsProgress data={data.progress} />
       <Panel
         title="Рейтинг и отзывы"
         subtitle="Оценки участников реальных событий. Рейтинг — среднее арифметическое опубликованных оценок от 1 до 5."

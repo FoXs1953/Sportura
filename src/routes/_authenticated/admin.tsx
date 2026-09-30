@@ -1,3 +1,4 @@
+import { OrganizerTrust } from "@/components/events/host/trust";
 import { AnalyticsDashboard } from "@/components/analytics/dashboard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -440,6 +441,9 @@ function Admin() {
                   Рейтинг {u.rating ?? "—"} · пропуски {u.no_show_count} · споры{" "}
                   {u.dispute_count} · отмены {u.cancellation_count}
                 </p>
+                {(u.roles as AppRole[]).includes("tournament_organizer") && (
+                  <OrganizerTrust id={u.id} admin />
+                )}
                 <div className="flex flex-wrap gap-2">
                   {(
                     [

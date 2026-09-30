@@ -66,6 +66,7 @@ export const preferenceSchema = z.object({
     recommendations: z.boolean(),
     reminder: z.number(),
   }),
+  host_contact: z.string().optional(),
   host_name: z.string(),
   host_bio: z.string(),
 });
@@ -132,7 +133,33 @@ export type SupportTicket = {
   messages: TicketMessage[];
   name?: string;
 };
+export type PlayerProgress = {
+  matches?: {
+    activity_id: string;
+    title: string;
+    round: number;
+    home_name: string;
+    away_name: string;
+    home_score: number;
+    away_score: number;
+    starts_at: string | null;
+  }[];
+  season: string;
+  reliability: number;
+  tournament_wins: number;
+  win_streak: number;
+  ratings: {
+    discipline: string;
+    sport: string;
+    rating: number;
+    rank: string;
+    matches: number;
+    wins: number;
+  }[];
+  badges: { id: string; name: string }[];
+};
 export type ProfileWorkspace = {
+  progress?: PlayerProgress | null;
   preferences: Preferences;
   created_at: string;
   email_confirmed: boolean;

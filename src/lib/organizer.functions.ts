@@ -25,6 +25,7 @@ export const getOrganizerProfile = createServerFn({ method: "GET" })
       stats_visible: boolean;
       host_name: string;
       host_bio: string;
+      host_contact: string;
     } | null;
     if (visible?.host_name) p.name = visible.host_name;
     if (visible?.stats_visible === false) {
@@ -70,7 +71,11 @@ export const getOrganizerProfile = createServerFn({ method: "GET" })
       (reviewers ?? []).map((r) => [r.id, r.name]),
     );
     return {
-      profile: { ...p, bio: visible?.host_bio ?? "" },
+      profile: {
+        ...p,
+        bio: visible?.host_bio ?? "",
+        contact: visible?.host_contact ?? "",
+      },
       statsVisible: visible?.stats_visible !== false,
       stats: {
         games: list.filter((a) => a.type === "daily_game").length,
