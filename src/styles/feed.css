@@ -1,19 +1,11 @@
-/* Sportura feed: charcoal surfaces, warm orange, compact athletic typography. */
+/* Sportura feed: white and charcoal surfaces, calm blue, compact athletic typography. */
 .feed-shell {
-  --feed-bg: #111617;
-  --feed-surface: #1b2123;
-  --feed-raised: #252d2f;
-  --feed-line: #30393c;
-  --feed-muted: #a3afb3;
-  --feed-accent: #ff9164;
-  --feed-text: #f5f7f6;
   height: 100dvh;
   overflow-y: auto;
   overflow-x: clip;
   background: var(--feed-bg);
   color: var(--feed-text);
-  color-scheme: dark;
-  scrollbar-color: #455054 var(--feed-bg);
+  scrollbar-color: var(--feed-line) var(--feed-bg);
   font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
 }
@@ -46,7 +38,7 @@
   z-index: 60;
   padding: 12px 20px;
   background: var(--feed-accent);
-  color: #191b1b;
+  color: var(--feed-on-accent);
   border-radius: 8px;
 }
 .feed-skip-link:focus {
@@ -56,8 +48,8 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  background: #111617f5;
-  border-bottom: 1px solid #ffffff0d;
+  background: color-mix(in srgb, var(--feed-bg) 96%, transparent);
+  border-bottom: 1px solid var(--feed-line);
 }
 .feed-header-inner {
   max-width: 1248px;
@@ -84,24 +76,10 @@
   margin-left: -10px;
 }
 .feed-brand-mark {
-  display: flex;
-  align-items: end;
-  gap: 3px;
-  height: 22px;
-  transform: skewX(-16deg);
-  margin-right: 2px;
-}
-.feed-brand-mark i {
-  display: block;
-  width: 5px;
-  height: 13px;
-  background: var(--feed-accent);
-}
-.feed-brand-mark i:nth-child(2) {
-  height: 18px;
-}
-.feed-brand-mark i:nth-child(3) {
-  height: 23px;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  color: var(--feed-accent);
 }
 .feed-navigation {
   display: flex;
@@ -125,8 +103,37 @@
   color: var(--feed-text);
 }
 .feed-navigation a.is-active {
-  background: #ff916411;
+  background: color-mix(in srgb, var(--feed-accent) 7%, transparent);
   color: var(--feed-accent);
+}
+.feed-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.feed-theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid var(--feed-line);
+  border-radius: 12px;
+  background: var(--feed-surface);
+  color: var(--feed-text);
+}
+.feed-theme-toggle:hover {
+  background: var(--feed-raised);
+  color: var(--feed-accent);
+}
+.theme-icon-sun,
+.dark .theme-icon-moon {
+  display: none;
+}
+.dark .theme-icon-sun {
+  display: block;
 }
 .feed-header-note {
   font-size: 11px;
@@ -182,13 +189,13 @@
   padding: 18px 20px;
   border: 1px solid var(--feed-line);
   border-radius: 14px;
-  background: #1b21236b;
+  background: color-mix(in srgb, var(--feed-surface) 42%, transparent);
   transition:
     border-color 180ms,
     background-color 180ms;
 }
 .feed-invite:hover {
-  border-color: #ff91646b;
+  border-color: color-mix(in srgb, var(--feed-accent) 42%, transparent);
   background: var(--feed-surface);
 }
 .feed-invite-icon {
@@ -198,7 +205,7 @@
   height: 40px;
   width: 40px;
   border-radius: 10px;
-  background: #ff916410;
+  background: color-mix(in srgb, var(--feed-accent) 6%, transparent);
   flex-shrink: 0;
 }
 .feed-invite > span:nth-child(2) {
@@ -222,7 +229,7 @@
 .feed-notice {
   margin-bottom: 20px;
   padding: 15px 18px;
-  background: #ff91640f;
+  background: color-mix(in srgb, var(--feed-accent) 6%, transparent);
   border-left: 2px solid var(--feed-accent);
   border-radius: 0 8px 8px 0;
   font-size: 14px;
@@ -250,7 +257,7 @@
 }
 .feed-search:focus-within {
   border-color: var(--feed-accent);
-  box-shadow: 0 0 0 3px #ff916410;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--feed-accent) 6%, transparent);
 }
 .feed-search > svg {
   flex-shrink: 0;
@@ -269,7 +276,7 @@
   outline: none;
 }
 .feed-search input::placeholder {
-  color: #88969b;
+  color: var(--feed-muted);
 }
 .feed-search input::-webkit-search-cancel-button {
   appearance: none;
@@ -300,7 +307,7 @@
   background: var(--feed-raised);
 }
 .feed-filter-toggle.is-active {
-  border-color: #ff916466;
+  border-color: color-mix(in srgb, var(--feed-accent) 40%, transparent);
   color: var(--feed-accent);
 }
 .feed-filter-toggle b {
@@ -309,7 +316,7 @@
   min-width: 18px;
   height: 18px;
   background: var(--feed-accent);
-  color: #211b18;
+  color: var(--feed-on-accent);
   border-radius: 5px;
   font-size: 10px;
 }
@@ -338,9 +345,9 @@
   color: var(--feed-text);
 }
 .feed-chip.is-active {
-  color: #151a1b;
-  background: #e8eded;
-  border-color: #e8eded;
+  color: var(--feed-bg);
+  background: var(--feed-text);
+  border-color: var(--feed-text);
 }
 .feed-extra-filters {
   padding: 22px;
@@ -401,7 +408,7 @@
   opacity: 0;
 }
 .feed-checkboxes input:checked + .feed-check {
-  color: #211b18;
+  color: var(--feed-on-accent);
   background: var(--feed-accent);
   border-color: var(--feed-accent);
 }
@@ -494,7 +501,7 @@
 .feed-card {
   min-width: 0;
   background: var(--feed-surface);
-  border: 1px solid #ffffff0b;
+  border: 1px solid var(--feed-line);
   border-radius: 16px;
   overflow: hidden;
   transition:
@@ -507,7 +514,7 @@
   contain-intrinsic-size: auto 430px;
 }
 .feed-card:hover {
-  border-color: #ff91644d;
+  border-color: color-mix(in srgb, var(--feed-accent) 30%, transparent);
   transform: translateY(-3px);
   box-shadow: 0 12px 28px #090d0e55;
 }
@@ -625,7 +632,7 @@
 .feed-card:hover .feed-card-arrow {
   background: var(--feed-accent);
   border-color: var(--feed-accent);
-  color: #171b1c;
+  color: var(--feed-on-accent);
 }
 .feed-card-body {
   padding: 20px 18px 16px;
@@ -664,7 +671,7 @@
   overflow-wrap: anywhere;
 }
 .feed-card-details .feed-card-time {
-  color: #e1e6e7;
+  color: var(--feed-text);
 }
 .feed-card-time svg {
   color: var(--feed-accent);
@@ -703,7 +710,7 @@
   height: 3px;
   margin-top: 10px;
   border-radius: 3px;
-  background: #ffffff10;
+  background: var(--feed-line);
   overflow: hidden;
 }
 .feed-capacity-track > span {
@@ -719,7 +726,7 @@
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  border-top: 1px solid #ffffff0c;
+  border-top: 1px solid var(--feed-line);
   margin-top: 18px;
   padding-top: 15px;
 }
@@ -735,9 +742,9 @@
   height: 32px;
   display: grid;
   place-items: center;
-  background: #313d40;
-  border: 1px solid #ffffff08;
-  color: #d2dcdf;
+  background: var(--feed-raised);
+  border: 1px solid var(--feed-line);
+  color: var(--feed-text);
   border-radius: 10px;
   font-size: 10px;
   font-weight: 700;
@@ -790,7 +797,7 @@
   font-size: 9px;
 }
 .feed-card-price.is-free strong {
-  color: #a9dfbd;
+  color: var(--success);
   font-size: 14px;
 }
 .feed-card-closed .feed-card-image img {
@@ -803,7 +810,7 @@
 .feed-empty {
   padding: 64px 24px;
   background: var(--feed-surface);
-  border: 1px dashed #3e4b50;
+  border: 1px dashed var(--feed-line);
   border-radius: 16px;
   text-align: center;
 }
@@ -837,12 +844,12 @@
   padding: 12px 18px;
   border-radius: 9px;
   background: var(--feed-accent);
-  color: #211b18;
+  color: var(--feed-on-accent);
   font-size: 12px;
   font-weight: 800;
 }
 .feed-primary:hover {
-  background: #ffa580;
+  background: var(--feed-accent-hover);
 }
 .feed-error {
   margin-top: 48px;
@@ -854,7 +861,7 @@
   max-width: 1248px;
   margin: 40px auto 0;
   padding: 28px 32px;
-  color: #95a1a5;
+  color: var(--feed-muted);
   font-size: 10px;
 }
 .feed-footer a:hover {
@@ -911,11 +918,11 @@
     font-size: 16px;
   }
   .feed-brand-mark {
-    transform: skewX(-16deg) scale(0.85);
+    width: 28px;
+    height: 28px;
   }
   .feed-header-note {
-    display: block;
-    font-size: 9px;
+    display: none;
   }
   .feed-navigation {
     position: fixed;
@@ -923,7 +930,7 @@
     left: 0;
     right: 0;
     z-index: 40;
-    background: #161c1ef5;
+    background: color-mix(in srgb, var(--feed-surface) 96%, transparent);
     border-top: 1px solid var(--feed-line);
     padding: 7px max(8px, env(safe-area-inset-right))
       max(7px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
@@ -1017,7 +1024,7 @@
     margin-inline: -20px;
     padding: 14px 20px 18px;
     scrollbar-width: none;
-    scrollbar-color: #3e4b50 transparent;
+    scrollbar-color: var(--feed-line) transparent;
   }
   .feed-chip {
     font-size: 11px;

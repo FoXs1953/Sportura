@@ -89,7 +89,7 @@ export function NotificationsTab({
               <article className="profile-item" key={n.id}>
                 <div className="flex items-start gap-3">
                   <span
-                    className={`mt-1.5 size-2 shrink-0 rounded-full ${n.read_at ? "bg-[#455054]" : "bg-[#ff9164]"}`}
+                    className={`mt-1.5 size-2 shrink-0 rounded-full ${n.read_at ? "bg-[#455054]" : "bg-brand"}`}
                   />
                   <div className="min-w-0 grow">
                     <h3 className="text-sm font-bold">{n.title}</h3>

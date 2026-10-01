@@ -10,7 +10,7 @@
 }
 
 .workspace-panel {
-  border: 1px solid #ffffff0b;
+  border: 1px solid var(--workspace-line);
   border-radius: 16px;
   background: var(--workspace-surface);
 }
@@ -66,33 +66,33 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #ffffff0c;
+  border: 1px solid var(--workspace-line);
   border-radius: 5px;
   padding: 5px 9px;
-  background: #111617e8;
+  background: var(--workspace-bg);
   color: var(--workspace-muted);
   font-size: 10px;
   font-weight: 700;
 }
 .workspace-tag.is-accent {
-  border-color: #ff91644a;
-  background: #ff916415;
+  border-color: color-mix(in srgb, var(--feed-accent) 29%, transparent);
+  background: color-mix(in srgb, var(--feed-accent) 8%, transparent);
   color: var(--workspace-accent);
 }
 .workspace-tag.is-success {
   border-color: #67c99d42;
   background: #67c99d13;
-  color: #91d7b7;
+  color: var(--success);
 }
 .workspace-tag.is-warning {
   border-color: #e9bf6742;
   background: #e9bf6712;
-  color: #e9c67f;
+  color: var(--warning);
 }
 .workspace-tag.is-danger {
   border-color: #ec8b8442;
   background: #ec8b8412;
-  color: #ec9b96;
+  color: var(--destructive);
 }
 .workspace-primary-link {
   display: inline-flex;
@@ -103,7 +103,7 @@
   border-radius: 9px;
   padding: 12px 18px;
   background: var(--workspace-accent);
-  color: #181b1c;
+  color: var(--feed-on-accent);
   font-size: 12px;
   font-weight: 800;
   transition:
@@ -111,7 +111,7 @@
     transform 160ms;
 }
 .workspace-primary-link:hover {
-  background: #ffab86;
+  background: var(--feed-accent-hover);
   transform: translateY(-1px);
 }
 .workspace-text-link {
@@ -127,7 +127,7 @@
   display: grid;
   justify-items: center;
   gap: 10px;
-  border: 1px dashed #3e4b50;
+  border: 1px dashed var(--workspace-line);
   border-radius: 16px;
   padding: 64px 24px;
   text-align: center;
@@ -184,7 +184,7 @@
   gap: 8px;
 }
 .workspace-field label {
-  color: #d9e0e1;
+  color: var(--workspace-text);
   font-size: 12px;
   font-weight: 700;
 }
@@ -208,7 +208,7 @@
 }
 
 .account-card-actions {
-  border-top: 1px solid #ffffff0c;
+  border-top: 1px solid var(--workspace-line);
   padding: 18px;
 }
 
@@ -232,7 +232,7 @@
 .feed-shell .account-card-actions textarea:focus-visible {
   border-color: var(--feed-accent);
   outline: none;
-  box-shadow: 0 0 0 3px #ff916410;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--feed-accent) 6%, transparent);
 }
 
 @media (max-width: 700px) {

@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { CalendarCheck, Compass, ShieldCheck, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
+import { ThemeToggle } from "./theme-toggle";
 import "@/styles/feed.css";
 
 const navigation = [
@@ -26,11 +27,26 @@ export function FeedShell({ children }: { children: ReactNode }) {
             className="feed-wordmark"
             aria-label="Sportura — главная"
           >
-            <span className="feed-brand-mark" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </span>
+            <svg
+              className="feed-brand-mark"
+              viewBox="0 0 32 32"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M25 19a11 11 0 1 1-12-14"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <path
+                d="M8 24c1-7 5-11 12-12"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <circle cx="24" cy="8" r="5" fill="currentColor" />
+            </svg>
             SPORTURA<span className="feed-wordmark-dot">.</span>
           </Link>
           <nav className="feed-navigation" aria-label="Основная навигация">
@@ -58,7 +74,10 @@ export function FeedShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          <span className="feed-header-note">Место встречи — спорт</span>
+          <div className="feed-header-actions">
+            <span className="feed-header-note">Место встречи — спорт</span>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
       <main className="feed-main" id="feed-content" tabIndex={-1}>

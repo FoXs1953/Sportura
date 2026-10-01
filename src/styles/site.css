@@ -1,27 +1,4 @@
 /* Shared page primitives inherit the same visual contract as the activity feed. */
-.feed-shell {
-  --ground: var(--feed-bg);
-  --background: var(--feed-bg);
-  --foreground: var(--feed-text);
-  --frost: var(--feed-text);
-  --card: var(--feed-surface);
-  --panel: var(--feed-surface);
-  --panel-2: var(--feed-raised);
-  --muted: var(--feed-raised);
-  --muted-foreground: var(--feed-muted);
-  --line: var(--feed-line);
-  --border: var(--feed-line);
-  --input: var(--feed-line);
-  --brand: var(--feed-accent);
-  --primary: var(--feed-accent);
-  --brand-foreground: #171b1c;
-  --primary-foreground: #171b1c;
-  --secondary: var(--feed-raised);
-  --secondary-foreground: var(--feed-text);
-  --accent: #ffb38f;
-  --accent-foreground: #171b1c;
-  --ring: var(--feed-accent);
-}
 
 .sportura-page {
   width: 100%;
@@ -76,7 +53,7 @@
     .feed-search input,
     .feed-location select
   )::placeholder {
-  color: #89979b;
+  color: var(--feed-muted);
 }
 .feed-shell
   :is(input:not([type="checkbox"]), textarea, select):not(
@@ -85,11 +62,11 @@
   ):focus-visible {
   border-color: var(--feed-accent);
   outline: none;
-  box-shadow: 0 0 0 3px #ff91641a;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--feed-accent) 10%, transparent);
 }
 .feed-shell :is(button, a).bg-primary,
 .feed-shell :is(button, a).bg-brand {
-  color: #171b1c;
+  color: var(--feed-on-accent);
   font-weight: 700;
 }
 .feed-shell .text-brand {
@@ -196,6 +173,9 @@
   font-weight: 800;
   letter-spacing: 0.14em;
 }
+.auth-visual-bottom {
+  color: #f5f7f6;
+}
 .auth-visual-bottom p {
   max-width: 420px;
   font-family: var(--font-heading);
@@ -251,9 +231,9 @@
 }
 .admin-page .admin-tabs button:hover,
 .admin-page .admin-tabs button[aria-selected="true"] {
-  border-color: #ff91647d;
+  border-color: color-mix(in srgb, var(--feed-accent) 49%, transparent);
   color: var(--feed-accent);
-  background: #ff916413;
+  background: color-mix(in srgb, var(--feed-accent) 7%, transparent);
 }
 .admin-page .admin-stat {
   min-height: 100px;
@@ -320,7 +300,7 @@
   padding: 8px;
   border: 1px solid var(--feed-line);
   border-radius: 13px;
-  background: #1b2123f0;
+  background: color-mix(in srgb, var(--feed-surface) 94%, transparent);
   backdrop-filter: blur(12px);
 }
 .activity-detail .activity-action > * {

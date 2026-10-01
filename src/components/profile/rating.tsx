@@ -62,7 +62,7 @@ export function RatingTab({
           )}
         </div>
         <div className="mb-6 flex items-center gap-3">
-          <Star size={28} className="text-[#ffb38f]" />
+          <Star size={28} className="text-brand" />
           <strong className="font-display text-3xl">
             {average?.toFixed(1) ?? "—"}
           </strong>
@@ -94,7 +94,7 @@ export function RatingTab({
             <article className="profile-item" key={r.id}>
               <div className="flex flex-wrap justify-between gap-2">
                 <strong className="text-sm">{r.reviewer}</strong>
-                <span className="text-sm text-[#ffb38f]">★ {r.rating}/5</span>
+                <span className="text-sm text-brand">★ {r.rating}/5</span>
               </div>
               <Link
                 to="/activity/$id"

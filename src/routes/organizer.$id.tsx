@@ -127,7 +127,7 @@ function OrganizerPage() {
               />
             </div>
             <div className="relative px-5 pb-6">
-              <div className="-mt-10 grid size-20 place-items-center overflow-hidden rounded-[18px] border-4 border-[#1b2123] bg-[#30393c]">
+              <div className="-mt-10 grid size-20 place-items-center overflow-hidden rounded-[18px] border-4 border-card bg-muted">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -177,10 +177,10 @@ function OrganizerPage() {
                 </p>
               )}
               {data.statsVisible && (
-                <div className="mt-5 flex items-center gap-2 border-t border-[#30393c] pt-4">
+                <div className="mt-5 flex items-center gap-2 border-t border-border pt-4">
                   <Star
                     size={19}
-                    className="text-[#ffb38f]"
+                    className="text-brand"
                     fill={profile.rating ? "currentColor" : "none"}
                     aria-hidden="true"
                   />
@@ -239,7 +239,7 @@ function OrganizerPage() {
               <span className="workspace-tag">{upcoming.length} открыто</span>
             </div>
             {upcoming.length === 0 ? (
-              <div className="workspace-empty rounded-xl border border-dashed border-[#455054]">
+              <div className="workspace-empty rounded-xl border border-dashed border-border">
                 <div className="workspace-empty-icon">
                   <CalendarDays size={23} />
                 </div>
@@ -247,7 +247,7 @@ function OrganizerPage() {
                 <p>Новые игры организатора появятся здесь.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-[#30393c]">
+              <ul className="divide-y divide-border">
                 {upcoming.map((a) => (
                   <li key={a.id}>
                     <Link
@@ -259,7 +259,7 @@ function OrganizerPage() {
                         <span className="workspace-tag is-accent">
                           {ACTIVITY_TYPE_LABEL[a.type]}
                         </span>
-                        <h3 className="mt-2 text-sm font-bold group-hover:text-[#ff9164]">
+                        <h3 className="mt-2 text-sm font-bold group-hover:text-brand">
                           {a.title}
                         </h3>
                         <p className="workspace-muted mt-1 text-xs">
@@ -269,7 +269,7 @@ function OrganizerPage() {
                       </div>
                       <ArrowRight
                         size={18}
-                        className="shrink-0 text-[#ff9164] transition-transform group-hover:translate-x-1"
+                        className="shrink-0 text-brand transition-transform group-hover:translate-x-1"
                         aria-hidden="true"
                       />
                     </Link>
@@ -298,7 +298,7 @@ function OrganizerPage() {
                 </span>
               </div>
               {reviews.length === 0 ? (
-                <div className="workspace-empty rounded-xl border border-dashed border-[#455054]">
+                <div className="workspace-empty rounded-xl border border-dashed border-border">
                   <div className="workspace-empty-icon">
                     <Star size={23} />
                   </div>
@@ -308,12 +308,12 @@ function OrganizerPage() {
                   </p>
                 </div>
               ) : (
-                <ul className="divide-y divide-[#30393c]">
+                <ul className="divide-y divide-border">
                   {reviews.map((review) => (
                     <li key={review.id} className="py-4 first:pt-0 last:pb-0">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="grid size-8 place-items-center rounded-lg bg-[#30393c] text-xs font-bold">
+                          <span className="grid size-8 place-items-center rounded-lg bg-muted text-xs font-bold">
                             {(review.reviewer || "У").slice(0, 1).toUpperCase()}
                           </span>
                           <strong className="text-xs">
@@ -330,7 +330,7 @@ function OrganizerPage() {
                         </time>
                       </div>
                       <div
-                        className="mt-2 flex gap-0.5 text-[#ffb38f]"
+                        className="mt-2 flex gap-0.5 text-brand"
                         aria-label={`Оценка ${review.rating} из 5`}
                       >
                         {[1, 2, 3, 4, 5].map((n) => (
@@ -342,7 +342,7 @@ function OrganizerPage() {
                         ))}
                       </div>
                       {review.comment && (
-                        <p className="mt-2 text-sm leading-relaxed text-[#d6ddde]">
+                        <p className="mt-2 text-sm leading-relaxed text-foreground">
                           {review.comment}
                         </p>
                       )}

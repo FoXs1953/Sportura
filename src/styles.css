@@ -7,8 +7,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Sportura design system — "Frosted pitch dusk".
- * Dark, mobile-first. All colors are semantic tokens in oklch.
+ * Sportura design system: white by default, charcoal by choice, blue accents.
+ * Shared semantic tokens keep pages and portaled controls in sync.
  */
 
 @theme inline {
@@ -72,46 +72,73 @@
 
 :root {
   --radius: 1rem;
-
   --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Unbounded", ui-sans-serif, system-ui, sans-serif;
 
-  --ground: oklch(0.184 0.007 220);
-  --panel: oklch(0.232 0.008 220);
-  --panel-2: oklch(0.283 0.011 220);
-  --line: oklch(0.352 0.013 220);
-  --brand: oklch(0.664 0.196 37);
-  --brand-foreground: oklch(0.985 0.005 220);
-  --frost: oklch(0.954 0.005 230);
+  --feed-bg: #ffffff;
+  --feed-surface: #f7f9fc;
+  --feed-raised: #edf2f8;
+  --feed-line: #d9e1eb;
+  --feed-muted: #566579;
+  --feed-accent: #2563eb;
+  --feed-text: #172333;
+  --feed-on-accent: #ffffff;
+  --feed-accent-hover: #1d4ed8;
+  --success: #21734b;
+  --warning: #8c6115;
+  --destructive: #bc302b;
+  --destructive-foreground: #ffffff;
+  --gradient-dusk: linear-gradient(#ffffff, #f7f9fc);
+  --shadow-panel: 0 10px 30px -14px rgb(23 35 51 / 15%);
+  color-scheme: light;
 
-  --background: var(--ground);
-  --foreground: var(--frost);
-  --card: var(--panel);
-  --card-foreground: var(--frost);
-  --popover: var(--panel-2);
-  --popover-foreground: var(--frost);
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-foreground);
-  --secondary: var(--panel-2);
-  --secondary-foreground: var(--frost);
-  --muted: var(--panel-2);
-  --muted-foreground: oklch(0.716 0.014 225);
-  --accent: oklch(0.842 0.136 82);
-  --accent-foreground: oklch(0.21 0.02 70);
-  --destructive: oklch(0.62 0.21 22);
-  --destructive-foreground: oklch(0.985 0.005 220);
+  /* Global aliases also reach dialogs and menus outside the page shell. */
+  --ground: var(--feed-bg);
+  --background: var(--feed-bg);
+  --foreground: var(--feed-text);
+  --frost: var(--feed-text);
+  --card: var(--feed-surface);
+  --panel: var(--feed-surface);
+  --panel-2: var(--feed-raised);
+  --muted: var(--feed-raised);
+  --muted-foreground: var(--feed-muted);
+  --line: var(--feed-line);
+  --border: var(--feed-line);
+  --input: var(--feed-line);
+  --brand: var(--feed-accent);
+  --primary: var(--feed-accent);
+  --brand-foreground: var(--feed-on-accent);
+  --primary-foreground: var(--feed-on-accent);
+  --secondary: var(--feed-raised);
+  --secondary-foreground: var(--feed-text);
+  --accent: var(--feed-accent);
+  --accent-foreground: var(--feed-on-accent);
+  --ring: var(--feed-accent);
+  --card-foreground: var(--feed-text);
+  --popover: var(--feed-surface);
+  --popover-foreground: var(--feed-text);
+}
+
+:root.dark {
+  --feed-bg: #111617;
+  --feed-surface: #1b2123;
+  --feed-raised: #252d2f;
+  --feed-line: #30393c;
+  --feed-muted: #a3afb3;
+  --feed-accent: #91baff;
+  --feed-text: #f5f7f6;
+  --feed-on-accent: #111d30;
+  --feed-accent-hover: #b2cfff;
   --success: oklch(0.72 0.16 158);
   --warning: oklch(0.842 0.136 82);
-  --border: oklch(0.352 0.013 220 / 70%);
-  --input: oklch(0.352 0.013 220 / 80%);
-  --ring: oklch(0.664 0.196 37 / 60%);
-
+  --destructive: oklch(0.62 0.21 22);
   --gradient-dusk: radial-gradient(
     120% 80% at 50% -10%,
-    oklch(0.28 0.02 215) 0%,
-    oklch(0.184 0.007 220) 55%
+    #202a31 0%,
+    #111617 55%
   );
-  --shadow-panel: 0 10px 30px -14px oklch(0 0 0 / 70%);
+  --shadow-panel: 0 10px 30px -14px rgb(0 0 0 / 70%);
+  color-scheme: dark;
 }
 
 @layer base {

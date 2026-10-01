@@ -256,7 +256,7 @@ export function OverviewTab({
         }
       >
         <progress
-          className="mb-5 h-2 w-full accent-[#ff9164]"
+          className="mb-5 h-2 w-full accent-brand"
           value={completed}
           max={checks.length}
           aria-label="Заполнение профиля"
