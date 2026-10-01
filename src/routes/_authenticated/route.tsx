@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   createFileRoute,
   Outlet,
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { useSessionUser } from "@/lib/use-session";
 import { AppShell } from "@/components/sportura/shell";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -23,32 +23,15 @@ function LoadingAccount() {
 }
 
 function AuthenticatedLayout() {
-  const [signedIn, setSignedIn] = useState<boolean>();
+  const session = useSessionUser();
   const redirecting = useRef(false);
   const navigate = useNavigate();
   const href = useLocation({ select: (location) => location.href });
-
-  useEffect(() => {
-    let active = true;
-    // Resolve browser auth after hydration. Redirecting from beforeLoad can
-    // replace the server's client-only match while React is still hydrating it.
-    void supabase.auth
-      .getUser()
-      .then(({ data, error }) => {
-        if (active) setSignedIn(!error && !!data.user);
-      })
-      .catch(() => {
-        if (active) setSignedIn(false);
-      });
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") setSignedIn(false);
-      if (event === "SIGNED_IN" && session) setSignedIn(true);
-    });
-    return () => {
-      active = false;
-      data.subscription.unsubscribe();
-    };
-  }, []);
+  // Resolve auth after hydration. Redirecting from beforeLoad can replace the
+  // server's client-only match while React is still hydrating it.
+  const signedIn = session.isPending
+    ? undefined
+    : !session.isError && !!session.data;
 
   useEffect(() => {
     if (signedIn === false && !redirecting.current) {

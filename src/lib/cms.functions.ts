@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getPublicSupabase } from "./supabase-public.server";
 
 export type BlockKind = "hero" | "banner" | "text" | "cards" | "faq" | "cta";
 
@@ -95,19 +94,19 @@ export const getSiteContent = createServerFn({ method: "GET" })
       .parse(input ?? {}),
   )
   .handler(async ({ data }): Promise<SiteContent> => {
-    const supabase = getPublicSupabase();
-    const [settings, blocks] = await Promise.all([
-      supabase.from("site_settings").select("key, value"),
-      supabase
-        .from("content_blocks")
-        .select("id, page, kind, title, subtitle, body, image_url, cta_label, cta_url, items, position, published")
-        .eq("page", data.page)
-        .eq("published", true)
-        .order("position", { ascending: true }),
-    ]);
+    const { asAnon } = await import("./db.server");
+    const { settings, blocks } = await asAnon(async (tx) => ({
+      settings: await tx<{ key: string; value: unknown }[]>`
+        SELECT key, value FROM public.site_settings`,
+      blocks: await tx<ContentBlock[]>`
+        SELECT id, page, kind, title, subtitle, body, image_url, cta_label, cta_url, items, position, published
+        FROM public.content_blocks
+        WHERE page = ${data.page} AND published = true
+        ORDER BY position`,
+    }));
 
     const map: Record<string, unknown> = {};
-    for (const row of (settings.data ?? []) as { key: string; value: unknown }[]) {
+    for (const row of settings) {
       map[row.key] = row.value;
     }
 
@@ -115,7 +114,7 @@ export const getSiteContent = createServerFn({ method: "GET" })
       general: { ...DEFAULT_GENERAL, ...((map["general"] as Partial<GeneralSettings>) ?? {}) },
       catalog: { ...DEFAULT_CATALOG, ...((map["catalog"] as Partial<CatalogSettings>) ?? {}) },
       business: { ...DEFAULT_BUSINESS, ...((map["business"] as Partial<BusinessSettings>) ?? {}) },
-      blocks: ((blocks.data ?? []) as unknown as ContentBlock[]).map((b) => ({
+      blocks: blocks.map((b) => ({
         ...b,
         items: Array.isArray(b.items) ? b.items : [],
       })),

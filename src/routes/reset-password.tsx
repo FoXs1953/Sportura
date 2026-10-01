@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { checkRecoveryToken, resetPassword } from "@/lib/auth.functions";
 import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,53 +26,33 @@ function ResetPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  const [token, setToken] = useState("");
+
   useEffect(() => {
     let active = true;
-    // Read the callback before Supabase processes and removes the URL fragment.
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    const query = new URLSearchParams(window.location.search);
-    const recoveryLink = hash.get("type") === "recovery";
-    const callbackError =
-      hash.get("error_description") ?? query.get("error_description");
-    if (callbackError) {
+    const value = new URLSearchParams(window.location.search).get("token");
+    if (!value) {
       setScreen("expired");
       return;
     }
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!active || !session) return;
-        if (
-          event === "PASSWORD_RECOVERY" ||
-          (recoveryLink && event === "SIGNED_IN")
-        ) {
-          setAccountEmail(session.user.email ?? "");
-          setScreen("change");
-        }
-      },
-    );
-
-    void supabase.auth
-      .getSession()
-      .then(({ data, error: sessionError }) => {
+    // Keep the token out of the address bar, history and Referer headers.
+    window.history.replaceState(null, "", window.location.pathname);
+    setToken(value);
+    void checkRecoveryToken({ data: { token: value } })
+      .then((found) => {
         if (!active) return;
-        if (recoveryLink && !sessionError && data.session) {
-          setAccountEmail(data.session.user.email ?? "");
+        if (found) {
+          setAccountEmail(found.email);
           setScreen("change");
-        } else if (!data.session) {
-          setScreen("expired");
         } else {
-          // A normal signed-in session must not be mistaken for a recovery link.
-          setScreen((current) => (current === "change" ? current : "expired"));
+          setScreen("expired");
         }
       })
       .catch(() => {
         if (active) setScreen("expired");
       });
-
     return () => {
       active = false;
-      listener.subscription.unsubscribe();
     };
   }, []);
 
@@ -90,20 +70,15 @@ function ResetPasswordPage() {
 
     setBusy(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        password,
-      });
-      if (updateError) throw updateError;
+      await resetPassword({ data: { token, password } });
       setPassword("");
       setConfirm("");
       setScreen("done");
-      void supabase.auth.signOut().catch(() => undefined);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "";
+      if (/устарела/i.test(message)) setScreen("expired");
       setError(
-        /weak|pwned|compromised|leak/i.test(message)
-          ? "Этот пароль слишком простой или встречался в утечках. Придумай другой."
-          : "Не удалось сохранить пароль. Проверь соединение и попробуй ещё раз.",
+        "Не удалось сохранить пароль. Проверь соединение и попробуй ещё раз.",
       );
     } finally {
       setBusy(false);

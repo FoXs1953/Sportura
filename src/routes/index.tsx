@@ -16,7 +16,7 @@ import {
   ChevronDown,
   Check,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useSessionUser } from "@/lib/use-session";
 import { FeedShell } from "@/components/sportura/feed-shell";
 import { ActivityCard } from "@/components/sportura/activity-card";
 import { ContentBlocks } from "@/components/sportura/content-blocks";
@@ -58,19 +58,10 @@ export const Route = createFileRoute("/")({
 function Feed() {
   const filters = Route.useSearch();
   const navigate = Route.useNavigate();
-  const [user, setUser] = useState<string | null>(null);
+  const user = useSessionUser().data?.id ?? null;
   const [expanded, setExpanded] = useState(false);
   const [readyCity, setReadyCity] = useState(false);
   const action = useEventAction();
-  useEffect(() => {
-    void supabase.auth
-      .getSession()
-      .then(({ data }) => setUser(data.session?.user.id ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_e, s) =>
-      setUser(s?.user.id ?? null),
-    );
-    return () => data.subscription.unsubscribe();
-  }, []);
   const prefs = useQuery({
     queryKey: ["feed-preferences", user],
     queryFn: () => getFeedPreferences(),

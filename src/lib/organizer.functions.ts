@@ -1,75 +1,92 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { Tables } from "./database.types";
 
 export const getOrganizerProfile = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) =>
     z.object({ id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data }) => {
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
-    const { data: p } = await supabaseAdmin
-      .from("profiles")
-      .select(
-        "id, name, avatar_url, rating, rating_count, reliability_rating, verified, created_at, city",
-      )
-      .eq("id", data.id)
-      .maybeSingle();
-    if (!p) return null;
-    const { data: publicData, error: publicError } = await supabaseAdmin.rpc(
-      "public_player_profile",
-      { _id: data.id },
-    );
-    if (publicError) throw new Error(publicError.message);
-    const visible = publicData as {
-      stats_visible: boolean;
-      host_name: string;
-      host_bio: string;
-      host_contact: string;
-    } | null;
+    const { asService } = await import("./db.server");
+    const files = await import("./files.server");
+    const loaded = await asService(async (tx) => {
+      const [p] = await tx<
+        {
+          id: string;
+          name: string;
+          avatar_url: string | null;
+          rating: number | null;
+          rating_count: number;
+          reliability_rating: number | null;
+          verified: boolean;
+          created_at: string;
+          city: string;
+        }[]
+      >`SELECT id, name, avatar_url, rating, rating_count, reliability_rating, verified, created_at, city
+        FROM public.profiles WHERE id = ${data.id}`;
+      if (!p) return null;
+      const [publicRow] = await tx<{ result: unknown }[]>`
+        SELECT public.public_player_profile(${data.id}) AS result`;
+      const [hostRole] = await tx`
+        SELECT 1 FROM public.user_roles
+        WHERE user_id = ${data.id} AND role IN ('sports_manager', 'tournament_organizer')`;
+      const acts = await tx<
+        {
+          id: string;
+          title: string;
+          type: Tables<"activities">["type"];
+          status: Tables<"activities">["status"];
+          sport: string;
+          time_text: string | null;
+          date_time: string | null;
+          registered_count: number;
+          max_participants: number;
+          is_private: boolean;
+        }[]
+      >`SELECT id, title, type, status, sport, time_text, date_time, registered_count, max_participants, is_private
+        FROM public.activities
+        WHERE manager_id = ${data.id} OR organizer_id = ${data.id}
+        ORDER BY date_time DESC NULLS LAST
+        LIMIT 100`;
+      const reviews = await tx<
+        {
+          id: string;
+          rating: number;
+          comment: string | null;
+          created_at: string;
+          reviewer_name: string | null;
+        }[]
+      >`SELECT r.id, r.rating, r.comment, r.created_at, p.name AS reviewer_name
+        FROM public.reviews r LEFT JOIN public.profiles p ON p.id = r.reviewer_id
+        WHERE r.reviewed_user_id = ${data.id}
+        ORDER BY r.created_at DESC
+        LIMIT 30`;
+      return {
+        p,
+        visible: (publicRow?.result ?? null) as {
+          stats_visible: boolean;
+          host_name: string;
+          host_bio: string;
+          host_contact: string;
+        } | null,
+        verified: Boolean(hostRole),
+        list: [...acts],
+        reviews: [...reviews],
+      };
+    });
+    if (!loaded) return null;
+    const { p, visible, list, reviews } = loaded;
     if (visible?.host_name) p.name = visible.host_name;
     if (visible?.stats_visible === false) {
       p.rating = null;
       p.rating_count = 0;
     }
-    const roleResult = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", data.id)
-      .in("role", ["sports_manager", "tournament_organizer"]);
-    p.verified = Boolean(roleResult.data?.length);
-    if (p.avatar_url) {
-      const signed = await supabaseAdmin.storage
-        .from("avatars")
-        .createSignedUrl(p.avatar_url, 3600);
-      p.avatar_url = signed.data?.signedUrl ?? null;
+    p.verified = loaded.verified;
+    if (p.avatar_url && !files.isExternal(p.avatar_url)) {
+      p.avatar_url = files.isObjectName(p.avatar_url)
+        ? files.signedUrl("avatars", p.avatar_url)
+        : null;
     }
-
-    const { data: acts } = await supabaseAdmin
-      .from("activities")
-      .select(
-        "id, title, type, status, sport, time_text, date_time, registered_count, max_participants, is_private",
-      )
-      .or(`manager_id.eq.${data.id},organizer_id.eq.${data.id}`)
-      .order("date_time", { ascending: false, nullsFirst: false })
-      .limit(100);
-    const list = acts ?? [];
-    const { data: reviews } = await supabaseAdmin
-      .from("reviews")
-      .select("id, rating, comment, created_at, reviewer_id")
-      .eq("reviewed_user_id", data.id)
-      .order("created_at", { ascending: false })
-      .limit(30);
-    const reviewerIds = [...new Set((reviews ?? []).map((r) => r.reviewer_id))];
-    const { data: reviewers } = reviewerIds.length
-      ? await supabaseAdmin
-          .from("profiles")
-          .select("id, name")
-          .in("id", reviewerIds)
-      : { data: [] as { id: string; name: string }[] };
-    const names = Object.fromEntries(
-      (reviewers ?? []).map((r) => [r.id, r.name]),
-    );
     return {
       profile: {
         ...p,
@@ -92,14 +109,12 @@ export const getOrganizerProfile = createServerFn({ method: "GET" })
             a.status !== "cancelled",
         )
         .slice(0, 10),
-      reviews: (visible?.stats_visible === false ? [] : (reviews ?? [])).map(
-        (r) => ({
-          id: r.id,
-          rating: r.rating,
-          comment: r.comment,
-          created_at: r.created_at,
-          reviewer: (names[r.reviewer_id] ?? "Участник").split(" ")[0],
-        }),
-      ),
+      reviews: (visible?.stats_visible === false ? [] : reviews).map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        created_at: r.created_at,
+        reviewer: (r.reviewer_name ?? "Участник").split(" ")[0],
+      })),
     };
   });

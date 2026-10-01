@@ -23,7 +23,11 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as ActivityIdRouteImport } from './routes/activity.$id'
 import { Route as OrganizerIdRouteImport } from './routes/organizer.$id'
 import { Route as PlayerIdRouteImport } from './routes/player.$id'
+import { Route as ApiAuthConfirmRouteImport } from './routes/api/auth/confirm'
+import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
+import { Route as ApiFilesSplatRouteImport } from './routes/api/files/$'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
+import { Route as ApiAuthGoogleCallbackRouteImport } from './routes/api/auth/google.callback'
 import { Route as ApiPublicCronMaintenanceRouteImport } from './routes/api/public/cron/maintenance'
 
 const IndexRoute = IndexRouteImport.update({
@@ -95,10 +99,30 @@ const PlayerIdRoute = PlayerIdRouteImport.update({
   path: '/player/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthConfirmRoute = ApiAuthConfirmRouteImport.update({
+  id: '/api/auth/confirm',
+  path: '/api/auth/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthGoogleRoute = ApiAuthGoogleRouteImport.update({
+  id: '/api/auth/google',
+  path: '/api/auth/google',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFilesSplatRoute = ApiFilesSplatRouteImport.update({
+  id: '/api/files/$',
+  path: '/api/files/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
   id: '/api/public/health',
   path: '/api/public/health',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthGoogleCallbackRoute = ApiAuthGoogleCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => ApiAuthGoogleRoute,
 } as any)
 const ApiPublicCronMaintenanceRoute =
   ApiPublicCronMaintenanceRouteImport.update({
@@ -121,7 +145,11 @@ export interface FileRoutesByFullPath {
   '/activity/$id': typeof ActivityIdRoute
   '/organizer/$id': typeof OrganizerIdRoute
   '/player/$id': typeof PlayerIdRoute
+  '/api/auth/confirm': typeof ApiAuthConfirmRoute
+  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
+  '/api/files/$': typeof ApiFilesSplatRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/public/cron/maintenance': typeof ApiPublicCronMaintenanceRoute
 }
 export interface FileRoutesByTo {
@@ -138,7 +166,11 @@ export interface FileRoutesByTo {
   '/activity/$id': typeof ActivityIdRoute
   '/organizer/$id': typeof OrganizerIdRoute
   '/player/$id': typeof PlayerIdRoute
+  '/api/auth/confirm': typeof ApiAuthConfirmRoute
+  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
+  '/api/files/$': typeof ApiFilesSplatRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/public/cron/maintenance': typeof ApiPublicCronMaintenanceRoute
 }
 export interface FileRoutesById {
@@ -157,7 +189,11 @@ export interface FileRoutesById {
   '/activity/$id': typeof ActivityIdRoute
   '/organizer/$id': typeof OrganizerIdRoute
   '/player/$id': typeof PlayerIdRoute
+  '/api/auth/confirm': typeof ApiAuthConfirmRoute
+  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
+  '/api/files/$': typeof ApiFilesSplatRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/public/cron/maintenance': typeof ApiPublicCronMaintenanceRoute
 }
 export interface FileRouteTypes {
@@ -176,7 +212,11 @@ export interface FileRouteTypes {
     | '/activity/$id'
     | '/organizer/$id'
     | '/player/$id'
+    | '/api/auth/confirm'
+    | '/api/auth/google'
+    | '/api/files/$'
     | '/api/public/health'
+    | '/api/auth/google/callback'
     | '/api/public/cron/maintenance'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -193,7 +233,11 @@ export interface FileRouteTypes {
     | '/activity/$id'
     | '/organizer/$id'
     | '/player/$id'
+    | '/api/auth/confirm'
+    | '/api/auth/google'
+    | '/api/files/$'
     | '/api/public/health'
+    | '/api/auth/google/callback'
     | '/api/public/cron/maintenance'
   id:
     | '__root__'
@@ -211,7 +255,11 @@ export interface FileRouteTypes {
     | '/activity/$id'
     | '/organizer/$id'
     | '/player/$id'
+    | '/api/auth/confirm'
+    | '/api/auth/google'
+    | '/api/files/$'
     | '/api/public/health'
+    | '/api/auth/google/callback'
     | '/api/public/cron/maintenance'
   fileRoutesById: FileRoutesById
 }
@@ -226,6 +274,9 @@ export interface RootRouteChildren {
   ActivityIdRoute: typeof ActivityIdRoute
   OrganizerIdRoute: typeof OrganizerIdRoute
   PlayerIdRoute: typeof PlayerIdRoute
+  ApiAuthConfirmRoute: typeof ApiAuthConfirmRoute
+  ApiAuthGoogleRoute: typeof ApiAuthGoogleRouteWithChildren
+  ApiFilesSplatRoute: typeof ApiFilesSplatRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
   ApiPublicCronMaintenanceRoute: typeof ApiPublicCronMaintenanceRoute
 }
@@ -330,12 +381,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/confirm': {
+      id: '/api/auth/confirm'
+      path: '/api/auth/confirm'
+      fullPath: '/api/auth/confirm'
+      preLoaderRoute: typeof ApiAuthConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/google': {
+      id: '/api/auth/google'
+      path: '/api/auth/google'
+      fullPath: '/api/auth/google'
+      preLoaderRoute: typeof ApiAuthGoogleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/files/$': {
+      id: '/api/files/$'
+      path: '/api/files/$'
+      fullPath: '/api/files/$'
+      preLoaderRoute: typeof ApiFilesSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/health': {
       id: '/api/public/health'
       path: '/api/public/health'
       fullPath: '/api/public/health'
       preLoaderRoute: typeof ApiPublicHealthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/google/callback': {
+      id: '/api/auth/google/callback'
+      path: '/callback'
+      fullPath: '/api/auth/google/callback'
+      preLoaderRoute: typeof ApiAuthGoogleCallbackRouteImport
+      parentRoute: typeof ApiAuthGoogleRoute
     }
     '/api/public/cron/maintenance': {
       id: '/api/public/cron/maintenance'
@@ -364,6 +443,18 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ApiAuthGoogleRouteChildren {
+  ApiAuthGoogleCallbackRoute: typeof ApiAuthGoogleCallbackRoute
+}
+
+const ApiAuthGoogleRouteChildren: ApiAuthGoogleRouteChildren = {
+  ApiAuthGoogleCallbackRoute: ApiAuthGoogleCallbackRoute,
+}
+
+const ApiAuthGoogleRouteWithChildren = ApiAuthGoogleRoute._addFileChildren(
+  ApiAuthGoogleRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -375,6 +466,9 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityIdRoute: ActivityIdRoute,
   OrganizerIdRoute: OrganizerIdRoute,
   PlayerIdRoute: PlayerIdRoute,
+  ApiAuthConfirmRoute: ApiAuthConfirmRoute,
+  ApiAuthGoogleRoute: ApiAuthGoogleRouteWithChildren,
+  ApiFilesSplatRoute: ApiFilesSplatRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,
   ApiPublicCronMaintenanceRoute: ApiPublicCronMaintenanceRoute,
 }

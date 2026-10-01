@@ -9,9 +9,14 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   // Server credentials stay in the server process; only VITE_* is exposed by Vite.
   for (const key of [
-    "SUPABASE_URL",
-    "SUPABASE_PUBLISHABLE_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
+    "DATABASE_URL",
+    "APP_URL",
+    "STORAGE_DIR",
+    "FILE_URL_SECRET",
+    "SMTP_URL",
+    "MAIL_FROM",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
     "CRON_SECRET",
     "CRON_SECRET_PREVIOUS",
   ]) {
@@ -30,7 +35,10 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       tailwindcss(),
       tanstackStart({ server: { entry: "server" } }),
-      ...(command === "build" ? [nitro({ preset: "vercel" })] : []),
+      // Vercel by default; the VPS image builds with NITRO_PRESET=node-server.
+      ...(command === "build"
+        ? [nitro({ preset: process.env["NITRO_PRESET"] || "vercel" })]
+        : []),
       react(),
     ],
   };

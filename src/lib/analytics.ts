@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { recordAnalyticsEvent } from "./analytics.functions";
 export const ANALYTICS_CONSENT = "sportura.analytics-consent";
 export function trackEvent(
   event: "page_view" | "activity_view" | "register_click",
@@ -36,23 +36,19 @@ export function trackEvent(
               : "direct";
       sessionStorage.setItem("sportura.source", source);
     }
-    void (supabase as any)
-      .rpc("track_event", {
-        payload: {
-          event,
-          visitor_id: visitor,
-          session_id: session,
-          path: location.pathname,
-          source,
-          device: matchMedia("(max-width: 767px)").matches
-            ? "mobile"
-            : "desktop",
-        },
-      })
-      .then(
-        () => {},
-        () => {},
-      );
+    void recordAnalyticsEvent({
+      data: {
+        event,
+        visitor_id: visitor,
+        session_id: session,
+        path: location.pathname,
+        source,
+        device: matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
+      },
+    }).then(
+      () => {},
+      () => {},
+    );
   } catch {
     /* Analytics must never interrupt the application. */
   }

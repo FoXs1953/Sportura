@@ -1,0 +1,19 @@
+# Local PostgreSQL for development: docker compose up -d db
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sportura
+      POSTGRES_USER: sportura
+      POSTGRES_PASSWORD: sportura
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sportura -d sportura"]
+      interval: 2s
+      retries: 30
+
+volumes:
+  db-data:

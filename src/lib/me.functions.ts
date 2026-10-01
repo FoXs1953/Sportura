@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "./auth-middleware";
 import { z } from "zod";
 import type { AppRole } from "./sportura";
-import { kaspiLinkSchema, kzPhoneSchema } from "@/lib/kz-validation";
 
 export type MyProfile = {
   id: string;
@@ -32,26 +31,22 @@ export type MyProfile = {
 };
 
 export const getMe = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }): Promise<MyProfile> => {
-    const { supabase, userId } = context;
-    const [profileRes, rolesRes, appRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase
-        .from("manager_applications")
-        .select(
-          "id, status, requested_role, motivation, admin_notes, created_at",
-        )
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    if (profileRes.error) throw new Error(profileRes.error.message);
-    if (rolesRes.error) throw new Error(rolesRes.error.message);
-    if (appRes.error) throw new Error(appRes.error.message);
-    const p = profileRes.data as Record<string, unknown> | null;
+    const { userId } = context.caller;
+    const { asUser } = await import("./db.server");
+    const { p, roles, application } = await asUser(context.caller, async (tx) => ({
+      p: (await tx<Record<string, unknown>[]>`
+        SELECT * FROM public.profiles WHERE id = ${userId}`)[0],
+      roles: await tx<{ role: AppRole }[]>`
+        SELECT role FROM public.user_roles WHERE user_id = ${userId}`,
+      application: (await tx<NonNullable<MyProfile["application"]>[]>`
+        SELECT id, status, requested_role, motivation, admin_notes, created_at
+        FROM public.manager_applications
+        WHERE user_id = ${userId}
+        ORDER BY created_at DESC
+        LIMIT 1`)[0],
+    }));
     return {
       id: userId,
       name: (p?.["name"] as string) ?? "Игрок",
@@ -69,63 +64,13 @@ export const getMe = createServerFn({ method: "GET" })
       cancellation_count: (p?.["cancellation_count"] as number) ?? 0,
       account_status:
         (p?.["account_status"] as MyProfile["account_status"]) ?? "active",
-      roles: ((rolesRes.data ?? []) as { role: AppRole }[]).map((r) => r.role),
-      application: (appRes.data as MyProfile["application"]) ?? null,
+      roles: roles.map((r) => r.role),
+      application: application ?? null,
     };
   });
 
-export const updateMyProfile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        name: z.string().min(2).max(80),
-        phone: kzPhoneSchema,
-        city: z.string().max(60),
-        sports: z.array(z.string().max(40)).max(10),
-        kaspi_payment_link: kaspiLinkSchema,
-        avatar_url: z.string().max(500).optional().nullable(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("profiles")
-      .update({
-        name: data.name,
-        phone: data.phone ?? null,
-        city: data.city,
-        sports: data.sports,
-        kaspi_payment_link: data.kaspi_payment_link ?? null,
-        ...(data.avatar_url === undefined
-          ? {}
-          : { avatar_url: data.avatar_url }),
-      })
-      .eq("id", context.userId);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
-
-/** Marks the account as verified once the email/phone is confirmed in the session claims. */
-export const confirmVerification = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error: authError } = await context.supabase.auth.getUser();
-    if (authError) throw new Error(authError.message);
-    const verified = Boolean(
-      data.user?.email_confirmed_at || data.user?.phone_confirmed_at,
-    );
-    if (!verified) return { verified: false };
-    const { error } = await context.supabase
-      .from("profiles")
-      .update({ verified: true })
-      .eq("id", context.userId);
-    if (error) throw new Error(error.message);
-    return { verified: true };
-  });
-
 export const applyForHostRole = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -135,80 +80,51 @@ export const applyForHostRole = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const [profileRes, rolesRes, pendingRes] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("name, phone, verified, account_status")
-        .eq("id", userId)
-        .maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase
-        .from("manager_applications")
-        .select("id, requested_role")
-        .eq("user_id", userId)
-        .eq("status", "pending")
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    const profile = profileRes.data as {
-      name?: string;
-      phone?: string | null;
-      verified?: boolean;
-      account_status?: string;
-    } | null;
-    if (!profile) throw new Error("Профиль не найден");
-    const identity = await supabase.auth.getUser();
-    if (identity.error) throw new Error(identity.error.message);
-    if (
-      !identity.data.user?.email_confirmed_at &&
-      !identity.data.user?.phone_confirmed_at
-    ) {
-      throw new Error("Сначала подтвердите e-mail или телефон в профиле.");
-    }
-    if (profile.account_status && profile.account_status !== "active") {
-      throw new Error(
-        "Аккаунт ограничен, заявку рассмотреть нельзя. Напишите администратору.",
-      );
-    }
-    if (!profile.name || profile.name.trim().length < 2) {
-      throw new Error("Укажите имя и фамилию в профиле перед подачей заявки.");
-    }
-    if (!profile.phone) {
-      throw new Error(
-        "Укажите телефон в профиле — администратор должен связаться с вами.",
-      );
-    }
-    const roles = ((rolesRes.data ?? []) as { role: string }[]).map(
-      (r) => r.role,
+    const { userId } = context.caller;
+    const { asService, asUser } = await import("./db.server");
+    const [identity] = await asService(
+      (tx) => tx<{ confirmed: boolean }[]>`
+        SELECT (email_confirmed_at IS NOT NULL OR phone_confirmed_at IS NOT NULL) AS confirmed
+        FROM auth.users WHERE id = ${userId}`,
     );
-    if (roles.includes(data.requested_role) || roles.includes("admin")) {
-      throw new Error("Эта роль у вас уже есть.");
-    }
-    if (pendingRes.data) {
-      throw new Error(
-        "У вас уже есть заявка на рассмотрении. Дождитесь решения администратора.",
-      );
-    }
-    const { error } = await supabase.from("manager_applications").insert({
-      user_id: userId,
-      requested_role: data.requested_role,
-      motivation: data.motivation?.trim() || null,
+    await asUser(context.caller, async (tx) => {
+      const [profile] = await tx<
+        { name: string | null; phone: string | null; account_status: string | null }[]
+      >`SELECT name, phone, account_status FROM public.profiles WHERE id = ${userId}`;
+      if (!profile) throw new Error("Профиль не найден");
+      if (!identity?.confirmed) {
+        throw new Error("Сначала подтвердите e-mail или телефон в профиле.");
+      }
+      if (profile.account_status && profile.account_status !== "active") {
+        throw new Error(
+          "Аккаунт ограничен, заявку рассмотреть нельзя. Напишите администратору.",
+        );
+      }
+      if (!profile.name || profile.name.trim().length < 2) {
+        throw new Error("Укажите имя и фамилию в профиле перед подачей заявки.");
+      }
+      if (!profile.phone) {
+        throw new Error(
+          "Укажите телефон в профиле — администратор должен связаться с вами.",
+        );
+      }
+      const roles = (
+        await tx<{ role: string }[]>`SELECT role FROM public.user_roles WHERE user_id = ${userId}`
+      ).map((r) => r.role);
+      if (roles.includes(data.requested_role) || roles.includes("admin")) {
+        throw new Error("Эта роль у вас уже есть.");
+      }
+      const [pending] = await tx`
+        SELECT 1 FROM public.manager_applications
+        WHERE user_id = ${userId} AND status = 'pending'
+        LIMIT 1`;
+      if (pending) {
+        throw new Error(
+          "У вас уже есть заявка на рассмотрении. Дождитесь решения администратора.",
+        );
+      }
+      await tx`INSERT INTO public.manager_applications (user_id, requested_role, motivation)
+               VALUES (${userId}, ${data.requested_role}, ${data.motivation?.trim() || null})`;
     });
-    if (error) throw new Error(error.message);
     return { ok: true };
-  });
-
-export const getMyRegistrations = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("registrations")
-      .select(
-        "id, status, payment_status, payment_reference, receipt_url, created_at, activity:activities(id, title, sport, type, status, location_text, two_gis_url, time_text, date_time, price_text, entry_fee, max_participants, registered_count, host_name, host_rating, kaspi_payment_link, manager_id, organizer_id, results_submitted_at, dispute_window_ends_at)",
-      )
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return data ?? [];
   });
