@@ -208,7 +208,7 @@ function Feed() {
             <ChevronDown size={15} aria-hidden="true" />
           </label>
           <h1>
-            Игры рядом<span className="feed-title-dot">.</span>
+            Игры здесь<span className="feed-title-dot">.</span>
           </h1>
           <p>Находи свою команду. Выходи на площадку.</p>
         </div>
