@@ -35,6 +35,7 @@ export const getSessionUser = createServerFn({ method: "GET" })
 
 export const getAuthCapabilities = createServerFn({ method: "GET" }).handler(
   async () => ({
+    email: Boolean(process.env["SMTP_URL"]?.trim()),
     google: Boolean(
       process.env["GOOGLE_CLIENT_ID"] && process.env["GOOGLE_CLIENT_SECRET"],
     ),
@@ -59,20 +60,27 @@ export const signUp = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const s = await server();
     s.rateLimit(`signup:${s.clientKey()}`, 10, 60);
+    s.requireMailConfigured();
     const hash = await s.hashPassword(data.password);
     try {
-      const token = await s.asService(async (tx) => {
+      await s.asService(async (tx) => {
         const [user] = await tx<{ id: string }[]>`
           INSERT INTO auth.users (email, password_hash, raw_user_meta_data)
           VALUES (${data.email}, ${hash}, ${tx.json({ name: data.name || "Игрок" })})
           RETURNING id`;
+        const token = await s.issueToken(
+          tx,
+          user!.id,
+          "confirm_email",
+          data.email,
+          24 * 60,
+        );
+        await s.sendMail({
+          to: data.email,
+          subject: "Подтвердите e-mail в Sportura",
+          text: `Здравствуйте!\n\nПодтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}\n\nЕсли вы не регистрировались в Sportura, просто проигнорируйте письмо.`,
+        });
         await s.signInUser(tx, user!.id);
-        return s.issueToken(tx, user!.id, "confirm_email", data.email, 24 * 60);
-      });
-      s.sendMailInBackground({
-        to: data.email,
-        subject: "Подтвердите e-mail в Sportura",
-        text: `Здравствуйте!\n\nПодтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}\n\nЕсли вы не регистрировались в Sportura, просто проигнорируйте письмо.`,
       });
     } catch (error) {
       if (s.isUniqueViolation(error))
@@ -126,22 +134,34 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
     const s = await server();
     s.rateLimit(`reset:${data.email}`, 5, 60);
     s.rateLimit(`reset-ip:${s.clientKey()}`, 20, 60);
-    const token = await s.asService(async (tx) => {
-      const [user] = await tx<
-        { id: string }[]
-      >`SELECT id FROM auth.users WHERE email = ${data.email}`;
-      return user
-        ? s.issueToken(tx, user.id, "recovery", data.email, 60)
-        : null;
-    });
-    // Same response whether or not the account exists.
-    if (token) {
-      s.sendMailInBackground({
-        to: data.email,
-        subject: "Восстановление пароля Sportura",
-        text: `Чтобы задать новый пароль, откройте ссылку (действует 1 час):\n${s.appUrl()}/reset-password?token=${token}\n\nЕсли вы не запрашивали смену пароля, проигнорируйте письмо.`,
+    // Configuration/service failures are identical for registered and unknown
+    // addresses. Recipient-specific failures must not reveal account existence.
+    await s.verifyMailService();
+    try {
+      await s.asService(async (tx) => {
+        const [user] = await tx<
+          { id: string }[]
+        >`SELECT id FROM auth.users WHERE email = ${data.email}`;
+        if (!user) return;
+        const token = await s.issueToken(
+          tx,
+          user.id,
+          "recovery",
+          data.email,
+          60,
+        );
+        await s.sendMail({
+          to: data.email,
+          subject: "Восстановление пароля Sportura",
+          text: `Чтобы задать новый пароль, откройте ссылку (действует 1 час):\n${s.appUrl()}/reset-password?token=${token}\n\nЕсли вы не запрашивали смену пароля, проигнорируйте письмо.`,
+        });
       });
+    } catch (error) {
+      // The failed token transaction rolls back, preserving any previous link.
+      // Transport details are already sanitized and logged by sendMail().
+      if (!(error instanceof s.MailDeliveryError)) throw error;
     }
+    // This acknowledges the request, not delivery or account existence.
     return { ok: true };
   });
 
@@ -223,6 +243,7 @@ export const requestEmailChange = createServerFn({ method: "POST" })
     const s = await server();
     const { userId } = context.caller;
     s.rateLimit(`email-change:${userId}`, 5, 60);
+    s.requireMailConfigured();
     const result = await s.asService(async (tx) => {
       const [taken] =
         await tx`SELECT 1 FROM auth.users WHERE email = ${data.email}`;
@@ -238,19 +259,21 @@ export const requestEmailChange = createServerFn({ method: "POST" })
         data.email,
         24 * 60,
       );
-      return { token, previous: user?.email ?? null };
-    });
-    s.sendMailInBackground({
-      to: data.email,
-      subject: "Подтвердите новый e-mail в Sportura",
-      text: `Чтобы привязать этот адрес к аккаунту Sportura, откройте ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${result.token}`,
+      await s.sendMail({
+        to: data.email,
+        subject: "Подтвердите новый e-mail в Sportura",
+        text: `Чтобы привязать этот адрес к аккаунту Sportura, откройте ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}`,
+      });
+      return { previous: user?.email ?? null };
     });
     if (result.previous) {
-      s.sendMailInBackground({
-        to: result.previous,
-        subject: "Смена e-mail в Sportura",
-        text: `Для вашего аккаунта запрошена смена адреса на ${data.email}. Если это были не вы, смените пароль и напишите в поддержку.`,
-      });
+      await s
+        .sendMail({
+          to: result.previous,
+          subject: "Смена e-mail в Sportura",
+          text: `Для вашего аккаунта запрошена смена адреса на ${data.email}. Если это были не вы, смените пароль и напишите в поддержку.`,
+        })
+        .catch(() => undefined);
     }
     return { ok: true };
   });
@@ -261,10 +284,12 @@ export const resendConfirmation = createServerFn({ method: "POST" })
     const s = await server();
     const { userId } = context.caller;
     s.rateLimit(`confirm:${userId}`, 5, 60);
-    const result = await s.asService(async (tx) => {
+    s.requireMailConfigured();
+    await s.asService(async (tx) => {
       const [user] = await tx<{ email: string | null; confirmed: boolean }[]>`
         SELECT email, email_confirmed_at IS NOT NULL AS confirmed FROM auth.users WHERE id = ${userId}`;
-      if (!user?.email || user.confirmed) return null;
+      if (!user?.email) throw new Error("В аккаунте не указан e-mail.");
+      if (user.confirmed) throw new Error("Этот e-mail уже подтверждён.");
       const token = await s.issueToken(
         tx,
         userId,
@@ -272,15 +297,12 @@ export const resendConfirmation = createServerFn({ method: "POST" })
         user.email,
         24 * 60,
       );
-      return { token, email: user.email };
-    });
-    if (result) {
-      s.sendMailInBackground({
-        to: result.email,
+      await s.sendMail({
+        to: user.email,
         subject: "Подтвердите e-mail в Sportura",
-        text: `Подтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${result.token}`,
+        text: `Подтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}`,
       });
-    }
+    });
     return { ok: true };
   });
 

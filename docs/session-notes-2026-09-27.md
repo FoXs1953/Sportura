@@ -3,6 +3,11 @@
 Where things stand after moving Sportura off Supabase and preparing the ps.kz
 staging server, and what to do next.
 
+Email update (2 October 2026): the log fallback described in these historical
+notes has been removed. Email actions require a configured SMTP mailbox and
+return an error when sending is unavailable. Confirmation links are never
+logged. Use the current [staging guide](deploy-staging.md) for PS.kz setup.
+
 ## Current state at a glance
 
 | Area | Status |

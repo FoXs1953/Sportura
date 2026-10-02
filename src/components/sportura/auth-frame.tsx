@@ -13,7 +13,12 @@ export function AuthFrame({
   children: ReactNode;
 }) {
   return (
-    <AppShell title={title} subtitle={subtitle} layout="wide">
+    <AppShell
+      title={title}
+      subtitle={subtitle}
+      layout="wide"
+      showBrandBadge={false}
+    >
       <div className="auth-layout">
         <div className="auth-content">{children}</div>
         <aside className="auth-visual" aria-label="Игра начинается с тебя">

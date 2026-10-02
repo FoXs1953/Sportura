@@ -1,6 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { requestPasswordReset } from "@/lib/auth.functions";
+import { useQuery } from "@tanstack/react-query";
+import {
+  getAuthCapabilities,
+  requestPasswordReset,
+} from "@/lib/auth.functions";
 import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +21,11 @@ export const Route = createFileRoute("/forgot-password")({
 });
 
 function ForgotPasswordPage() {
+  const capabilities = useQuery({
+    queryKey: ["auth-capabilities"],
+    queryFn: () => getAuthCapabilities(),
+  });
+  const emailUnavailable = capabilities.data?.email === false;
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -34,7 +43,10 @@ function ForgotPasswordPage() {
       setError(
         /rate limit|too many|Слишком много/i.test(message)
           ? "Слишком много запросов. Попробуй позже."
-          : "Не удалось отправить письмо. Проверь соединение и попробуй ещё раз.",
+          : message.startsWith("Отправка писем") ||
+              message.startsWith("Не удалось отправить письмо")
+            ? message
+            : "Не удалось обработать запрос. Попробуйте ещё раз позже.",
       );
     } finally {
       setBusy(false);
@@ -49,11 +61,13 @@ function ForgotPasswordPage() {
       {sent ? (
         <div className="auth-message space-y-4">
           <p role="status" className="text-sm">
-            Если аккаунт с адресом {email.trim()} существует, мы отправили
-            письмо со ссылкой. Проверь входящие и папку «Спам».
+            Запрос восстановления принят. Проверьте входящие и папку «Спам» для
+            адреса {email.trim()}.
           </p>
           <p className="text-xs text-muted-foreground">
-            Открой последнюю ссылку из письма и задай новый пароль.
+            Откройте последнюю ссылку из письма и задайте новый пароль. Если
+            письмо не приходит, повторите запрос позже или обратитесь в
+            поддержку.
           </p>
           <button
             type="button"
@@ -66,7 +80,9 @@ function ForgotPasswordPage() {
       ) : (
         <form onSubmit={sendReset} className="space-y-5" aria-busy={busy}>
           <p className="text-sm text-muted-foreground">
-            Введи почту аккаунта. Мы отправим ссылку для смены пароля.
+            {emailUnavailable
+              ? "Отправка писем пока недоступна. Попробуйте позже или обратитесь в поддержку."
+              : "Введите почту аккаунта, чтобы запросить ссылку для смены пароля."}
           </p>
           <div className="space-y-2">
             <Label htmlFor="reset-email">E-mail</Label>
@@ -84,7 +100,11 @@ function ForgotPasswordPage() {
               {error}
             </p>
           )}
-          <Button type="submit" disabled={busy} className="w-full">
+          <Button
+            type="submit"
+            disabled={busy || emailUnavailable}
+            className="w-full"
+          >
             {busy ? "Отправляем…" : "Отправить ссылку"}
           </Button>
         </form>

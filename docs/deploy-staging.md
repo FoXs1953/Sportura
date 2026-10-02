@@ -134,13 +134,27 @@ file outside the repo and fill it in. Generate the random values with
 | `APP_DB_PASSWORD` | `openssl rand -hex 24` (a different one) |
 | `FILE_URL_SECRET` | `openssl rand -hex 32` |
 | `CRON_SECRET` | `openssl rand -hex 32` |
-| `SMTP_URL`, `MAIL_FROM` | *Optional.* Your mail provider's SMTP settings |
+| `SMTP_URL`, `MAIL_FROM` | Required for email actions: PS.kz mailbox credentials and an authorized sender address |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | *Optional.* Google Cloud Console → APIs & Services → Credentials |
 
-**Email.** Sign-up confirmation, password reset and email change send links by
-email. Without `SMTP_URL`, the app writes those emails to its log instead; read
-them with `docker compose logs app | grep "\[mail\]"`. That is enough to test
-staging on your own.
+**Email.** Registration, password reset, confirmation resend and email change
+require SMTP. Without `SMTP_URL`, these actions are unavailable and return an
+explicit error. Auth capabilities expose only whether email is configured;
+confirmation links, credentials and recipient addresses are never logged.
+SMTP connection failures return an error instead of reporting that a message
+was sent. Registration, confirmation resend and email change also report a
+recipient rejection. Password recovery acknowledges the request neutrally
+after checking SMTP availability, so its response does not reveal whether an
+account exists; any failed token transaction is rolled back.
+
+PS.kz is the selected provider. Existing MX/SPF records do not create a mailbox
+or supply its password. Create or use an authorized PS.kz mailbox, then put its
+SMTP URL and matching `MAIL_FROM` in the `STAGING_ENV_FILE` secret. According to
+[PS.kz connection instructions](https://docs.ps.kz/ru/hosting/website-hosting/email/connect-domain-mailbox),
+use `mail.<your-domain>` with TLS on port 465 after installing a valid mail SSL
+certificate. The server hostname must match that certificate; keep certificate
+verification enabled. Use the full mailbox address as the SMTP username and
+URL-encode the username and password when building `SMTP_URL`.
 
 **Google sign-in** is hidden until both Google values are set. Create an
 "OAuth client ID" of type *Web application* and add the authorized redirect
@@ -260,5 +274,6 @@ survive losing the server.
 | `/opt/sportura: Permission denied` | the directory is not owned by `deploy` (Step 2) |
 | Site does not load over HTTPS | DNS does not point at the VPS yet, or ports 80/443 are closed in the ps.kz panel; see `docker compose logs caddy` |
 | Smoke check fails but containers run | `docker compose logs app`; usually a missing value in `STAGING_ENV_FILE` |
-| No confirmation or reset email arrives | `SMTP_URL` is not set; the links are in `docker compose logs app` |
+| Email actions are unavailable | Configure the PS.kz mailbox's `SMTP_URL` and authorized `MAIL_FROM` in `STAGING_ENV_FILE`, then deploy again |
+| Email sending returns an error | Check SMTP credentials, sender authorization, port 465 and the valid mail certificate; app logs contain diagnostic codes, never confirmation links |
 | Google sign-in shows `redirect_uri_mismatch` | the redirect URI in Google Cloud Console is not exactly `https://<staging domain>/api/auth/google/callback` |

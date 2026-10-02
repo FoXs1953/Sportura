@@ -52,6 +52,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const emailUnavailable = capabilities.data?.email === false;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,7 +60,9 @@ function AuthPage() {
     try {
       if (mode === "signup") {
         await signUp({ data: { email, password, name } });
-        toast.success("Мы отправили письмо для подтверждения. Проверьте почту.");
+        toast.success(
+          "Мы отправили письмо для подтверждения. Проверьте почту.",
+        );
       } else {
         await signIn({ data: { email, password } });
       }
@@ -130,13 +133,26 @@ function AuthPage() {
             type="password"
             required
             minLength={6}
-            autoComplete={mode === "signin" ? "current-password" : "off"}
+            autoComplete={
+              mode === "signin" ? "current-password" : "new-password"
+            }
             data-1p-ignore
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <Button type="submit" disabled={busy} className="press w-full">
+        {mode === "signup" && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {emailUnavailable
+              ? "Регистрация по e-mail пока недоступна. Попробуйте позже."
+              : "На почту придёт письмо со ссылкой для подтверждения адреса."}
+          </p>
+        )}
+        <Button
+          type="submit"
+          disabled={busy || (mode === "signup" && emailUnavailable)}
+          className="press w-full"
+        >
           {mode === "signin" ? "Войти" : "Создать аккаунт"}
         </Button>
         {mode === "signin" && (

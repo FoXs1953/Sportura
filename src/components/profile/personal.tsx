@@ -15,6 +15,7 @@ import {
 import { type MyProfile } from "@/lib/me.functions";
 import { updateMyAvatar, updateMyContact } from "@/lib/profile.functions";
 import {
+  getAuthCapabilities,
   requestEmailChange,
   resendConfirmation,
 } from "@/lib/auth.functions";
@@ -513,6 +514,11 @@ export function PersonalTab({
   );
 }
 function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
+  const capabilities = useQuery({
+    queryKey: ["auth-capabilities"],
+    queryFn: () => getAuthCapabilities(),
+  });
+  const emailUnavailable = capabilities.data?.email === false;
   const form = useProfileForm(
     "contact",
     { phone: me.phone ?? "" },
@@ -566,7 +572,12 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            disabled={busy || email === me.email || !/.+@.+\..+/.test(email)}
+            disabled={
+              busy ||
+              emailUnavailable ||
+              email === me.email ||
+              !/.+@.+\..+/.test(email)
+            }
             onClick={() =>
               void run(
                 () => requestEmailChange({ data: { email } }),
@@ -579,7 +590,7 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
           {!data.email_confirmed && me.email && (
             <Button
               variant="ghost"
-              disabled={busy}
+              disabled={busy || emailUnavailable}
               onClick={() =>
                 void run(() => resendConfirmation(), "Письмо отправлено")
               }
@@ -588,6 +599,12 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
             </Button>
           )}
         </div>
+        {emailUnavailable && (
+          <p role="status" className="workspace-muted text-sm">
+            Отправка писем пока недоступна. Подтвердить или изменить e-mail
+            можно будет позже.
+          </p>
+        )}
         <label>
           Контактный телефон{" "}
           <span

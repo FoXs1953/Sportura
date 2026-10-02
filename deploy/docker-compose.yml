@@ -40,7 +40,8 @@ services:
       FILE_URL_SECRET: ${FILE_URL_SECRET:?set FILE_URL_SECRET in .env}
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
       CRON_SECRET_PREVIOUS: ${CRON_SECRET_PREVIOUS:-}
-      # Optional: without SMTP_URL emails are written to the app log.
+      # Email actions require SMTP_URL; without it they are unavailable.
+      # Mail errors log diagnostic codes only, never confirmation links.
       SMTP_URL: ${SMTP_URL:-}
       MAIL_FROM: ${MAIL_FROM:-}
       # Optional: Google sign-in appears only when both are set.

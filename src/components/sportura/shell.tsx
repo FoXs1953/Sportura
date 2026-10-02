@@ -11,6 +11,7 @@ export function AppShell({
   action,
   workspace = false,
   layout,
+  showBrandBadge = true,
 }: {
   children: ReactNode;
   title?: string;
@@ -18,6 +19,7 @@ export function AppShell({
   action?: ReactNode;
   workspace?: boolean;
   layout?: PageLayout;
+  showBrandBadge?: boolean;
 }) {
   const pageLayout = layout ?? (workspace ? "wide" : "standard");
 
@@ -30,9 +32,11 @@ export function AppShell({
             aria-label={title ?? "Раздел Sportura"}
           >
             <div>
-              <span className="feed-location">
-                <Compass size={14} aria-hidden="true" /> Sportura
-              </span>
+              {showBrandBadge && (
+                <span className="feed-location">
+                  <Compass size={14} aria-hidden="true" /> Sportura
+                </span>
+              )}
               {title && (
                 <h1>
                   {title}
