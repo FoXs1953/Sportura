@@ -15,6 +15,13 @@ import { AppShell } from "../components/sportura/shell";
 import { themeScript } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
+function brandImageUrl() {
+  const origin = import.meta.env.SSR
+    ? process.env["APP_URL"] || "https://sportura.vercel.app"
+    : window.location.origin;
+  return new URL("/icons/sportura-s-512.png", origin).href;
+}
+
 function NotFoundComponent() {
   return (
     <AppShell
@@ -85,7 +92,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           content: "Находите игры рядом, записывайтесь и играйте.",
         },
         { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary_large_image" },
+        { property: "og:image", content: brandImageUrl() },
+        { property: "og:image:type", content: "image/png" },
+        { property: "og:image:width", content: "512" },
+        { property: "og:image:height", content: "512" },
+        {
+          property: "og:image:alt",
+          content: "Иконка Sportura: синяя буква S",
+        },
+        { name: "twitter:card", content: "summary" },
+        { name: "twitter:image", content: brandImageUrl() },
+        {
+          name: "twitter:image:alt",
+          content: "Иконка Sportura: синяя буква S",
+        },
         { name: "theme-color", content: "#ffffff" },
         { name: "apple-mobile-web-app-capable", content: "yes" },
         { name: "mobile-web-app-capable", content: "yes" },
@@ -110,10 +130,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           rel: "stylesheet",
           href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap",
         },
-        { rel: "icon", href: "/favicon.png", type: "image/png" },
+        {
+          rel: "icon",
+          href: "/favicon.ico?v=s-motion",
+          type: "image/x-icon",
+          sizes: "16x16 32x32 48x48",
+        },
+        {
+          rel: "icon",
+          href: "/icons/sportura-favicon-32.png",
+          type: "image/png",
+          sizes: "32x32",
+        },
         {
           rel: "apple-touch-icon",
-          href: "/apple-touch-icon.png",
+          href: "/icons/sportura-apple-touch-180.png",
           sizes: "180x180",
         },
         { rel: "manifest", href: "/manifest.webmanifest" },

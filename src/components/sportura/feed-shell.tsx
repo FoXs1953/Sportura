@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { CalendarCheck, Compass, ShieldCheck, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./theme-toggle";
+import { BrandMark } from "./brand-mark";
 import "@/styles/feed.css";
 
 const navigation = [
@@ -27,26 +28,7 @@ export function FeedShell({ children }: { children: ReactNode }) {
             className="feed-wordmark"
             aria-label="Sportura — главная"
           >
-            <svg
-              className="feed-brand-mark"
-              viewBox="0 0 32 32"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M25 19a11 11 0 1 1-12-14"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <path
-                d="M8 24c1-7 5-11 12-12"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <circle cx="24" cy="8" r="5" fill="currentColor" />
-            </svg>
+            <BrandMark className="feed-brand-mark" />
             SPORTURA<span className="feed-wordmark-dot">.</span>
           </Link>
           <nav className="feed-navigation" aria-label="Основная навигация">

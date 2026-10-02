@@ -75,11 +75,16 @@
   color: var(--feed-accent);
   margin-left: -10px;
 }
+.sportura-brand-mark {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 25%;
+  object-fit: cover;
+}
 .feed-brand-mark {
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  color: var(--feed-accent);
 }
 .feed-navigation {
   display: flex;

@@ -128,7 +128,7 @@ async function exchange(code: string, verifier: string): Promise<Claims> {
 
 function failure(message: string) {
   return new Response(
-    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sportura</title>
+    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sportura</title><link rel="icon" href="/icons/sportura-favicon-32.png" type="image/png">
 <body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem">
 <h1>Не удалось войти через Google</h1><p>${message}</p><p><a href="/auth">Вернуться ко входу</a></p>`,
     {

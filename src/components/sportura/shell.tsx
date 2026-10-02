@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
-import { Compass } from "lucide-react";
 import { FeedShell } from "@/components/sportura/feed-shell";
+import { BrandMark } from "@/components/sportura/brand-mark";
 
 type PageLayout = "wide" | "standard" | "compact" | "admin";
 
@@ -34,7 +34,7 @@ export function AppShell({
             <div>
               {showBrandBadge && (
                 <span className="feed-location">
-                  <Compass size={14} aria-hidden="true" /> Sportura
+                  <BrandMark size={18} /> Sportura
                 </span>
               )}
               {title && (
