@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { Tables } from "./database.types";
+import { publicOrganizerActivitySummary } from "./organizer-public-profile";
 
 export const getOrganizerProfile = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) =>
@@ -45,7 +46,8 @@ export const getOrganizerProfile = createServerFn({ method: "GET" })
         }[]
       >`SELECT id, title, type, status, sport, time_text, date_time, registered_count, max_participants, is_private
         FROM public.activities
-        WHERE manager_id = ${data.id} OR organizer_id = ${data.id}
+        WHERE (manager_id = ${data.id} OR organizer_id = ${data.id})
+          AND is_private = false AND status <> 'draft'
         ORDER BY date_time DESC NULLS LAST
         LIMIT 100`;
       const reviews = await tx<
@@ -58,7 +60,8 @@ export const getOrganizerProfile = createServerFn({ method: "GET" })
         }[]
       >`SELECT r.id, r.rating, r.comment, r.created_at, p.name AS reviewer_name
         FROM public.reviews r LEFT JOIN public.profiles p ON p.id = r.reviewer_id
-        WHERE r.reviewed_user_id = ${data.id}
+        JOIN public.activities a ON a.id = r.activity_id
+        WHERE r.reviewed_user_id = ${data.id} AND a.is_private = false AND a.status <> 'draft'
         ORDER BY r.created_at DESC
         LIMIT 30`;
       return {
@@ -80,6 +83,7 @@ export const getOrganizerProfile = createServerFn({ method: "GET" })
     if (visible?.stats_visible === false) {
       p.rating = null;
       p.rating_count = 0;
+      p.reliability_rating = null;
     }
     p.verified = loaded.verified;
     if (p.avatar_url && !files.isExternal(p.avatar_url)) {
@@ -94,21 +98,7 @@ export const getOrganizerProfile = createServerFn({ method: "GET" })
         contact: visible?.host_contact ?? "",
       },
       statsVisible: visible?.stats_visible !== false,
-      stats: {
-        games: list.filter((a) => a.type === "daily_game").length,
-        competitions: list.filter((a) => a.type !== "daily_game").length,
-        completed: list.filter((a) => a.status === "completed").length,
-        cancelled: list.filter((a) => a.status === "cancelled").length,
-        players: list.reduce((s, a) => s + (a.registered_count ?? 0), 0),
-      },
-      upcoming: list
-        .filter(
-          (a) =>
-            !a.is_private &&
-            a.status !== "completed" &&
-            a.status !== "cancelled",
-        )
-        .slice(0, 10),
+      ...publicOrganizerActivitySummary(list, visible?.stats_visible !== false),
       reviews: (visible?.stats_visible === false ? [] : reviews).map((r) => ({
         id: r.id,
         rating: r.rating,

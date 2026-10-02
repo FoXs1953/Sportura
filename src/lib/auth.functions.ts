@@ -26,7 +26,9 @@ export const getSessionUser = createServerFn({ method: "GET" })
     const { asService } = await server();
     const [row] = await asService(
       (tx) =>
-        tx<{ email: string | null }[]>`SELECT email FROM auth.users WHERE id = ${context.caller!.userId}`,
+        tx<
+          { email: string | null }[]
+        >`SELECT email FROM auth.users WHERE id = ${context.caller!.userId}`,
     );
     return row ? { id: context.caller.userId, email: row.email } : null;
   });
@@ -91,7 +93,10 @@ export const signIn = createServerFn({ method: "POST" })
     await s.asService(async (tx) => {
       const [user] = await tx<{ id: string; password_hash: string | null }[]>`
         SELECT id, password_hash FROM auth.users WHERE email = ${data.email}`;
-      const ok = await s.verifyPassword(data.password, user?.password_hash ?? null);
+      const ok = await s.verifyPassword(
+        data.password,
+        user?.password_hash ?? null,
+      );
       if (!user || !ok) throw new Error("Неверный e-mail или пароль.");
       await s.signInUser(tx, user.id);
     });
@@ -122,8 +127,12 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
     s.rateLimit(`reset:${data.email}`, 5, 60);
     s.rateLimit(`reset-ip:${s.clientKey()}`, 20, 60);
     const token = await s.asService(async (tx) => {
-      const [user] = await tx<{ id: string }[]>`SELECT id FROM auth.users WHERE email = ${data.email}`;
-      return user ? s.issueToken(tx, user.id, "recovery", data.email, 60) : null;
+      const [user] = await tx<
+        { id: string }[]
+      >`SELECT id FROM auth.users WHERE email = ${data.email}`;
+      return user
+        ? s.issueToken(tx, user.id, "recovery", data.email, 60)
+        : null;
     });
     // Same response whether or not the account exists.
     if (token) {
@@ -162,12 +171,15 @@ export const resetPassword = createServerFn({ method: "POST" })
       const found = await s.findToken(tx, data.token, ["recovery"], true);
       if (!found) throw new Error("Ссылка устарела. Запросите новую.");
       // Opening the emailed link also proves the address belongs to the user.
-      await tx`UPDATE auth.users
+      const updated = await tx`UPDATE auth.users
                SET password_hash = ${hash},
                    email_confirmed_at = COALESCE(email_confirmed_at, now()),
                    updated_at = now()
-               WHERE id = ${found.user_id}`;
+               WHERE id = ${found.user_id} AND email = ${found.email}`;
+      if (updated.count !== 1)
+        throw new Error("Ссылка устарела. Запросите новую.");
       await tx`DELETE FROM auth.sessions WHERE user_id = ${found.user_id}`;
+      await s.invalidateIdentityTokens(tx, found.user_id);
     });
     s.clearSessionCookie();
     return { ok: true };
@@ -177,12 +189,15 @@ export const changePassword = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((input: unknown) =>
     z
-      .object({ current: z.string().max(200).optional(), password: newPassword })
+      .object({
+        current: z.string().max(200).optional(),
+        password: newPassword,
+      })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const s = await server();
-    const { userId } = context.caller;
+    const { userId, sessionId } = context.caller;
     s.rateLimit(`password:${userId}`, 10, 15);
     const hash = await s.hashPassword(data.password);
     await s.asService(async (tx) => {
@@ -195,6 +210,8 @@ export const changePassword = createServerFn({ method: "POST" })
         throw new Error("Текущий пароль указан неверно.");
       }
       await tx`UPDATE auth.users SET password_hash = ${hash}, updated_at = now() WHERE id = ${userId}`;
+      await tx`DELETE FROM auth.sessions WHERE user_id = ${userId} AND id <> ${sessionId}`;
+      await s.invalidateIdentityTokens(tx, userId);
     });
     return { ok: true };
   });
@@ -207,10 +224,20 @@ export const requestEmailChange = createServerFn({ method: "POST" })
     const { userId } = context.caller;
     s.rateLimit(`email-change:${userId}`, 5, 60);
     const result = await s.asService(async (tx) => {
-      const [taken] = await tx`SELECT 1 FROM auth.users WHERE email = ${data.email}`;
-      if (taken) throw new Error("Этот e-mail уже используется другим аккаунтом.");
-      const [user] = await tx<{ email: string | null }[]>`SELECT email FROM auth.users WHERE id = ${userId}`;
-      const token = await s.issueToken(tx, userId, "email_change", data.email, 24 * 60);
+      const [taken] =
+        await tx`SELECT 1 FROM auth.users WHERE email = ${data.email}`;
+      if (taken)
+        throw new Error("Этот e-mail уже используется другим аккаунтом.");
+      const [user] = await tx<
+        { email: string | null }[]
+      >`SELECT email FROM auth.users WHERE id = ${userId}`;
+      const token = await s.issueToken(
+        tx,
+        userId,
+        "email_change",
+        data.email,
+        24 * 60,
+      );
       return { token, previous: user?.email ?? null };
     });
     s.sendMailInBackground({
@@ -238,7 +265,13 @@ export const resendConfirmation = createServerFn({ method: "POST" })
       const [user] = await tx<{ email: string | null; confirmed: boolean }[]>`
         SELECT email, email_confirmed_at IS NOT NULL AS confirmed FROM auth.users WHERE id = ${userId}`;
       if (!user?.email || user.confirmed) return null;
-      const token = await s.issueToken(tx, userId, "confirm_email", user.email, 24 * 60);
+      const token = await s.issueToken(
+        tx,
+        userId,
+        "confirm_email",
+        user.email,
+        24 * 60,
+      );
       return { token, email: user.email };
     });
     if (result) {
@@ -259,12 +292,16 @@ export const getIdentities = createServerFn({ method: "GET" })
     const s = await server();
     const { userId } = context.caller;
     return s.asService(async (tx) => {
-      const [user] = await tx<{ email: string | null; has_password: boolean }[]>`
+      const [user] = await tx<
+        { email: string | null; has_password: boolean }[]
+      >`
         SELECT email, password_hash IS NOT NULL AS has_password FROM auth.users WHERE id = ${userId}`;
       const linked = await tx<{ email: string | null }[]>`
         SELECT email FROM auth.identities WHERE user_id = ${userId} AND provider = 'google'`;
       return [
-        ...(user?.has_password ? [{ provider: "email" as const, email: user.email }] : []),
+        ...(user?.has_password
+          ? [{ provider: "email" as const, email: user.email }]
+          : []),
         ...linked.map((i) => ({ provider: "google" as const, email: i.email })),
       ];
     });

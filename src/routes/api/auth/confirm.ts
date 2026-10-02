@@ -3,7 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 // Target of the links in confirmation and email-change messages.
 async function confirm(request: Request): Promise<Response> {
   const { asService, isUniqueViolation } = await import("@/lib/db.server");
-  const { findToken } = await import("@/lib/auth.server");
+  const { findToken, invalidateIdentityTokens } =
+    await import("@/lib/auth.server");
   const token = new URL(request.url).searchParams.get("token") ?? "";
   let ok = false;
   if (token.length >= 20 && token.length <= 100) {
@@ -25,6 +26,9 @@ async function confirm(request: Request): Promise<Response> {
             : await tx`UPDATE auth.users
                        SET email_confirmed_at = COALESCE(email_confirmed_at, now()), updated_at = now()
                        WHERE id = ${found.user_id} AND email = ${found.email}`;
+        if (updated.count === 1 && found.purpose === "email_change") {
+          await invalidateIdentityTokens(tx, found.user_id);
+        }
         return updated.count === 1;
       });
     } catch (error) {

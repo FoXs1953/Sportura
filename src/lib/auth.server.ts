@@ -1,7 +1,6 @@
 // Self-hosted authentication: scrypt password hashes, opaque session cookies
 // backed by auth.sessions, and single-use email tokens in auth.one_time_tokens.
 import {
-  createHash,
   randomBytes,
   scrypt,
   timingSafeEqual,
@@ -16,6 +15,14 @@ import {
   setCookie,
 } from "@tanstack/react-start/server";
 import { asService, type Caller, type Tx } from "./db.server";
+import { newToken, sha256 } from "./auth-tokens.server";
+export {
+  newToken,
+  sha256,
+  issueToken,
+  findToken,
+  invalidateIdentityTokens,
+} from "./auth-tokens.server";
 
 export const SESSION_COOKIE = "sportura_session";
 const SESSION_SECONDS = 30 * 24 * 3600;
@@ -55,45 +62,6 @@ export async function verifyPassword(
       : SCRYPT,
   );
   return Boolean(valid) && timingSafeEqual(actual, expected);
-}
-
-/* ---------------- Tokens ---------------- */
-
-export const newToken = () => randomBytes(32).toString("base64url");
-export const sha256 = (value: string) =>
-  createHash("sha256").update(value).digest("base64url");
-
-type TokenPurpose = "confirm_email" | "recovery" | "email_change";
-
-export async function issueToken(
-  tx: Tx,
-  userId: string,
-  purpose: TokenPurpose,
-  email: string,
-  minutes: number,
-): Promise<string> {
-  const token = newToken();
-  await tx`DELETE FROM auth.one_time_tokens WHERE user_id = ${userId} AND purpose = ${purpose}`;
-  await tx`INSERT INTO auth.one_time_tokens (token_hash, user_id, purpose, email, expires_at)
-           VALUES (${sha256(token)}, ${userId}, ${purpose}, ${email}, now() + make_interval(mins => ${minutes}))`;
-  return token;
-}
-
-export async function findToken(
-  tx: Tx,
-  token: string,
-  purposes: TokenPurpose[],
-  consume: boolean,
-) {
-  const rows = consume
-    ? await tx<{ user_id: string; purpose: TokenPurpose; email: string }[]>`
-        DELETE FROM auth.one_time_tokens
-        WHERE token_hash = ${sha256(token)} AND purpose IN ${tx(purposes)} AND expires_at > now()
-        RETURNING user_id, purpose, email`
-    : await tx<{ user_id: string; purpose: TokenPurpose; email: string }[]>`
-        SELECT user_id, purpose, email FROM auth.one_time_tokens
-        WHERE token_hash = ${sha256(token)} AND purpose IN ${tx(purposes)} AND expires_at > now()`;
-  return rows[0] ?? null;
 }
 
 /* ---------------- Request context ---------------- */

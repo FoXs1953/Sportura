@@ -154,9 +154,10 @@ export function SecurityTab({
         <h3 className="mb-4 text-sm font-bold">Сменить пароль</h3>
         <div className="grid gap-4">
           {hasEmail && (
-            <label>
+            <label htmlFor="profile-current-password">
               Текущий пароль
               <Input
+                id="profile-current-password"
                 type="password"
                 autoComplete="current-password"
                 value={current}
@@ -204,8 +205,13 @@ export function SecurityTab({
                 setCurrent("");
                 setPassword("");
                 setConfirm("");
-                toast.success("Пароль обновлён");
-                await qc.invalidateQueries({ queryKey: ["profile-identity"] });
+                toast.success(
+                  "Пароль обновлён. Вход на других устройствах завершён.",
+                );
+                await Promise.all([
+                  qc.invalidateQueries({ queryKey: ["profile-identity"] }),
+                  qc.invalidateQueries({ queryKey: ["profile-sessions"] }),
+                ]);
               })
             }
           >

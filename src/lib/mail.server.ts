@@ -2,9 +2,9 @@
 // SMTP_URL example: smtps://user:password@smtp.example.kz:465
 // Without SMTP_URL the message is written to the server log instead, which is
 // enough for local development and for a staging server without a mail provider.
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
-let transport: nodemailer.Transporter | undefined;
+let transport: Transporter | undefined;
 
 export async function sendMail(message: {
   to: string;

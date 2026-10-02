@@ -5,6 +5,7 @@ import { AppShell } from "@/components/sportura/shell";
 import { PageBlocks } from "@/components/sportura/page-blocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { findActivityByInvite } from "@/lib/activities.functions";
 
 export const Route = createFileRoute("/join")({
@@ -69,8 +70,11 @@ function JoinByCode() {
           Организатор закрытой игры или турнира даёт код приглашения. Введите
           его — откроется страница игры, где можно записаться.
         </p>
+        <Label htmlFor="invite-code">Код приглашения</Label>
         <Input
+          id="invite-code"
           value={code}
+          disabled={busy}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") void open();

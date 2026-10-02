@@ -11,6 +11,10 @@ import {
   sessionCookieHeader,
 } from "./auth.server";
 import { asService } from "./db.server";
+import {
+  accountForVerifiedGoogleEmail,
+  GoogleLinkNeedsConfirmationError,
+} from "./auth-identities.server";
 
 const STATE_COOKIE = "sportura_oauth";
 
@@ -51,7 +55,8 @@ function redirectTo(location: string, cookies: string[] = []) {
 
 export function startGoogle(request: Request): Response {
   const google = config();
-  if (!google) return new Response("Google sign-in is not configured", { status: 404 });
+  if (!google)
+    return new Response("Google sign-in is not configured", { status: 404 });
   const params = new URL(request.url).searchParams;
   const state: State = {
     state: newToken(),
@@ -59,7 +64,9 @@ export function startGoogle(request: Request): Response {
     redirect: safeRedirect(params.get("redirect")),
     mode: params.get("mode") === "link" ? "link" : "login",
   };
-  const challenge = createHash("sha256").update(state.verifier).digest("base64url");
+  const challenge = createHash("sha256")
+    .update(state.verifier)
+    .digest("base64url");
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.search = new URLSearchParams({
     client_id: google.id,
@@ -97,7 +104,8 @@ async function exchange(code: string, verifier: string): Promise<Claims> {
       grant_type: "authorization_code",
     }),
   });
-  if (!response.ok) throw new Error(`Google token exchange failed (${response.status})`);
+  if (!response.ok)
+    throw new Error(`Google token exchange failed (${response.status})`);
   const { id_token } = (await response.json()) as { id_token?: string };
   // The ID token comes straight from Google's token endpoint over TLS, so its
   // signature check can be skipped (OpenID Connect Core 3.1.3.7); verify claims.
@@ -106,7 +114,9 @@ async function exchange(code: string, verifier: string): Promise<Claims> {
   ) as Claims & { aud?: string; iss?: string; exp?: number };
   if (
     payload.aud !== google.id ||
-    !["https://accounts.google.com", "accounts.google.com"].includes(payload.iss ?? "") ||
+    !["https://accounts.google.com", "accounts.google.com"].includes(
+      payload.iss ?? "",
+    ) ||
     !payload.exp ||
     payload.exp * 1000 < Date.now() ||
     !payload.sub
@@ -132,7 +142,8 @@ function failure(message: string) {
 }
 
 export async function finishGoogle(request: Request): Promise<Response> {
-  if (!config()) return new Response("Google sign-in is not configured", { status: 404 });
+  if (!config())
+    return new Response("Google sign-in is not configured", { status: 404 });
   const params = new URL(request.url).searchParams;
   let state: State;
   try {
@@ -163,36 +174,45 @@ export async function finishGoogle(request: Request): Promise<Response> {
                ON CONFLICT (user_id, provider) DO UPDATE SET provider_id = EXCLUDED.provider_id, email = EXCLUDED.email`;
       return true;
     });
-    if (!linked) return failure("Этот аккаунт Google уже привязан к другому профилю Sportura.");
+    if (!linked)
+      return failure(
+        "Этот аккаунт Google уже привязан к другому профилю Sportura.",
+      );
     return redirectTo("/profile?tab=security", [stateCookie("", 0)]);
   }
 
-  const token = await asService(async (tx) => {
-    const [identity] = await tx<{ user_id: string }[]>`
+  let token: string;
+  try {
+    token = await asService(async (tx) => {
+      const [identity] = await tx<{ user_id: string }[]>`
       SELECT user_id FROM auth.identities WHERE provider = 'google' AND provider_id = ${claims.sub}`;
-    let userId = identity?.user_id;
-    if (!userId && verified) {
-      // Google has verified the address, so an existing account with it is the same person.
-      const [user] = await tx<{ id: string }[]>`SELECT id FROM auth.users WHERE email = ${email}`;
-      userId = user?.id;
-      if (userId) {
-        await tx`UPDATE auth.users SET email_confirmed_at = COALESCE(email_confirmed_at, now()) WHERE id = ${userId}`;
+      let userId = identity?.user_id;
+      if (!userId && verified) {
+        userId = (await accountForVerifiedGoogleEmail(tx, email!)) ?? undefined;
       }
-    }
-    if (!userId) {
-      const [user] = await tx<{ id: string }[]>`
+      if (!userId) {
+        const [user] = await tx<{ id: string }[]>`
         INSERT INTO auth.users (email, email_confirmed_at, raw_user_meta_data)
         VALUES (${email}, ${verified ? new Date() : null},
                 ${tx.json({ name: claims.name ?? "Игрок", ...(claims.picture ? { avatar_url: claims.picture } : {}) })})
         RETURNING id`;
-      userId = user!.id;
-    }
-    if (!identity) {
-      await tx`INSERT INTO auth.identities (provider, provider_id, user_id, email)
+        userId = user!.id;
+      }
+      if (!identity) {
+        await tx`INSERT INTO auth.identities (provider, provider_id, user_id, email)
                VALUES ('google', ${claims.sub}, ${userId}, ${email})
                ON CONFLICT (user_id, provider) DO UPDATE SET provider_id = EXCLUDED.provider_id, email = EXCLUDED.email`;
+      }
+      return createSession(tx, userId);
+    });
+  } catch (error) {
+    if (error instanceof GoogleLinkNeedsConfirmationError) {
+      return failure(error.message);
     }
-    return createSession(tx, userId);
-  });
-  return redirectTo(state.redirect, [stateCookie("", 0), sessionCookieHeader(token)]);
+    throw error;
+  }
+  return redirectTo(state.redirect, [
+    stateCookie("", 0),
+    sessionCookieHeader(token),
+  ]);
 }
