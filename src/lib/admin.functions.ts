@@ -304,7 +304,18 @@ const CSV_KINDS = ["users", "activities", "registrations", "payments"] as const;
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const s = String(value).replace(/"/g, '""');
+  let text = String(value);
+  // Spreadsheet apps run cells that start with = + - @ as formulas. Text
+  // typed by users is exported as plain text; phone-like and numeric values
+  // are left as they are.
+  if (
+    typeof value === "string" &&
+    /^[=+\-@\t\r]/.test(text) &&
+    !/^[+-]?[\d\s().-]+$/.test(text)
+  ) {
+    text = `'${text}`;
+  }
+  const s = text.replace(/"/g, '""');
   return /[",;\n]/.test(s) ? `"${s}"` : s;
 }
 
