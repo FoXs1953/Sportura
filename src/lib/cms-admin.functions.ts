@@ -229,6 +229,9 @@ export const setUserRole = createServerFn({ method: "POST" })
 
 /* ---------------- Activity moderation ---------------- */
 
+/** 32 hex characters, the same length as codes of host-published events. */
+const newInviteCode = () => crypto.randomUUID().replace(/-/g, "");
+
 export const moderateActivity = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((input: unknown) =>
@@ -258,6 +261,11 @@ export const moderateActivity = createServerFn({ method: "POST" })
                 ? { is_private: true }
                 : { is_private: false };
       await tx`UPDATE public.activities SET ${tx(patch)} WHERE id = ${data.activityId}`;
+      if (data.action === "hide") {
+        // A private event without a code skips the invite check on join.
+        await tx`UPDATE public.activities SET invite_code = ${newInviteCode()}
+                 WHERE id = ${data.activityId} AND invite_code IS NULL`;
+      }
       await logAction(tx, context.caller, `activity.${data.action}`, "activities", data.activityId, patch);
       return { ok: true };
     }),
@@ -349,7 +357,7 @@ export const updateActivityAdmin = createServerFn({ method: "POST" })
         throw new Error("Мест не может быть меньше, чем уже записалось участников.");
       }
       if (data.is_private && !current.invite_code) {
-        patch["invite_code"] = crypto.randomUUID().slice(0, 8);
+        patch["invite_code"] = newInviteCode();
       }
       await tx`UPDATE public.activities SET ${tx(patch)} WHERE id = ${activityId}`;
       await logAction(tx, context.caller, "activity.edit", "activities", activityId, {

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { getAuthCapabilities, signIn, signUp } from "@/lib/auth.functions";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +16,7 @@ import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: { redirect?: string } & SearchSchemaInput) => ({
-    redirect:
-      typeof s.redirect === "string" &&
-      s.redirect.startsWith("/") &&
-      !s.redirect.startsWith("//") &&
-      !s.redirect.includes("\\")
-        ? s.redirect
-        : "/",
+    redirect: safeRedirectPath(s.redirect),
   }),
   head: () => ({
     meta: [

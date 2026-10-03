@@ -11,6 +11,7 @@ import {
   sessionCookieHeader,
 } from "./auth.server";
 import { asService } from "./db.server";
+import { safeRedirectPath } from "./safe-redirect";
 
 const STATE_COOKIE = "sportura_oauth";
 
@@ -28,15 +29,6 @@ function config() {
 }
 
 const callbackUrl = () => `${appUrl()}/api/auth/google/callback`;
-
-function safeRedirect(value: string | null): string {
-  return value &&
-    value.startsWith("/") &&
-    !value.startsWith("//") &&
-    !value.includes("\\")
-    ? value
-    : "/";
-}
 
 function stateCookie(value: string, maxAge: number) {
   const secure = appUrl().startsWith("https://") ? "; Secure" : "";
@@ -56,7 +48,7 @@ export function startGoogle(request: Request): Response {
   const state: State = {
     state: newToken(),
     verifier: newToken(),
-    redirect: safeRedirect(params.get("redirect")),
+    redirect: safeRedirectPath(params.get("redirect")),
     mode: params.get("mode") === "link" ? "link" : "login",
   };
   const challenge = createHash("sha256").update(state.verifier).digest("base64url");
@@ -173,10 +165,18 @@ export async function finishGoogle(request: Request): Promise<Response> {
     let userId = identity?.user_id;
     if (!userId && verified) {
       // Google has verified the address, so an existing account with it is the same person.
-      const [user] = await tx<{ id: string }[]>`SELECT id FROM auth.users WHERE email = ${email}`;
+      const [user] = await tx<{ id: string; confirmed: boolean }[]>`
+        SELECT id, email_confirmed_at IS NOT NULL AS confirmed FROM auth.users WHERE email = ${email}`;
       userId = user?.id;
-      if (userId) {
-        await tx`UPDATE auth.users SET email_confirmed_at = COALESCE(email_confirmed_at, now()) WHERE id = ${userId}`;
+      if (user && !user.confirmed) {
+        // The address was never confirmed on this account, so its password,
+        // sessions and e-mail links were not set by a proven owner. Start
+        // clean: Google becomes the only way in until a new password is set.
+        await tx`UPDATE auth.users
+                 SET password_hash = NULL, email_confirmed_at = now(), updated_at = now()
+                 WHERE id = ${user.id}`;
+        await tx`DELETE FROM auth.sessions WHERE user_id = ${user.id}`;
+        await tx`DELETE FROM auth.one_time_tokens WHERE user_id = ${user.id}`;
       }
     }
     if (!userId) {
