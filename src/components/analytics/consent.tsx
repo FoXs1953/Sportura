@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { ANALYTICS_CONSENT, trackEvent } from "@/lib/analytics";
+// Hidden for now: the floating toggle overlaps the bottom nav's profile tab.
+const SHOW_CONSENT_TOGGLE = false;
 export function AnalyticsConsent() {
   const path = useLocation({ select: (l) => l.pathname });
   const [consent, setConsent] = useState<string | null | undefined>(undefined);
@@ -51,7 +53,7 @@ export function AnalyticsConsent() {
             </button>
           </div>
         </section>
-      ) : consent !== undefined ? (
+      ) : SHOW_CONSENT_TOGGLE && consent !== undefined ? (
         <button
           className="fixed bottom-1 right-2 z-40 rounded bg-zinc-950 px-2 py-1 text-xs text-zinc-400"
           onClick={() => setConsent(null)}
