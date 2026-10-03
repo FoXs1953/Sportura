@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -36,8 +37,8 @@ import {
   useProfileForm,
   errorText,
 } from "./shared";
-
 export function AvatarEditor({ me }: { me: MyProfile }) {
+  const { tr } = useI18n();
   const qc = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
@@ -103,7 +104,7 @@ export function AvatarEditor({ me }: { me: MyProfile }) {
       await updateMyAvatar({ data: { path: uploaded } });
       setSource("");
       await qc.invalidateQueries({ queryKey: ["me"] });
-      toast.success("Фото обновлено");
+      toast.success(tr("Фото обновлено"));
     } catch (e) {
       setError(errorText(e));
       if (uploaded) await deleteFiles(AVATARS_BUCKET, [uploaded]);
@@ -115,41 +116,49 @@ export function AvatarEditor({ me }: { me: MyProfile }) {
     <div>
       <div className="flex flex-wrap items-center gap-4">
         <div className="grid size-20 place-items-center overflow-hidden rounded-2xl bg-[#30393c] text-2xl">
-          {url ? (
-            <img src={url} alt="Ваше фото" className="size-full object-cover" />
-          ) : (
-            me.name.slice(0, 1)
+          {tr(
+            url ? (
+              <img
+                src={url}
+                alt={tr("Ваше фото")}
+                className="size-full object-cover"
+              />
+            ) : (
+              me.name.slice(0, 1)
+            ),
           )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => input.current?.click()}>
-            <Camera size={16} /> {url ? "Заменить фото" : "Загрузить фото"}
+            <Camera size={16} /> {tr(url ? "Заменить фото" : "Загрузить фото")}
           </Button>
-          {me.avatar_url && (
-            <Button
-              variant="ghost"
-              disabled={busy}
-              aria-label="Удалить фото"
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await updateMyAvatar({ data: { path: null } });
-                  await qc.invalidateQueries({ queryKey: ["me"] });
-                  toast.success("Фото удалено");
-                } catch (e) {
-                  setError(errorText(e));
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <Trash2 size={16} />
-            </Button>
+          {tr(
+            me.avatar_url && (
+              <Button
+                variant="ghost"
+                disabled={busy}
+                aria-label={tr("Удалить фото")}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await updateMyAvatar({ data: { path: null } });
+                    await qc.invalidateQueries({ queryKey: ["me"] });
+                    toast.success(tr("Фото удалено"));
+                  } catch (e) {
+                    setError(errorText(e));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Trash2 size={16} />
+              </Button>
+            ),
           )}
         </div>
       </div>
       <p className="workspace-muted mt-3 text-xs">
-        JPG, PNG или WebP до 5 МБ. Выберите область перед сохранением.
+        {tr("JPG, PNG или WebP до 5 МБ. Выберите область перед сохранением.")}
       </p>
       <input
         ref={input}
@@ -174,7 +183,7 @@ export function AvatarEditor({ me }: { me: MyProfile }) {
           setSource(URL.createObjectURL(file));
         }}
       />
-      <ErrorNotice message={source ? "" : error} />
+      <ErrorNotice message={tr(source ? "" : error)} />
       <Dialog
         open={!!source}
         onOpenChange={(open) => {
@@ -183,16 +192,16 @@ export function AvatarEditor({ me }: { me: MyProfile }) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Фото профиля</DialogTitle>
+            <DialogTitle>{tr("Фото профиля")}</DialogTitle>
             <DialogDescription>
-              Настройте масштаб и положение кадра.
+              {tr("Настройте масштаб и положение кадра.")}
             </DialogDescription>
           </DialogHeader>
           <CropPreview source={source} zoom={zoom} x={x} y={y} />
           <label>
-            Масштаб
+            {tr("Масштаб")}
             <input
-              aria-label="Масштаб"
+              aria-label={tr("Масштаб")}
               type="range"
               min="1"
               max="3"
@@ -202,26 +211,26 @@ export function AvatarEditor({ me }: { me: MyProfile }) {
             />
           </label>
           <label>
-            По горизонтали
+            {tr("По горизонтали")}
             <input
-              aria-label="По горизонтали"
+              aria-label={tr("По горизонтали")}
               type="range"
               value={x}
               onChange={(e) => setX(Number(e.target.value))}
             />
           </label>
           <label>
-            По вертикали
+            {tr("По вертикали")}
             <input
-              aria-label="По вертикали"
+              aria-label={tr("По вертикали")}
               type="range"
               value={y}
               onChange={(e) => setY(Number(e.target.value))}
             />
           </label>
-          <ErrorNotice message={error} />
+          <ErrorNotice message={tr(error)} />
           <Button disabled={busy} onClick={() => void apply()}>
-            {busy ? "Загружаем…" : "Использовать фото"}
+            {tr(busy ? "Загружаем…" : "Использовать фото")}
           </Button>
         </DialogContent>
       </Dialog>
@@ -239,6 +248,7 @@ function CropPreview({
   x: number;
   y: number;
 }) {
+  const { tr } = useI18n();
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let live = true;
@@ -275,7 +285,7 @@ function CropPreview({
       width={300}
       height={300}
       className="mx-auto max-w-full rounded-2xl"
-      aria-label="Предпросмотр кадра"
+      aria-label={tr("Предпросмотр кадра")}
     />
   );
 }
@@ -286,6 +296,7 @@ export function PersonalTab({
   me: MyProfile;
   data: ProfileWorkspace;
 }) {
+  const { tr } = useI18n();
   const basic = useSectionForm(
     "basic",
     {
@@ -316,13 +327,15 @@ export function PersonalTab({
   return (
     <>
       <Panel
-        title="Личные данные"
-        subtitle="Имя и город видны в публичном профиле. Район — только вам."
+        title={tr("Личные данные")}
+        subtitle={tr(
+          "Имя и город видны в публичном профиле. Район — только вам.",
+        )}
       >
         <AvatarEditor me={me} />
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
           <label>
-            Имя и фамилия
+            {tr("Имя и фамилия")}
             <Input
               value={basic.value.name}
               minLength={2}
@@ -332,23 +345,25 @@ export function PersonalTab({
             />
             {basic.value.name.trim().length < 2 && (
               <small className="text-destructive">
-                Укажите не менее 2 символов
+                {tr("Укажите не менее 2 символов")}
               </small>
             )}
           </label>
           <label>
-            Город
+            {tr("Город")}
             <select
               value={basic.value.city}
               onChange={(e) => basic.patch({ city: e.target.value })}
             >
               {[...new Set([...CITIES, me.city])].map((c) => (
-                <option key={c}>{c}</option>
+                <option key={c} value={c}>
+                  {tr(c)}
+                </option>
               ))}
             </select>
           </label>
           <label>
-            Район · необязательно
+            {tr("Район · необязательно")}
             <Input
               value={basic.value.district}
               maxLength={80}
@@ -357,7 +372,7 @@ export function PersonalTab({
           </label>
         </div>
         <label className="mt-5">
-          О себе · необязательно
+          {tr("О себе · необязательно")}
           <Textarea
             value={basic.value.bio}
             maxLength={600}
@@ -365,16 +380,18 @@ export function PersonalTab({
             onChange={(e) => basic.patch({ bio: e.target.value })}
           />
           <small>
-            {basic.value.bio.length}/600 · Видимость меняется в разделе
-            безопасности.
+            {basic.value.bio.length}
+            {tr("/600 · Видимость меняется в разделе безопасности.")}
           </small>
         </label>
         <SaveRow form={basic} />
       </Panel>
       <Contacts me={me} data={data} />
       <Panel
-        title="Спортивный профиль"
-        subtitle="Выберите виды спорта и удобное время. Эти настройки помогут подобрать события в ленте."
+        title={tr("Спортивный профиль")}
+        subtitle={tr(
+          "Выберите виды спорта и удобное время. Эти настройки помогут подобрать события в ленте.",
+        )}
       >
         <div className="flex flex-wrap gap-2">
           {SPORTS.map((sport) => (
@@ -393,7 +410,7 @@ export function PersonalTab({
                 })
               }
             >
-              {sport}
+              {tr(sport)}
             </button>
           ))}
         </div>
@@ -402,9 +419,9 @@ export function PersonalTab({
             className="profile-item grid gap-3 sm:grid-cols-[1fr_1fr_1fr]"
             key={skill.sport}
           >
-            <strong className="self-center text-sm">{skill.sport}</strong>
+            <strong className="self-center text-sm">{tr(skill.sport)}</strong>
             <label>
-              Уровень
+              {tr("Уровень")}
               <select
                 value={skill.level}
                 onChange={(e) =>
@@ -419,13 +436,13 @@ export function PersonalTab({
               >
                 {Object.entries(levels).map(([v, label]) => (
                   <option key={v} value={v}>
-                    {label}
+                    {tr(label)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Позиция
+              {tr("Позиция")}
               <select
                 value={skill.position}
                 onChange={(e) =>
@@ -437,13 +454,15 @@ export function PersonalTab({
                 }
               >
                 {positions[skill.sport]?.map((p) => (
-                  <option key={p}>{p}</option>
+                  <option key={p} value={p}>
+                    {tr(p)}
+                  </option>
                 ))}
               </select>
             </label>
           </div>
         ))}
-        <h3 className="mb-3 mt-6 text-sm font-bold">Удобные дни</h3>
+        <h3 className="mb-3 mt-6 text-sm font-bold">{tr("Удобные дни")}</h3>
         <div className="flex flex-wrap gap-2">
           {["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"].map((day, i) => (
             <button
@@ -458,13 +477,13 @@ export function PersonalTab({
                 })
               }
             >
-              {day}
+              {tr(day)}
             </button>
           ))}
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label>
-            С · время Казахстана
+            {tr("С · время Казахстана")}
             <Input
               type="time"
               value={sports.value.time_from}
@@ -472,7 +491,7 @@ export function PersonalTab({
             />
           </label>
           <label>
-            До
+            {tr("До")}
             <Input
               type="time"
               value={sports.value.time_to}
@@ -481,9 +500,11 @@ export function PersonalTab({
           </label>
         </div>
         {sports.value.time_from >= sports.value.time_to && (
-          <ErrorNotice message="Время окончания должно быть позже начала" />
+          <ErrorNotice
+            message={tr("Время окончания должно быть позже начала")}
+          />
         )}
-        <h3 className="mb-3 mt-6 text-sm font-bold">Форматы</h3>
+        <h3 className="mb-3 mt-6 text-sm font-bold">{tr("Форматы")}</h3>
         <div className="flex flex-wrap gap-2">
           {(
             [
@@ -504,7 +525,7 @@ export function PersonalTab({
                 })
               }
             >
-              {label}
+              {tr(label)}
             </button>
           ))}
         </div>
@@ -514,6 +535,7 @@ export function PersonalTab({
   );
 }
 function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
+  const { tr } = useI18n();
   const capabilities = useQuery({
     queryKey: ["auth-capabilities"],
     queryFn: () => getAuthCapabilities(),
@@ -537,7 +559,7 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
     setError("");
     try {
       await fn();
-      toast.success(success);
+      toast.success(tr(success));
       await qc.invalidateQueries({ queryKey: ["profile-workspace"] });
     } catch (e) {
       setError(errorText(e));
@@ -551,16 +573,19 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
     phone?.replace("+", "") === data.auth_phone?.replace("+", "");
   return (
     <Panel
-      title="Контакты"
-      subtitle="Email и телефон не публикуются. Телефон доступен организатору события, на которое вы записаны, и администратору."
+      title={tr("Контакты")}
+      subtitle={tr(
+        "Email и телефон не публикуются. Телефон доступен организатору события, на которое вы записаны, и администратору.",
+      )}
     >
       <div className="grid gap-5">
         <label>
-          Email{" "}
+          {tr("Email")}
+          {tr(" ")}
           <span
             className={`workspace-tag ${data.email_confirmed ? "is-success" : "is-warning"}`}
           >
-            {data.email_confirmed ? "Подтверждён" : "Не подтверждён"}
+            {tr(data.email_confirmed ? "Подтверждён" : "Не подтверждён")}
           </span>
           <Input
             type="email"
@@ -585,42 +610,48 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
               )
             }
           >
-            Изменить email
+            {tr("Изменить email")}
           </Button>
-          {!data.email_confirmed && me.email && (
-            <Button
-              variant="ghost"
-              disabled={busy || emailUnavailable}
-              onClick={() =>
-                void run(() => resendConfirmation(), "Письмо отправлено")
-              }
-            >
-              Отправить подтверждение
-            </Button>
+          {tr(
+            !data.email_confirmed && me.email && (
+              <Button
+                variant="ghost"
+                disabled={busy || emailUnavailable}
+                onClick={() =>
+                  void run(() => resendConfirmation(), "Письмо отправлено")
+                }
+              >
+                {tr("Отправить подтверждение")}
+              </Button>
+            ),
           )}
         </div>
         {emailUnavailable && (
           <p role="status" className="workspace-muted text-sm">
-            Отправка писем пока недоступна. Подтвердить или изменить e-mail
-            можно будет позже.
+            {tr(
+              "Отправка писем пока недоступна. Подтвердить или изменить e-mail можно будет позже.",
+            )}
           </p>
         )}
         <label>
-          Контактный телефон{" "}
+          {tr("Контактный телефон")}
+          {tr(" ")}
           <span
             className={`workspace-tag ${confirmed ? "is-success" : "is-warning"}`}
           >
-            {confirmed ? "Подтверждён SMS" : "Не подтверждён SMS"}
+            {tr(confirmed ? "Подтверждён SMS" : "Не подтверждён SMS")}
           </span>
           <Input
             type="tel"
             autoComplete="tel"
             value={form.value.phone}
-            placeholder="+7 7__ ___ __ __"
+            placeholder={tr("+7 7__ ___ __ __")}
             onChange={(e) => form.patch({ phone: e.target.value })}
           />
-          {form.value.phone && !phone && (
-            <small className="text-destructive">{KZ_PHONE_MESSAGE}</small>
+          {tr(
+            form.value.phone && !phone && (
+              <small className="text-destructive">{tr(KZ_PHONE_MESSAGE)}</small>
+            ),
           )}
         </label>
       </div>
@@ -628,12 +659,13 @@ function Contacts({ me, data }: { me: MyProfile; data: ProfileWorkspace }) {
       {!confirmed && (
         <div className="mt-5">
           <p className="workspace-muted mb-3 text-xs">
-            SMS-подтверждение доступно после подключения оператора рассылки.
-            Контактный телефон можно сохранить без SMS.
+            {tr(
+              "SMS-подтверждение доступно после подключения оператора рассылки. Контактный телефон можно сохранить без SMS.",
+            )}
           </p>
         </div>
       )}
-      <ErrorNotice message={error} />
+      <ErrorNotice message={tr(error)} />
     </Panel>
   );
 }

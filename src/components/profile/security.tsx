@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -48,6 +49,7 @@ export function SecurityTab({
   data: ProfileWorkspace;
   report: (draft: TicketDraft) => void;
 }) {
+  const { tr, language } = useI18n();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -91,25 +93,30 @@ export function SecurityTab({
   }
   return (
     <>
-      <ErrorNotice message={error} />
-      <Panel title="Вход и безопасность" subtitle={me.email ?? "Ваш аккаунт"}>
+      <ErrorNotice message={tr(error)} />
+      <Panel
+        title={tr("Вход и безопасность")}
+        subtitle={tr(me.email ?? "Ваш аккаунт")}
+      >
         <div className="workspace-panel-raised mb-5 p-4">
-          <h3 className="text-sm font-bold">Способы входа</h3>
+          <h3 className="text-sm font-bold">{tr("Способы входа")}</h3>
           {identity.isPending ? (
-            <p className="workspace-muted mt-2 text-sm">Загружаем…</p>
+            <p className="workspace-muted mt-2 text-sm">{tr("Загружаем…")}</p>
           ) : identity.isError ? (
-            <ErrorNotice message={errorText(identity.error)} />
+            <ErrorNotice message={tr(errorText(identity.error))} />
           ) : (
             <p className="workspace-muted mt-2 text-sm">
-              {identities
-                .map((i) =>
-                  i.provider === "email"
-                    ? "Email"
-                    : i.provider === "google"
-                      ? "Google"
-                      : i.provider,
-                )
-                .join(", ") || "Способ входа не определён"}
+              {tr(
+                identities
+                  .map((i) =>
+                    i.provider === "email"
+                      ? tr("Email")
+                      : i.provider === "google"
+                        ? "Google"
+                        : i.provider,
+                  )
+                  .join(", ") || "Способ входа не определён",
+              )}
             </p>
           )}
           {capabilities.data?.google && !google && (
@@ -122,7 +129,7 @@ export function SecurityTab({
                 window.location.assign("/api/auth/google?mode=link");
               }}
             >
-              Подключить Google
+              {tr("Подключить Google")}
             </Button>
           )}
           {google && (
@@ -138,24 +145,24 @@ export function SecurityTab({
                   await qc.invalidateQueries({
                     queryKey: ["profile-identity"],
                   });
-                  toast.success("Google отключён");
+                  toast.success(tr("Google отключён"));
                 })
               }
             >
-              Отключить Google
+              {tr("Отключить Google")}
             </Button>
           )}
           {!capabilities.data?.google && !google && (
             <p className="workspace-muted mt-3 text-xs">
-              Вход через Google пока не подключён к Sportura.
+              {tr("Вход через Google пока не подключён к Sportura.")}
             </p>
           )}
         </div>
-        <h3 className="mb-4 text-sm font-bold">Сменить пароль</h3>
+        <h3 className="mb-4 text-sm font-bold">{tr("Сменить пароль")}</h3>
         <div className="grid gap-4">
           {hasEmail && (
             <label htmlFor="profile-current-password">
-              Текущий пароль
+              {tr("Текущий пароль")}
               <Input
                 id="profile-current-password"
                 type="password"
@@ -166,7 +173,7 @@ export function SecurityTab({
             </label>
           )}
           <label>
-            Новый пароль
+            {tr("Новый пароль")}
             <Input
               type="password"
               autoComplete="new-password"
@@ -174,18 +181,22 @@ export function SecurityTab({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <small>Не менее 12 символов</small>
+            <small>{tr("Не менее 12 символов")}</small>
           </label>
           <label>
-            Повторите пароль
+            {tr("Повторите пароль")}
             <Input
               type="password"
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
             />
-            {confirm && password !== confirm && (
-              <small className="text-destructive">Пароли не совпадают</small>
+            {tr(
+              confirm && password !== confirm && (
+                <small className="text-destructive">
+                  {tr("Пароли не совпадают")}
+                </small>
+              ),
             )}
           </label>
         </div>
@@ -206,7 +217,7 @@ export function SecurityTab({
                 setPassword("");
                 setConfirm("");
                 toast.success(
-                  "Пароль обновлён. Вход на других устройствах завершён.",
+                  tr("Пароль обновлён. Вход на других устройствах завершён."),
                 );
                 await Promise.all([
                   qc.invalidateQueries({ queryKey: ["profile-identity"] }),
@@ -215,27 +226,32 @@ export function SecurityTab({
               })
             }
           >
-            Обновить пароль
+            {tr("Обновить пароль")}
           </Button>
           <Link className="profile-link" to="/forgot-password">
-            Не помню пароль
+            {tr("Не помню пароль")}
           </Link>
         </div>
         <p className="workspace-muted mt-5 text-xs">
-          Двухфакторную защиту подключим отдельным этапом с кодами
-          восстановления.
+          {tr(
+            "Двухфакторную защиту подключим отдельным этапом с кодами восстановления.",
+          )}
         </p>
       </Panel>
       <Panel
-        title="Устройства и сеансы"
-        subtitle="Последняя активность — время обновления сессии, а не точное время последнего действия."
+        title={tr("Устройства и сеансы")}
+        subtitle={tr(
+          "Последняя активность — время обновления сессии, а не точное время последнего действия.",
+        )}
       >
         {sessions.isPending ? (
-          <p role="status">Загружаем устройства…</p>
+          <p role="status">{tr("Загружаем устройства…")}</p>
         ) : sessions.isError ? (
           <>
-            <ErrorNotice message={errorText(sessions.error)} />
-            <Button onClick={() => void sessions.refetch()}>Повторить</Button>
+            <ErrorNotice message={tr(errorText(sessions.error))} />
+            <Button onClick={() => void sessions.refetch()}>
+              {tr("Повторить")}
+            </Button>
           </>
         ) : sessions.data?.length ? (
           sessions.data.map((s) => (
@@ -243,15 +259,15 @@ export function SecurityTab({
               <div className="flex flex-wrap justify-between gap-3">
                 <div>
                   <strong className="text-sm">
-                    {deviceLabel(s.user_agent)}
+                    {tr(deviceLabel(s.user_agent))}
                   </strong>
                   <p className="workspace-muted mt-1 text-xs">
-                    {dateLabel(s.last_active, true)}
+                    {tr(dateLabel(s.last_active, true, language))}
                   </p>
                 </div>
                 {s.current ? (
                   <span className="workspace-tag is-success">
-                    Это устройство
+                    {tr("Это устройство")}
                   </span>
                 ) : (
                   <Button
@@ -261,18 +277,18 @@ export function SecurityTab({
                       void run(async () => {
                         await revokeMySession({ data: { id: s.id } });
                         await sessions.refetch();
-                        toast.success("Сеанс завершён");
+                        toast.success(tr("Сеанс завершён"));
                       })
                     }
                   >
-                    Завершить
+                    {tr("Завершить")}
                   </Button>
                 )}
               </div>
             </div>
           ))
         ) : (
-          <Empty title="Список устройств пуст" />
+          <Empty title={tr("Список устройств пуст")} />
         )}
         <Button
           variant="outline"
@@ -282,32 +298,34 @@ export function SecurityTab({
             void run(async () => {
               await signOut({ data: { scope: "others" } });
               await sessions.refetch();
-              toast.success("Остальные сеансы завершены");
+              toast.success(tr("Остальные сеансы завершены"));
             })
           }
         >
-          Выйти на других устройствах
+          {tr("Выйти на других устройствах")}
         </Button>
         <p className="workspace-muted mt-3 text-xs">
-          Завершённые сеансы теряют доступ сразу.
+          {tr("Завершённые сеансы теряют доступ сразу.")}
         </p>
       </Panel>
       <Panel
-        title="Приватность"
-        subtitle="Имя и город доступны в публичном профиле. Контакты, чеки и обращения в поддержку никогда не публикуются."
+        title={tr("Приватность")}
+        subtitle={tr(
+          "Имя и город доступны в публичном профиле. Контакты, чеки и обращения в поддержку никогда не публикуются.",
+        )}
       >
         <Toggle
-          label="Показывать описание обо мне"
+          label={tr("Показывать описание обо мне")}
           checked={prefs.value.bio}
           onChange={(bio) => prefs.patch({ bio })}
         />
         <Toggle
-          label="Показывать виды спорта"
+          label={tr("Показывать виды спорта")}
           checked={prefs.value.sports}
           onChange={(sports) => prefs.patch({ sports })}
         />
         <Toggle
-          label="Показывать рейтинг и статистику"
+          label={tr("Показывать рейтинг и статистику")}
           checked={prefs.value.stats}
           onChange={(stats) => prefs.patch({ stats })}
         />
@@ -317,24 +335,29 @@ export function SecurityTab({
           to="/player/$id"
           params={{ id: me.id }}
         >
-          Проверить публичный профиль ↗
+          {tr("Проверить публичный профиль ↗")}
         </Link>
       </Panel>
       {me.account_status !== "active" && (
-        <Panel title="Ограничение аккаунта">
+        <Panel title={tr("Ограничение аккаунта")}>
           <span className="workspace-tag is-warning">
-            {ACCOUNT_STATUS_LABEL[me.account_status]}
+            {tr(ACCOUNT_STATUS_LABEL[me.account_status])}
           </span>
           <p className="mt-4 text-sm">
-            {data.restriction.reason ??
-              "Публичная причина не указана. Уточните её у поддержки."}
+            {tr(
+              data.restriction.reason ??
+                "Публичная причина не указана. Уточните её у поддержки.",
+            )}
           </p>
           <p className="workspace-muted mt-2 text-xs">
-            Срок:{" "}
-            {data.restriction.until
-              ? dateLabel(data.restriction.until)
-              : "Не указан"}
-            . Запись на новые события и подача заявок ограничены.
+            {tr("Срок:")}
+            {tr(" ")}
+            {tr(
+              data.restriction.until
+                ? dateLabel(data.restriction.until, false, language)
+                : "Не указан",
+            )}
+            {tr(". Запись на новые события и подача заявок ограничены.")}
           </p>
           <Button
             variant="outline"
@@ -346,14 +369,15 @@ export function SecurityTab({
               })
             }
           >
-            Обжаловать
+            {tr("Обжаловать")}
           </Button>
         </Panel>
       )}
-      <Panel title="Ваши данные">
+      <Panel title={tr("Ваши данные")}>
         <p className="workspace-muted mb-4 text-sm">
-          Скачайте профиль, историю участия и обращений в формате JSON. Файл
-          содержит личные сведения — храните его в безопасном месте.
+          {tr(
+            "Скачайте профиль, историю участия и обращений в формате JSON. Файл содержит личные сведения — храните его в безопасном месте.",
+          )}
         </p>
         <Button
           variant="outline"
@@ -371,14 +395,14 @@ export function SecurityTab({
               a.download = `sportura-data-${new Date().toISOString().slice(0, 10)}.json`;
               a.click();
               setTimeout(() => URL.revokeObjectURL(url), 1000);
-              toast.success("Данные подготовлены");
+              toast.success(tr("Данные подготовлены"));
             })
           }
         >
-          Скачать мои данные
+          {tr("Скачать мои данные")}
         </Button>
       </Panel>
-      <Panel title="Завершение работы">
+      <Panel title={tr("Завершение работы")}>
         <div className="flex flex-wrap gap-3">
           <Button
             variant="outline"
@@ -392,7 +416,7 @@ export function SecurityTab({
               })
             }
           >
-            Выйти из аккаунта
+            {tr("Выйти из аккаунта")}
           </Button>
           <Button
             variant="ghost"
@@ -402,37 +426,38 @@ export function SecurityTab({
               setConfirmation("");
             }}
           >
-            Удалить аккаунт
+            {tr("Удалить аккаунт")}
           </Button>
         </div>
         <Dialog open={deleting} onOpenChange={setDeleting}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Удаление аккаунта</DialogTitle>
+              <DialogTitle>{tr("Удаление аккаунта")}</DialogTitle>
               <DialogDescription>
-                Сначала проверим незавершённые игры и платежи. Запрос поступит
-                поддержке; до его обработки аккаунт остаётся доступным. Вы
-                сможете уточнить детали или отозвать запрос в переписке.
+                {tr(
+                  "Сначала проверим незавершённые игры и платежи. Запрос поступит поддержке; до его обработки аккаунт остаётся доступным. Вы сможете уточнить детали или отозвать запрос в переписке.",
+                )}
               </DialogDescription>
             </DialogHeader>
             {deletion.isPending ? (
-              <p>Проверяем активные записи…</p>
+              <p>{tr("Проверяем активные записи…")}</p>
             ) : deletion.isError ? (
-              <ErrorNotice message={errorText(deletion.error)} />
+              <ErrorNotice message={tr(errorText(deletion.error))} />
             ) : !deletion.data?.allowed ? (
               <ul className="list-disc space-y-2 pl-5 text-sm">
                 {deletion.data?.blockers.map((b) => (
-                  <li key={b}>{b}</li>
+                  <li key={b}>{tr(b)}</li>
                 ))}
               </ul>
             ) : (
               <>
                 <p className="text-sm">
-                  После удаления доступ к профилю и истории будет утрачен.
-                  Сначала скачайте копию данных.
+                  {tr(
+                    "После удаления доступ к профилю и истории будет утрачен. Сначала скачайте копию данных.",
+                  )}
                 </p>
                 <label>
-                  Введите «УДАЛИТЬ» для отправки запроса
+                  {tr("Введите «УДАЛИТЬ» для отправки запроса")}
                   <Input
                     value={confirmation}
                     onChange={(e) => setConfirmation(e.target.value)}
@@ -440,12 +465,16 @@ export function SecurityTab({
                 </label>
                 <Button
                   variant="destructive"
-                  disabled={busy || confirmation !== "УДАЛИТЬ"}
+                  disabled={busy || confirmation !== tr("УДАЛИТЬ")}
                   onClick={() =>
                     void run(async () => {
                       const check = await checkAccountDeletion();
                       if (!check.allowed)
-                        throw new Error(check.blockers.join(". "));
+                        throw new Error(
+                          check.blockers
+                            .map((blocker) => tr(blocker))
+                            .join(". "),
+                        );
                       await saveProfileSection({
                         data: {
                           action: "ticket",
@@ -460,11 +489,13 @@ export function SecurityTab({
                       await qc.invalidateQueries({
                         queryKey: ["profile-workspace"],
                       });
-                      toast.success("Запрос на удаление отправлен поддержке");
+                      toast.success(
+                        tr("Запрос на удаление отправлен поддержке"),
+                      );
                     })
                   }
                 >
-                  Отправить запрос на удаление
+                  {tr("Отправить запрос на удаление")}
                 </Button>
               </>
             )}

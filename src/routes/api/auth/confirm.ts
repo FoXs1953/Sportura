@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { renderLocalizedMessagePage } from "@/lib/i18n/message-page";
 
 // Target of the links in confirmation and email-change messages.
 async function confirm(request: Request): Promise<Response> {
@@ -42,9 +43,10 @@ async function confirm(request: Request): Promise<Response> {
     });
   }
   return new Response(
-    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sportura</title>
-<body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem">
-<h1>Ссылка недействительна</h1><p>Ссылка устарела или уже использована. Запросите новое письмо в профиле.</p><p><a href="/">На главную</a></p>`,
+    renderLocalizedMessagePage(
+      "Ссылка недействительна",
+      "Ссылка устарела или уже использована. Запросите новое письмо в профиле.",
+    ),
     { status: 400, headers: { "content-type": "text/html; charset=utf-8" } },
   );
 }

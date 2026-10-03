@@ -1,3 +1,5 @@
+import { formatLocalizedDate, type Language } from "@/lib/i18n/core";
+import { useI18n } from "@/lib/i18n";
 import {
   createContext,
   useCallback,
@@ -19,12 +21,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { saveProfileSection } from "@/lib/profile.functions";
-
-type Entry = { save: () => Promise<boolean>; discard: () => void };
+type Entry = {
+  save: () => Promise<boolean>;
+  discard: () => void;
+};
 const DirtyContext = createContext<(id: string, entry: Entry | null) => void>(
   () => {},
 );
 export function UnsavedChanges({ children }: { children: ReactNode }) {
+  const { tr } = useI18n();
   const entries = useRef(new Map<string, Entry>());
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,7 +45,7 @@ export function UnsavedChanges({ children }: { children: ReactNode }) {
   });
   return (
     <DirtyContext.Provider value={register}>
-      {children}
+      {tr(children)}
       <Dialog
         open={blocker.status === "blocked"}
         onOpenChange={(open) => {
@@ -49,9 +54,9 @@ export function UnsavedChanges({ children }: { children: ReactNode }) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Сохранить изменения?</DialogTitle>
+            <DialogTitle>{tr("Сохранить изменения?")}</DialogTitle>
             <DialogDescription>
-              В этом разделе остались несохранённые данные.
+              {tr("В этом разделе остались несохранённые данные.")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-2">
@@ -68,7 +73,7 @@ export function UnsavedChanges({ children }: { children: ReactNode }) {
                 }
               }}
             >
-              {saving ? "Сохраняем…" : "Сохранить и перейти"}
+              {tr(saving ? "Сохраняем…" : "Сохранить и перейти")}
             </Button>
             <Button
               variant="outline"
@@ -78,14 +83,14 @@ export function UnsavedChanges({ children }: { children: ReactNode }) {
                 blocker.proceed?.();
               }}
             >
-              Не сохранять
+              {tr("Не сохранять")}
             </Button>
             <Button
               variant="ghost"
               disabled={saving}
               onClick={() => blocker.reset?.()}
             >
-              Остаться
+              {tr("Остаться")}
             </Button>
           </div>
         </DialogContent>
@@ -98,6 +103,7 @@ export function useProfileForm<T extends object>(
   initial: T,
   save: (value: T) => Promise<unknown>,
 ) {
+  const { tr } = useI18n();
   const [value, setValue] = useState(initial);
   const [baseline, setBaseline] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -121,7 +127,7 @@ export function useProfileForm<T extends object>(
       await save(value);
       setBaseline(value);
       register(id, null);
-      toast.success("Изменения сохранены");
+      toast.success(tr("Изменения сохранены"));
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["profile-workspace"] }),
         qc.invalidateQueries({ queryKey: ["me"] }),
@@ -192,14 +198,17 @@ export function SaveRow({
     discard: () => void;
   };
 }) {
+  const { tr } = useI18n();
   return (
     <>
-      <ErrorNotice message={form.error} />
+      <ErrorNotice message={tr(form.error)} />
       <div className="profile-save">
         <span className="workspace-muted text-xs" aria-live="polite">
-          {form.dirty
-            ? "Есть несохранённые изменения"
-            : "Все изменения сохранены"}
+          {tr(
+            form.dirty
+              ? "Есть несохранённые изменения"
+              : "Все изменения сохранены",
+          )}
         </span>
         <div className="flex gap-2">
           <Button
@@ -207,13 +216,13 @@ export function SaveRow({
             disabled={!form.dirty || form.busy}
             onClick={form.discard}
           >
-            Отменить
+            {tr("Отменить")}
           </Button>
           <Button
             disabled={!form.dirty || form.busy}
             onClick={() => void form.submit()}
           >
-            {form.busy ? "Сохраняем…" : "Сохранить"}
+            {tr(form.busy ? "Сохраняем…" : "Сохранить")}
           </Button>
         </div>
       </div>
@@ -233,20 +242,23 @@ export function Panel({
   children: ReactNode;
   action?: ReactNode;
 }) {
+  const { tr } = useI18n();
   return (
     <section className="workspace-panel p-5 sm:p-7">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="workspace-section-title">{title}</h2>
-          {(subtitle || description) && (
-            <p className="workspace-muted mt-2 text-sm leading-relaxed">
-              {subtitle || description}
-            </p>
+          <h2 className="workspace-section-title">{tr(title)}</h2>
+          {tr(
+            (subtitle || description) && (
+              <p className="workspace-muted mt-2 text-sm leading-relaxed">
+                {tr(subtitle || description)}
+              </p>
+            ),
           )}
         </div>
-        {action}
+        {tr(action)}
       </div>
-      {children}
+      {tr(children)}
     </section>
   );
 }
@@ -259,22 +271,28 @@ export function Empty({
   text?: string;
   children?: ReactNode;
 }) {
+  const { tr } = useI18n();
   return (
     <div className="profile-empty">
-      <h3>{title}</h3>
-      {(children || text) && (
-        <div className="workspace-muted mt-2 text-sm">{children || text}</div>
+      <h3>{tr(title)}</h3>
+      {tr(
+        (children || text) && (
+          <div className="workspace-muted mt-2 text-sm">
+            {tr(children || text)}
+          </div>
+        ),
       )}
     </div>
   );
 }
 export function ErrorNotice({ message }: { message?: string }) {
+  const { tr } = useI18n();
   return message ? (
     <p
       role="alert"
       className="my-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
     >
-      {message}
+      {tr(message)}
     </p>
   ) : null;
 }
@@ -289,11 +307,12 @@ export function Toggle({
   checked: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const { tr } = useI18n();
   return (
     <label className="profile-toggle">
       <span>
-        <strong>{label}</strong>
-        {description && <small>{description}</small>}
+        <strong>{tr(label)}</strong>
+        {tr(description && <small>{tr(description)}</small>)}
       </span>
       <input
         type="checkbox"
@@ -308,13 +327,43 @@ export function errorText(error: unknown) {
     ? error.message
     : "Не удалось выполнить действие. Попробуйте ещё раз.";
 }
-export function dateLabel(value: string | null, withTime = false) {
+export function dateLabel(
+  value: string | null,
+  withTime = false,
+  language: Language = "ru",
+) {
   if (!value) return "Не указано";
-  return new Date(value).toLocaleString("ru-RU", {
+  return formatLocalizedDate(value, language, {
     day: "numeric",
     month: "long",
     year: "numeric",
     ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}),
     timeZone: "Asia/Almaty",
   });
+}
+
+/** Localize system headings while retaining the organizer's own details and line breaks. */
+export function organizerApplicationLabel(
+  source: string,
+  tr: (message: string) => string,
+) {
+  return source
+    .split(/\n(?=(?:Город|Спорт|Площадки|Опыт|Ссылки|Частота):)/)
+    .map((line) => {
+      const match =
+        /^(Город|Спорт|Площадки|Опыт|Ссылки|Частота):\s*([\s\S]*)$/.exec(line);
+      if (!match) return line;
+      const [, heading, value] = match;
+      const localized =
+        heading === "Спорт"
+          ? value!
+              .split(", ")
+              .map((sport) => tr(sport))
+              .join(", ")
+          : heading === "Город" || heading === "Частота"
+            ? tr(value!)
+            : value!;
+      return `${tr(heading!)}: ${localized}`;
+    })
+    .join("\n");
 }

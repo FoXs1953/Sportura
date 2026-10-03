@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -5,9 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { updateActivityAdmin } from "@/lib/cms-admin.functions";
-
 type ActivityRow = Record<string, any>;
-
 const STATUSES: [string, string][] = [
   ["open", "Открыта"],
   ["nearly_full", "Почти заполнена"],
@@ -15,7 +14,6 @@ const STATUSES: [string, string][] = [
   ["completed", "Завершена"],
   ["cancelled", "Отменена"],
 ];
-
 function Field({
   label,
   children,
@@ -23,14 +21,14 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const { tr } = useI18n();
   return (
     <label className="block space-y-1.5">
-      <span className="text-[11px] text-muted-foreground">{label}</span>
-      {children}
+      <span className="text-[11px] text-muted-foreground">{tr(label)}</span>
+      {tr(children)}
     </label>
   );
 }
-
 function toLocalInput(value: string | null | undefined) {
   if (!value) return "";
   const d = new Date(value);
@@ -38,7 +36,6 @@ function toLocalInput(value: string | null | undefined) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-
 export function ActivityEditor({
   activity,
   canEditCommission = true,
@@ -50,6 +47,7 @@ export function ActivityEditor({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { tr } = useI18n();
   const [form, setForm] = useState({
     title: activity["title"] ?? "",
     sport: activity["sport"] ?? "",
@@ -79,11 +77,9 @@ export function ActivityEditor({
     commission_percent: String(activity["commission_percent"] ?? 10),
   });
   const [saving, setSaving] = useState(false);
-
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
-
   async function save() {
     setSaving(true);
     try {
@@ -116,67 +112,68 @@ export function ActivityEditor({
           commission_percent: Number(form.commission_percent),
         },
       });
-      toast.success("Карточка обновлена");
+      toast.success(tr("Карточка обновлена"));
       onSaved();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Не удалось сохранить");
+      toast.error(
+        tr(err instanceof Error ? err.message : "Не удалось сохранить"),
+      );
     } finally {
       setSaving(false);
     }
   }
-
   return (
     <div className="panel-frost-2 mt-3 space-y-3 rounded-2xl p-3">
-      <p className="text-xs font-semibold">Редактирование карточки</p>
-      <Field label="Название">
+      <p className="text-xs font-semibold">{tr("Редактирование карточки")}</p>
+      <Field label={tr("Название")}>
         <Input
           value={form.title}
           onChange={(e) => set("title", e.target.value)}
         />
       </Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Вид спорта">
+        <Field label={tr("Вид спорта")}>
           <Input
             value={form.sport}
             onChange={(e) => set("sport", e.target.value)}
           />
         </Field>
-        <Field label="Город">
+        <Field label={tr("Город")}>
           <Input
             value={form.city}
             onChange={(e) => set("city", e.target.value)}
           />
         </Field>
       </div>
-      <Field label="Организатор (как показывать)">
+      <Field label={tr("Организатор (как показывать)")}>
         <Input
           value={form.host_name}
           onChange={(e) => set("host_name", e.target.value)}
         />
       </Field>
-      <Field label="Место">
+      <Field label={tr("Место")}>
         <Input
           value={form.location_text}
           onChange={(e) => set("location_text", e.target.value)}
         />
       </Field>
-      <Field label="Ссылка 2ГИС">
+      <Field label={tr("Ссылка 2ГИС")}>
         <Input
           value={form.two_gis_url}
           onChange={(e) => set("two_gis_url", e.target.value)}
-          placeholder="https://2gis.kz/..."
+          placeholder={tr("https://2gis.kz/...")}
         />
       </Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Время текстом">
+        <Field label={tr("Время текстом")}>
           <Input
             value={form.time_text}
             onChange={(e) => set("time_text", e.target.value)}
-            placeholder="Сегодня 20:00"
+            placeholder={tr("Сегодня 20:00")}
           />
         </Field>
-        <Field label="Дата и время">
+        <Field label={tr("Дата и время")}>
           <Input
             type="datetime-local"
             value={form.date_time}
@@ -184,7 +181,7 @@ export function ActivityEditor({
           />
         </Field>
       </div>
-      <Field label="Запись закрывается">
+      <Field label={tr("Запись закрывается")}>
         <Input
           type="datetime-local"
           value={form.registration_deadline}
@@ -194,7 +191,7 @@ export function ActivityEditor({
       <div className="grid grid-cols-2 gap-2"></div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Максимум участников">
+        <Field label={tr("Максимум участников")}>
           <Input
             inputMode="numeric"
             value={form.max_participants}
@@ -204,7 +201,7 @@ export function ActivityEditor({
           />
         </Field>
       </div>
-      <Field label="Статус">
+      <Field label={tr("Статус")}>
         <div className="flex flex-wrap gap-2">
           {STATUSES.map(([value, label]) => (
             <Button
@@ -215,32 +212,34 @@ export function ActivityEditor({
               className="press"
               onClick={() => set("status", value)}
             >
-              {label}
+              {tr(label)}
             </Button>
           ))}
         </div>
       </Field>
       <div className="flex items-center justify-between rounded-xl bg-background/30 px-3 py-2">
-        <span className="text-xs">Скрыть из ленты (только по коду)</span>
+        <span className="text-xs">
+          {tr("Скрыть из ленты (только по коду)")}
+        </span>
         <Switch
           checked={form.is_private}
           onCheckedChange={(v) => set("is_private", v)}
         />
       </div>
-      <Field label="Описание">
+      <Field label={tr("Описание")}>
         <Textarea
           value={form.description}
           onChange={(e) => set("description", e.target.value)}
         />
       </Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Уровень">
+        <Field label={tr("Уровень")}>
           <Input
             value={form.skill_level}
             onChange={(e) => set("skill_level", e.target.value)}
           />
         </Field>
-        <Field label="Возраст">
+        <Field label={tr("Возраст")}>
           <Input
             value={form.age_division}
             onChange={(e) => set("age_division", e.target.value)}
@@ -248,26 +247,26 @@ export function ActivityEditor({
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Формат">
+        <Field label={tr("Формат")}>
           <Input
             value={form.format}
             onChange={(e) => set("format", e.target.value)}
           />
         </Field>
-        <Field label="Повтор">
+        <Field label={tr("Повтор")}>
           <Input
             value={form.recurrence}
             onChange={(e) => set("recurrence", e.target.value)}
           />
         </Field>
       </div>
-      <Field label="Правила отмены">
+      <Field label={tr("Правила отмены")}>
         <Textarea
           value={form.cancellation_policy}
           onChange={(e) => set("cancellation_policy", e.target.value)}
         />
       </Field>
-      <Field label="Заметки для участников">
+      <Field label={tr("Заметки для участников")}>
         <Textarea
           value={form.notes}
           onChange={(e) => set("notes", e.target.value)}
@@ -280,7 +279,7 @@ export function ActivityEditor({
           disabled={saving}
           onClick={() => void save()}
         >
-          {saving ? "Сохраняем…" : "Сохранить карточку"}
+          {tr(saving ? "Сохраняем…" : "Сохранить карточку")}
         </Button>
         <Button
           size="sm"
@@ -288,7 +287,7 @@ export function ActivityEditor({
           className="press"
           onClick={onClose}
         >
-          Отмена
+          {tr("Отмена")}
         </Button>
       </div>
     </div>

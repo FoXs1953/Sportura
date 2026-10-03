@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import {
   createFileRoute,
   Link,
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/")({
   component: Feed,
 });
 function Feed() {
+  const { tr, language } = useI18n();
   const filters = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useSessionUser().data?.id ?? null;
@@ -190,42 +192,47 @@ function Feed() {
           <label className="feed-location">
             <MapPin size={17} aria-hidden="true" />
             <select
-              aria-label="Город"
+              aria-label={tr("Город")}
               value={filters.city}
               onChange={(e) => {
                 set({ city: e.target.value, district: "" });
               }}
             >
-              <option value="all">Все города</option>
+              <option value="all">{tr("Все города")}</option>
               {[
                 ...new Set([...CITIES, ...(site.data?.catalog.cities ?? [])]),
               ].map((c) => (
-                <option className="bg-[#1b2123]" key={c}>
-                  {c}
+                <option value={c} className="bg-[#1b2123]" key={c}>
+                  {tr(c)}
                 </option>
               ))}
             </select>
             <ChevronDown size={15} aria-hidden="true" />
           </label>
           <h1>
-            Спорт рядом<span className="feed-title-dot">.</span>
+            {tr("Спорт рядом")}
+            <span className="feed-title-dot">.</span>
           </h1>
-          <p>Находи свою команду. Выходи на площадку.</p>
+          <p>{tr("Находи свою команду. Выходи на площадку.")}</p>
         </div>
         <Link to="/join" className="feed-invite">
           <span>
-            <strong>Есть приглашение?</strong>
-            <span>Войти в игру по коду</span>
+            <strong>{tr("Есть приглашение?")}</strong>
+            <span>{tr("Войти в игру по коду")}</span>
           </span>
           <ArrowRight size={20} />
         </Link>
       </section>
-      {site.data?.general.announcement_enabled &&
-        site.data.general.announcement && (
-          <p className="feed-notice">{site.data.general.announcement}</p>
-        )}
+      {tr(
+        site.data?.general.announcement_enabled &&
+          site.data.general.announcement && (
+            <p className="feed-notice">{tr(site.data.general.announcement)}</p>
+          ),
+      )}
       {site.data?.general.maintenance_mode && (
-        <p className="feed-notice">{site.data.general.maintenance_message}</p>
+        <p className="feed-notice">
+          {tr(site.data.general.maintenance_message)}
+        </p>
       )}
       {!!site.data?.blocks.length && (
         <div className="feed-cms">
@@ -234,29 +241,32 @@ function Feed() {
       )}
       {nearest && (
         <Link to="/my-games" className="feed-notice block">
-          Ближайшая игра: <strong>{nearest.activity.title}</strong> ·{" "}
-          {dateLabel(nearest.activity.date_time, true)} →
+          {tr("Ближайшая игра: ")}
+          <strong>{tr(nearest.activity.title)}</strong> ·{tr(" ")}
+          {tr(dateLabel(nearest.activity.date_time, true, language))} →
         </Link>
       )}
-      <section className="feed-discovery" aria-label="Поиск и фильтры">
+      <section className="feed-discovery" aria-label={tr("Поиск и фильтры")}>
         <div className="feed-search-row">
           <div className="feed-search">
             <Search size={20} />
             <input
-              aria-label="Поиск событий"
+              aria-label={tr("Поиск событий")}
               type="search"
               value={filters.q}
               maxLength={200}
               onChange={(e) => set({ q: e.target.value })}
-              placeholder="Игра, площадка или организатор"
+              placeholder={tr("Игра, площадка или организатор")}
             />
-            {filters.q && (
-              <button
-                aria-label="Очистить поиск"
-                onClick={() => set({ q: "" })}
-              >
-                <X size={18} />
-              </button>
+            {tr(
+              filters.q && (
+                <button
+                  aria-label={tr("Очистить поиск")}
+                  onClick={() => set({ q: "" })}
+                >
+                  <X size={18} />
+                </button>
+              ),
             )}
           </div>
           <button
@@ -266,10 +276,15 @@ function Feed() {
             onClick={() => setExpanded(!expanded)}
           >
             <SlidersHorizontal size={18} />
-            Фильтры{active.length > 0 && <b>{active.length}</b>}
+            {tr("Фильтры")}
+            {active.length > 0 && <b>{active.length}</b>}
           </button>
         </div>
-        <div className="feed-sports" role="group" aria-label="Виды спорта">
+        <div
+          className="feed-sports"
+          role="group"
+          aria-label={tr("Виды спорта")}
+        >
           {[
             "all",
             ...[...new Set([...SPORTS, ...(site.data?.catalog.sports ?? [])])],
@@ -296,7 +311,7 @@ function Feed() {
               {s !== "all" && filters.sport.includes(s) && (
                 <Check size={14} aria-hidden="true" />
               )}
-              {s === "all" ? "Все виды спорта" : s}
+              {tr(s === "all" ? "Все виды спорта" : s)}
             </button>
           ))}
         </div>
@@ -307,19 +322,19 @@ function Feed() {
           >
             <div className="feed-filter-heading">
               <div>
-                <h2>Найти свою игру</h2>
-                <p>Выберите удобные дату, время и условия</p>
+                <h2>{tr("Найти свою игру")}</h2>
+                <p>{tr("Выберите удобные дату, время и условия")}</p>
               </div>
               <button
                 className="feed-icon-button"
-                aria-label="Закрыть фильтры"
+                aria-label={tr("Закрыть фильтры")}
                 onClick={() => setExpanded(false)}
               >
                 <X size={20} />
               </button>
             </div>
             <fieldset className="feed-filter-group">
-              <legend>Когда играем</legend>
+              <legend>{tr("Когда играем")}</legend>
               <div className="feed-filter-options">
                 {(
                   [
@@ -342,14 +357,14 @@ function Feed() {
                       })
                     }
                   >
-                    {label}
+                    {tr(label)}
                   </button>
                 ))}
               </div>
               {filters.date === "custom" && (
                 <div className="feed-date-range">
                   <label>
-                    С
+                    {tr("С")}
                     <input
                       type="date"
                       value={filters.from}
@@ -359,7 +374,7 @@ function Feed() {
                   </label>
                   <span aria-hidden="true">—</span>
                   <label>
-                    По
+                    {tr("По")}
                     <input
                       type="date"
                       value={filters.to}
@@ -372,7 +387,8 @@ function Feed() {
             </fieldset>
             <fieldset className="feed-filter-group">
               <legend>
-                Время начала <span>по Казахстану</span>
+                {tr("Время начала ")}
+                <span>{tr("по Казахстану")}</span>
               </legend>
               <div className="feed-filter-options">
                 {(
@@ -391,14 +407,14 @@ function Feed() {
                     }
                     onClick={() => set({ time_from: from, time_to: to })}
                   >
-                    {label}
+                    {tr(label)}
                   </button>
                 ))}
               </div>
             </fieldset>
             <div className="feed-filter-columns">
               <fieldset className="feed-filter-group">
-                <legend>Уровень игроков</legend>
+                <legend>{tr("Уровень игроков")}</legend>
                 <div className="feed-filter-options">
                   {["all", ...SKILL_LEVELS].map((skill) => (
                     <button
@@ -407,17 +423,19 @@ function Feed() {
                       aria-pressed={filters.skill === skill}
                       onClick={() => set({ skill })}
                     >
-                      {skill === "all"
-                        ? "Все уровни"
-                        : skill === "Любой"
-                          ? "Без ограничений"
-                          : skill}
+                      {tr(
+                        skill === "all"
+                          ? "Все уровни"
+                          : skill === "Любой"
+                            ? "Без ограничений"
+                            : skill,
+                      )}
                     </button>
                   ))}
                 </div>
               </fieldset>
               <fieldset className="feed-filter-group">
-                <legend>Площадка</legend>
+                <legend>{tr("Площадка")}</legend>
                 <div className="feed-filter-options">
                   {(
                     [
@@ -432,7 +450,7 @@ function Feed() {
                       aria-pressed={filters.venue === venue}
                       onClick={() => set({ venue })}
                     >
-                      {label}
+                      {tr(label)}
                     </button>
                   ))}
                 </div>
@@ -440,14 +458,16 @@ function Feed() {
             </div>
             <div className="feed-filter-bottom">
               <label className="feed-district">
-                Район
+                {tr("Район")}
                 <select
                   value={filters.district}
                   onChange={(e) => set({ district: e.target.value })}
                 >
-                  <option value="">Все районы</option>
+                  <option value="">{tr("Все районы")}</option>
                   {districts.map((district) => (
-                    <option key={district}>{district}</option>
+                    <option value={district} key={district}>
+                      {tr(district)}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -458,15 +478,16 @@ function Feed() {
                   onChange={(e) => set({ open: e.target.checked })}
                 />
                 <span>
-                  Можно записаться
-                  <small>Есть места и открыта регистрация</small>
+                  {tr("Можно записаться")}
+                  <small>{tr("Есть места и открыта регистрация")}</small>
                 </span>
               </label>
               <button
                 className="feed-primary"
                 onClick={() => setExpanded(false)}
               >
-                Показать события{!feed.isFetching && ` · ${total}`}
+                {tr("Показать события")}
+                {tr(!feed.isFetching && ` · ${total}`)}
               </button>
             </div>
           </div>
@@ -476,7 +497,7 @@ function Feed() {
             {active.map(([k, v]) => (
               <button
                 className="feed-active-filter"
-                aria-label={`Убрать фильтр «${names[k]}»`}
+                aria-label={tr(`Убрать фильтр «${names[k]}»`)}
                 key={k}
                 onClick={() =>
                   set({
@@ -485,10 +506,12 @@ function Feed() {
                   })
                 }
               >
-                {names[k]}
-                {v === true
-                  ? ""
-                  : `: ${Array.isArray(v) ? v.join(", ") : (values[String(v)] ?? v)}`}
+                {tr(names[k])}
+                {tr(
+                  v === true
+                    ? ""
+                    : `: ${Array.isArray(v) ? v.map((item) => tr(item)).join(", ") : tr(values[String(v)] ?? v)}`,
+                )}
                 <span className="feed-filter-remove">
                   <X size={13} aria-hidden="true" />
                 </span>
@@ -498,12 +521,12 @@ function Feed() {
               className="feed-reset"
               onClick={() => set(discoveryDefaults)}
             >
-              Сбросить всё
+              {tr("Сбросить всё")}
             </button>
           </div>
         )}
       </section>
-      <section className="feed-results" aria-label="События">
+      <section className="feed-results" aria-label={tr("События")}>
         <div className="event-tabs mb-4">
           <button
             className={
@@ -513,7 +536,7 @@ function Feed() {
             }
             onClick={() => set({ view: "all", sort: "available" })}
           >
-            Все события
+            {tr("Все события")}
           </button>
           <button
             className={filters.sort === "personal" ? "is-active" : ""}
@@ -526,12 +549,12 @@ function Feed() {
                   })
             }
           >
-            Для вас
+            {tr("Для вас")}
           </button>
           <button
             onClick={() => set({ view: "all", sort: "date", open: true })}
           >
-            Ближайшие
+            {tr("Ближайшие")}
           </button>
           <button
             className={filters.view === "saved" ? "is-active" : ""}
@@ -544,13 +567,13 @@ function Feed() {
                   })
             }
           >
-            Сохранённые
+            {tr("Сохранённые")}
           </button>
           <button
             className={filters.view === "archive" ? "is-active" : ""}
             onClick={() => set({ view: "archive", open: false, date: "all" })}
           >
-            Архив и результаты
+            {tr("Архив и результаты")}
           </button>
         </div>
         <div className="feed-results-toolbar">
@@ -566,58 +589,60 @@ function Feed() {
                 className={filters.type === v ? "is-active" : ""}
                 onClick={() => set({ type: v as DiscoveryFilters["type"] })}
               >
-                {l}
+                {tr(l)}
               </button>
             ))}
           </div>
           <div className="feed-results-meta">
             <span aria-live="polite">
-              {feed.isPending ? "Загружаем…" : eventCountLabel(total)}
+              {tr(feed.isPending ? "Загружаем…" : eventCountLabel(total))}
             </span>
             <label className="feed-sort">
               <select
-                aria-label="Сортировка"
+                aria-label={tr("Сортировка")}
                 value={filters.sort}
                 onChange={(e) =>
                   set({ sort: e.target.value as DiscoveryFilters["sort"] })
                 }
               >
-                <option value="available">Сначала открытые</option>
-                <option value="date">По времени</option>
+                <option value="available">{tr("Сначала открытые")}</option>
+                <option value="date">{tr("По времени")}</option>
 
-                {user && <option value="personal">Для вас</option>}
+                {tr(user && <option value="personal">{tr("Для вас")}</option>)}
               </select>
             </label>
           </div>
         </div>
         {filters.sort === "personal" && !prefs.data?.sports.length && (
           <p className="feed-notice">
-            Выберите виды спорта в{" "}
+            {tr("Выберите виды спорта в")}
+            {tr(" ")}
             <Link to="/profile" search={{ tab: "personal" }}>
-              профиле
+              {tr("профиле")}
             </Link>
-            , чтобы уточнить подборку.
+            {tr(", чтобы уточнить подборку.")}
           </p>
         )}
         {filters.view === "saved" && (
           <p className="event-count-note mb-4">
-            Сохранение не резервирует место. Напоминание можно включить отдельно
-            у каждой игры.
+            {tr(
+              "Сохранение не резервирует место. Напоминание можно включить отдельно у каждой игры.",
+            )}
           </p>
         )}
         {feed.isError ? (
           <div className="feed-empty">
-            <h2>Не удалось загрузить игры</h2>
-            <p>{feed.error.message}</p>
+            <h2>{tr("Не удалось загрузить игры")}</h2>
+            <p>{tr(feed.error.message)}</p>
             <button
               className="feed-primary"
               onClick={() => void feed.refetch()}
             >
-              Повторить
+              {tr("Повторить")}
             </button>
           </div>
         ) : feed.isPending ? (
-          <div className="feed-grid" aria-label="Загружаем события">
+          <div className="feed-grid" aria-label={tr("Загружаем события")}>
             {[1, 2, 3].map((n) => (
               <div key={n} className="feed-skeleton feed-skeleton-card" />
             ))}
@@ -625,13 +650,15 @@ function Feed() {
         ) : !list.length ? (
           <div className="feed-empty">
             <Search size={26} />
-            <h3>Пока без совпадений</h3>
-            <p>Попробуйте изменить город, дату или убрать часть фильтров.</p>
+            <h3>{tr("Пока без совпадений")}</h3>
+            <p>
+              {tr("Попробуйте изменить город, дату или убрать часть фильтров.")}
+            </p>
             <button
               className="feed-primary"
               onClick={() => set(discoveryDefaults)}
             >
-              Показать все события
+              {tr("Показать все события")}
             </button>
           </div>
         ) : (
@@ -650,19 +677,23 @@ function Feed() {
                     <div>
                       {reg && (
                         <Link className="event-user-tag" to="/my-games">
-                          {reg.status === "cancelled"
-                            ? "Вы отменили запись"
-                            : reg.status === "rejected"
-                              ? "Запись отклонена"
-                              : `Вы записаны · ${reg.amount_due === 0 ? "бесплатно" : PAYMENT_STATUS_LABEL[reg.payment_status]}`}
+                          {tr(
+                            reg.status === "cancelled"
+                              ? "Вы отменили запись"
+                              : reg.status === "rejected"
+                                ? "Запись отклонена"
+                                : `Вы записаны · ${reg.amount_due === 0 ? "бесплатно" : PAYMENT_STATUS_LABEL[reg.payment_status]}`,
+                          )}
                         </Link>
                       )}
                       {filters.sort === "personal" && prefs.data && (
                         <p className="event-count-note">
-                          {a.city === prefs.data.city ? "Ваш город" : ""}
-                          {prefs.data.sports.includes(a.sport)
-                            ? " · Ваш вид спорта"
-                            : ""}
+                          {tr(a.city === prefs.data.city ? "Ваш город" : "")}
+                          {tr(
+                            prefs.data.sports.includes(a.sport)
+                              ? " · Ваш вид спорта"
+                              : "",
+                          )}
                         </p>
                       )}
                       {filters.view === "saved" && saved && (
@@ -679,15 +710,15 @@ function Feed() {
                               })
                             }
                           />
-                          Напомнить за сутки
+                          {tr("Напомнить за сутки")}
                         </label>
                       )}
                     </div>
                     <button
                       className="event-favorite"
-                      aria-label={
-                        saved ? "Убрать из сохранённых" : "Сохранить событие"
-                      }
+                      aria-label={tr(
+                        saved ? "Убрать из сохранённых" : "Сохранить событие",
+                      )}
                       aria-pressed={!!saved}
                       disabled={action.busy}
                       onClick={() =>
@@ -727,7 +758,7 @@ function Feed() {
               disabled={feed.isFetchingNextPage}
               onClick={() => void feed.fetchNextPage()}
             >
-              {feed.isFetchingNextPage ? "Загружаем…" : "Показать ещё"}
+              {tr(feed.isFetchingNextPage ? "Загружаем…" : "Показать ещё")}
             </button>
           </div>
         )}

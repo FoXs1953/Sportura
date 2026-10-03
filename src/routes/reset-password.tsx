@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { checkRecoveryToken, resetPassword } from "@/lib/auth.functions";
@@ -5,7 +6,6 @@ import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
@@ -15,19 +15,16 @@ export const Route = createFileRoute("/reset-password")({
   }),
   component: ResetPasswordPage,
 });
-
 type Screen = "checking" | "change" | "expired" | "done";
-
 function ResetPasswordPage() {
+  const { tr } = useI18n();
   const [screen, setScreen] = useState<Screen>("checking");
   const [accountEmail, setAccountEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
   const [token, setToken] = useState("");
-
   useEffect(() => {
     let active = true;
     const value = new URLSearchParams(window.location.search).get("token");
@@ -55,7 +52,6 @@ function ResetPasswordPage() {
       active = false;
     };
   }, []);
-
   async function changePassword(event: React.FormEvent) {
     event.preventDefault();
     setError("");
@@ -67,7 +63,6 @@ function ResetPasswordPage() {
       setError("Пароль должен содержать не менее 12 символов.");
       return;
     }
-
     setBusy(true);
     try {
       await resetPassword({ data: { token, password } });
@@ -84,40 +79,43 @@ function ResetPasswordPage() {
       setBusy(false);
     }
   }
-
   return (
     <AuthFrame
-      title="Новый пароль"
-      subtitle="Восстановление доступа к Sportura"
+      title={tr("Новый пароль")}
+      subtitle={tr("Восстановление доступа к Sportura")}
     >
       {screen === "checking" && (
         <p role="status" className="text-sm text-muted-foreground">
-          Проверяем ссылку…
+          {tr("Проверяем ссылку…")}
         </p>
       )}
       {screen === "expired" && (
         <div className="auth-message space-y-4">
           <h2 className="text-lg font-semibold">
-            Ссылка недействительна или истекла
+            {tr("Ссылка недействительна или истекла")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Запроси новое письмо и открой последнюю полученную ссылку.
+            {tr("Запроси новое письмо и открой последнюю полученную ссылку.")}
           </p>
           <Link
             to="/forgot-password"
             className="block text-center text-sm text-brand underline"
           >
-            Отправить новую ссылку
+            {tr("Отправить новую ссылку")}
           </Link>
         </div>
       )}
       {screen === "change" && (
         <form onSubmit={changePassword} className="space-y-5" aria-busy={busy}>
           <p className="text-sm text-muted-foreground">
-            Установи новый пароль для {accountEmail || "своего аккаунта"}.
+            {accountEmail
+              ? tr("Установи новый пароль для {email}.", {
+                  email: accountEmail,
+                })
+              : tr("Установи новый пароль для своего аккаунта.")}
           </p>
           <div className="space-y-2">
-            <Label htmlFor="new-password">Новый пароль</Label>
+            <Label htmlFor="new-password">{tr("Новый пароль")}</Label>
             <Input
               id="new-password"
               type="password"
@@ -128,11 +126,11 @@ function ResetPasswordPage() {
               onChange={(event) => setPassword(event.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Не менее 12 символов.
+              {tr("Не менее 12 символов.")}
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Повтори пароль</Label>
+            <Label htmlFor="confirm-password">{tr("Повтори пароль")}</Label>
             <Input
               id="confirm-password"
               type="password"
@@ -143,26 +141,28 @@ function ResetPasswordPage() {
               onChange={(event) => setConfirm(event.target.value)}
             />
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
+          {tr(
+            error && (
+              <p role="alert" className="text-sm text-destructive">
+                {tr(error)}
+              </p>
+            ),
           )}
           <Button type="submit" disabled={busy} className="w-full">
-            {busy ? "Сохраняем…" : "Сохранить пароль"}
+            {tr(busy ? "Сохраняем…" : "Сохранить пароль")}
           </Button>
         </form>
       )}
       {screen === "done" && (
         <div className="auth-message space-y-4">
           <p role="status" className="text-sm">
-            Пароль сохранён. Войди с новым паролем.
+            {tr("Пароль сохранён. Войди с новым паролем.")}
           </p>
           <Link
             to="/auth"
             className="block text-center text-sm text-brand underline"
           >
-            Перейти ко входу
+            {tr("Перейти ко входу")}
           </Link>
         </div>
       )}
@@ -171,7 +171,7 @@ function ResetPasswordPage() {
           to="/auth"
           className="mt-4 block text-center text-sm text-brand underline"
         >
-          Вернуться ко входу
+          {tr("Вернуться ко входу")}
         </Link>
       )}
     </AuthFrame>

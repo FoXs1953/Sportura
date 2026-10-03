@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { mutateCompetition } from "@/lib/event.functions";
@@ -11,22 +12,39 @@ export function ItemPrizes({
   data: CompetitionData;
   registrations?: Registration[];
 }) {
+  const { tr, language } = useI18n();
   const action = useEventAction();
   const [name, setName] = useState("");
   const [sponsor, setSponsor] = useState("");
   if (!registrations && !data.item_prizes?.length) return null;
   return (
     <section className="space-y-3">
-      <h3 className="font-bold">Вещевые призы</h3>
+      <h3 className="font-bold">{tr("Вещевые призы")}</h3>
       {data.item_prizes?.map((p) => (
         <article className="event-muted-box" key={p.id}>
-          <strong>{p.name}</strong>
-          {p.sponsor && (
-            <p className="workspace-muted text-sm">От {p.sponsor}</p>
+          <strong>{tr(p.name)}</strong>
+          {tr(
+            p.sponsor && (
+              <p className="workspace-muted text-sm">
+                {tr("От ")}
+                {tr(p.sponsor)}
+              </p>
+            ),
           )}
-          {p.recipient && <p>Получатель: {p.recipient}</p>}
+          {tr(
+            p.recipient && (
+              <p>
+                {tr("Получатель: ")}
+                {tr(p.recipient)}
+              </p>
+            ),
+          )}
           {p.delivered_at ? (
-            <p className="text-sm">Выдан {dateLabel(p.delivered_at)}</p>
+            <p className="text-sm">
+              {tr("Выдан {date}", {
+                date: dateLabel(p.delivered_at, false, language),
+              })}
+            </p>
           ) : (
             registrations && (
               <PrizeAward
@@ -41,7 +59,7 @@ export function ItemPrizes({
       ))}
       {registrations && (
         <details className="event-muted-box">
-          <summary>Добавить приз до начала регистрации</summary>
+          <summary>{tr("Добавить приз до начала регистрации")}</summary>
           <form
             className="event-form mt-3"
             onSubmit={async (e) => {
@@ -68,26 +86,26 @@ export function ItemPrizes({
             }}
           >
             <label>
-              Приз
+              {tr("Приз")}
               <input
                 required
                 minLength={2}
                 maxLength={160}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Например, футбольный мяч"
+                placeholder={tr("Например, футбольный мяч")}
               />
             </label>
             <label>
-              Спонсор
+              {tr("Спонсор")}
               <input
                 maxLength={120}
                 value={sponsor}
                 onChange={(e) => setSponsor(e.target.value)}
               />
             </label>
-            <ErrorNotice message={action.error} />
-            <Button disabled={action.busy}>Добавить приз</Button>
+            <ErrorNotice message={tr(action.error)} />
+            <Button disabled={action.busy}>{tr("Добавить приз")}</Button>
           </form>
         </details>
       )}
@@ -103,6 +121,7 @@ function PrizeAward({
   prize: NonNullable<CompetitionData["item_prizes"]>[number];
   registrations: Registration[];
 }) {
+  const { tr } = useI18n();
   const [recipient, setRecipient] = useState(p.registration_id ?? "");
   const [note, setNote] = useState("");
   const action = useEventAction();
@@ -130,43 +149,44 @@ function PrizeAward({
     >
       {!p.registration_id ? (
         <label>
-          Получатель
+          {tr("Получатель")}
           <select
             required
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
           >
-            <option value="">Выберите участника</option>
+            <option value="">{tr("Выберите участника")}</option>
             {registrations
               .filter((r) => ["registered", "attended"].includes(r.status))
               .map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.team_name || r.name}
+                  {tr(r.team_name || r.name)}
                 </option>
               ))}
           </select>
         </label>
       ) : (
         <label>
-          Примечание о выдаче
+          {tr("Примечание о выдаче")}
           <input
             required
             minLength={3}
             maxLength={500}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Передан лично на награждении"
+            placeholder={tr("Передан лично на награждении")}
           />
         </label>
       )}
       <Button size="sm" variant="outline" disabled={action.busy}>
-        {p.registration_id ? "Подтвердить выдачу" : "Назначить получателя"}
+        {tr(p.registration_id ? "Подтвердить выдачу" : "Назначить получателя")}
       </Button>
-      <ErrorNotice message={action.error} />
+      <ErrorNotice message={tr(action.error)} />
     </form>
   );
 }
 export function WeatherReschedule({ event: a }: { event: Event }) {
+  const { tr } = useI18n();
   const [start, setStart] = useState(localDateTime(a.date_time));
   const [reason, setReason] = useState("");
   const action = useEventAction();
@@ -177,7 +197,7 @@ export function WeatherReschedule({ event: a }: { event: Event }) {
     return null;
   return (
     <details className="event-muted-box mt-4">
-      <summary>Перенести из-за погоды</summary>
+      <summary>{tr("Перенести из-за погоды")}</summary>
       <form
         className="event-form mt-3"
         onSubmit={async (e) => {
@@ -199,11 +219,12 @@ export function WeatherReschedule({ event: a }: { event: Event }) {
         }}
       >
         <p className="workspace-muted text-sm">
-          До 48 часов от текущего начала, до первого результата. Время
-          назначенных матчей сдвинется вместе с событием.
+          {tr(
+            "До 48 часов от текущего начала, до первого результата. Время назначенных матчей сдвинется вместе с событием.",
+          )}
         </p>
         <label>
-          Новое начало, UTC+5
+          {tr("Новое начало, UTC+5")}
           <input
             required
             type="datetime-local"
@@ -212,7 +233,7 @@ export function WeatherReschedule({ event: a }: { event: Event }) {
           />
         </label>
         <label>
-          Причина
+          {tr("Причина")}
           <textarea
             required
             minLength={10}
@@ -221,8 +242,8 @@ export function WeatherReschedule({ event: a }: { event: Event }) {
             onChange={(e) => setReason(e.target.value)}
           />
         </label>
-        <ErrorNotice message={action.error} />
-        <Button disabled={action.busy}>Перенести событие</Button>
+        <ErrorNotice message={tr(action.error)} />
+        <Button disabled={action.busy}>{tr("Перенести событие")}</Button>
       </form>
     </details>
   );

@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import {
   createFileRoute,
   Link,
@@ -83,6 +84,7 @@ export const Route = createFileRoute("/_authenticated/my-games")({
   component: MyGames,
 });
 function MyGames() {
+  const { tr, language } = useI18n();
   const query = useQuery({
     queryKey: ["event-player"],
     queryFn: () => getPlayerEvents(),
@@ -164,14 +166,16 @@ function MyGames() {
   return (
     <AppShell
       workspace
-      title="Мои игры"
-      subtitle="Ваше расписание, участие и результаты"
+      title={tr("Мои игры")}
+      subtitle={tr("Ваше расписание, участие и результаты")}
     >
       <div className="events-workspace">
         {!!query.data?.waitlist?.length && (
           <Panel
-            title="Лист ожидания"
-            description="После предложения места у вас до 15 минут на подтверждение, но не позже закрытия регистрации или начала события."
+            title={tr("Лист ожидания")}
+            description={tr(
+              "После предложения места у вас до 15 минут на подтверждение, но не позже закрытия регистрации или начала события.",
+            )}
           >
             {query.data.waitlist.map((w) => (
               <div key={w.id} className="event-row">
@@ -180,16 +184,23 @@ function MyGames() {
                   to="/activity/$id"
                   params={{ id: w.activity_id }}
                 >
-                  {w.activity?.title ?? "Событие"} →
+                  {tr(w.activity?.title ?? "Событие")} →
                 </Link>
-                <p className="workspace-muted">Номер в очереди: {w.position}</p>
-                {w.offer_expires_at &&
-                  Date.parse(w.offer_expires_at) > Date.now() && (
-                    <p className="font-semibold">
-                      Место предложено · подтвердите до{" "}
-                      {dateLabel(w.offer_expires_at, true)} (UTC+5)
-                    </p>
-                  )}
+                <p className="workspace-muted">
+                  {tr("Номер в очереди: ")}
+                  {w.position}
+                </p>
+                {tr(
+                  w.offer_expires_at &&
+                    Date.parse(w.offer_expires_at) > Date.now() && (
+                      <p className="font-semibold">
+                        {tr("Место предложено · подтвердите до")}
+                        {tr(" ")}
+                        {tr(dateLabel(w.offer_expires_at, true, language))}{" "}
+                        (UTC+5)
+                      </p>
+                    ),
+                )}
               </div>
             ))}
           </Panel>
@@ -202,28 +213,31 @@ function MyGames() {
                 className="workspace-stat"
                 onClick={fn as () => void}
               >
-                <strong>{query.isPending ? "—" : (n as number)}</strong>
-                <span>{l as string}</span>
+                <strong>{tr(query.isPending ? "—" : (n as number))}</strong>
+                <span>{tr(l as string)}</span>
               </button>
             ),
           )}
         </div>
         {upcoming[0] && tab === "upcoming" && (
           <Panel
-            title={
+            title={tr(
               eventPhase(upcoming[0].activity) === "live"
                 ? "Идёт сейчас"
-                : "Ваша ближайшая игра"
-            }
+                : "Ваша ближайшая игра",
+            )}
           >
             <div className="event-line">
               <div>
                 <h3 className="text-xl font-bold">
-                  {upcoming[0].activity.title}
+                  {tr(upcoming[0].activity.title)}
                 </h3>
                 <p className="workspace-muted">
-                  {dateLabel(upcoming[0].activity.date_time, true)} ·{" "}
-                  {upcoming[0].activity.location_text}
+                  {tr(
+                    dateLabel(upcoming[0].activity.date_time, true, language),
+                  )}{" "}
+                  ·{tr(" ")}
+                  {tr(upcoming[0].activity.location_text)}
                 </p>
               </div>
               <div className="event-actions">
@@ -232,7 +246,7 @@ function MyGames() {
                   params={{ id: upcoming[0].activity.id }}
                   className="workspace-primary-link"
                 >
-                  Открыть игру
+                  {tr("Открыть игру")}
                 </Link>
                 <CalendarButton event={upcoming[0].activity} />
                 <MapLink event={upcoming[0].activity} />
@@ -241,7 +255,7 @@ function MyGames() {
           </Panel>
         )}
         {!!query.data?.notifications.length && tab === "upcoming" && (
-          <Panel title="Требует внимания">
+          <Panel title={tr("Требует внимания")}>
             <div className="event-notices">
               {query.data.notifications.slice(0, 5).map((n) => (
                 <a
@@ -253,14 +267,14 @@ function MyGames() {
                   }
                   key={n.id}
                 >
-                  <strong>{n.title} →</strong>
-                  <p className="workspace-muted text-xs">{n.body}</p>
+                  <strong>{tr(n.title)} →</strong>
+                  <p className="workspace-muted text-xs">{tr(n.body)}</p>
                 </a>
               ))}
             </div>
           </Panel>
         )}
-        <nav className="event-tabs" aria-label="Разделы моих игр">
+        <nav className="event-tabs" aria-label={tr("Разделы моих игр")}>
           {tabs
             .filter((t) => t !== "payments")
             .map((t) => (
@@ -270,14 +284,16 @@ function MyGames() {
                 onClick={() => go(t)}
                 aria-current={tab === t ? "page" : undefined}
               >
-                {labels[t]}
+                {tr(labels[t])}
               </button>
             ))}
         </nav>
         {tab === "help" ? (
           <Panel
-            title="Помощь по вашим играм"
-            subtitle="Обращения сохраняются в общей истории поддержки профиля."
+            title={tr("Помощь по вашим играм")}
+            subtitle={tr(
+              "Обращения сохраняются в общей истории поддержки профиля.",
+            )}
           >
             <div className="event-actions">
               <HelpLink />
@@ -286,63 +302,67 @@ function MyGames() {
                 to="/profile"
                 search={{ tab: "help" }}
               >
-                Мои обращения →
+                {tr("Мои обращения →")}
               </Link>
               <Link className="profile-link" to="/legal">
-                Правила участия и отмены →
+                {tr("Правила участия и отмены →")}
               </Link>
             </div>
             <p className="workspace-muted mt-4">
-              Чтобы привязать проблему к игре, откройте нужную запись и нажмите
-              «Обратиться в поддержку». Для споров о результатах срок указан в
-              карточке соревнования.
+              {tr(
+                "Чтобы привязать проблему к игре, откройте нужную запись и нажмите «Обратиться в поддержку». Для споров о результатах срок указан в карточке соревнования.",
+              )}
             </p>
           </Panel>
         ) : (
           <>
-            {registration && (
-              <Button variant="outline" onClick={() => go(tab)}>
-                Показать все мои игры
-              </Button>
+            {tr(
+              registration && (
+                <Button variant="outline" onClick={() => go(tab)}>
+                  {tr("Показать все мои игры")}
+                </Button>
+              ),
             )}
             <div className="event-filters">
               <label>
-                Поиск
+                {tr("Поиск")}
                 <Input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Игра, площадка, организатор"
+                  placeholder={tr("Игра, площадка, организатор")}
                 />
               </label>
               <label>
-                Спорт
+                {tr("Спорт")}
                 <select
                   value={sport}
                   onChange={(e) => setSport(e.target.value)}
                 >
-                  <option value="all">Все виды</option>
+                  <option value="all">{tr("Все виды")}</option>
                   {SPORTS.map((s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {tr(s)}
+                    </option>
                   ))}
                 </select>
               </label>
               <label>
-                Участие
+                {tr("Участие")}
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
                 >
-                  <option value="all">Все статусы</option>
+                  <option value="all">{tr("Все статусы")}</option>
                   {Object.entries(REGISTRATION_STATUS_LABEL).map(([v, l]) => (
                     <option key={v} value={v}>
-                      {l}
+                      {tr(l)}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label>
-                С даты
+                {tr("С даты")}
                 <Input
                   type="date"
                   value={from}
@@ -350,7 +370,7 @@ function MyGames() {
                 />
               </label>
               <label>
-                По дату
+                {tr("По дату")}
                 <Input
                   type="date"
                   value={to}
@@ -360,24 +380,26 @@ function MyGames() {
             </div>
             {query.isPending ? (
               <div className="workspace-panel p-8" role="status">
-                Загружаем ваши игры…
+                {tr("Загружаем ваши игры…")}
               </div>
             ) : query.isError ? (
-              <Panel title="Не удалось загрузить игры">
-                <ErrorNotice message={query.error.message} />
-                <Button onClick={() => void query.refetch()}>Повторить</Button>
+              <Panel title={tr("Не удалось загрузить игры")}>
+                <ErrorNotice message={tr(query.error.message)} />
+                <Button onClick={() => void query.refetch()}>
+                  {tr("Повторить")}
+                </Button>
               </Panel>
             ) : !shown.length ? (
               <Panel
-                title={
+                title={tr(
                   regs.length
                     ? "Нет записей по выбранным условиям"
-                    : "Самое время выбрать первую игру"
-                }
+                    : "Самое время выбрать первую игру",
+                )}
               >
-                <Empty title="Здесь появятся ваши записи">
+                <Empty title={tr("Здесь появятся ваши записи")}>
                   <Link className="workspace-primary-link" to="/">
-                    Найти игру →
+                    {tr("Найти игру →")}
                   </Link>
                 </Empty>
               </Panel>
@@ -412,6 +434,7 @@ function GameRecord({
   tab: string;
   conflict: boolean;
 }) {
+  const { tr, language } = useI18n();
   const a = r.activity;
   const action = useEventAction();
   const [panel, setPanel] = useState(
@@ -436,35 +459,44 @@ function GameRecord({
     <article className="workspace-panel event-record">
       <img
         src={sportImage(a.sport)}
-        alt=""
+        alt={tr("")}
         className="event-record-image"
         loading="lazy"
       />
       <div className="event-record-body">
         <div className="event-line">
           <span className="workspace-tag">
-            {a.sport} ·{" "}
-            {a.type === "daily_game"
-              ? "Игра"
-              : a.type === "league"
-                ? "Лига"
-                : "Турнир"}
+            {tr(a.sport)} ·{tr(" ")}
+            {tr(
+              a.type === "daily_game"
+                ? "Игра"
+                : a.type === "league"
+                  ? "Лига"
+                  : "Турнир",
+            )}
           </span>
           <span className="workspace-tag">
-            {cancelled
-              ? "Отменено"
-              : phase === "live"
-                ? "Идёт сейчас"
-                : REGISTRATION_STATUS_LABEL[r.status]}
+            {tr(
+              cancelled
+                ? "Отменено"
+                : phase === "live"
+                  ? "Идёт сейчас"
+                  : REGISTRATION_STATUS_LABEL[r.status],
+            )}
           </span>
         </div>
         <Link to="/activity/$id" params={{ id: a.id }} className="event-title">
-          {a.title}
+          {tr(a.title)}
         </Link>
         <p className="workspace-muted text-sm">
-          {dateLabel(a.date_time, true)}
-          {a.duration_minutes ? ` · ${a.duration_minutes} мин` : ""} ·{" "}
-          {a.location_text}
+          {tr(dateLabel(a.date_time, true, language))}
+          {tr(
+            a.duration_minutes
+              ? tr("· {count} мин", { count: a.duration_minutes })
+              : "",
+          )}{" "}
+          ·{tr(" ")}
+          {tr(a.location_text)}
         </p>
         <div className="event-line text-sm">
           <Link
@@ -472,35 +504,49 @@ function GameRecord({
             to="/organizer/$id"
             params={{ id: a.manager_id ?? a.organizer_id ?? r.user_id }}
           >
-            {a.host_name}
+            {tr(a.host_name)}
           </Link>
         </div>
-        {r.team_name && (
-          <details>
-            <summary>Команда: {r.team_name} · вы капитан</summary>
-            <p>{r.team_members.join(", ")}</p>
-          </details>
+        {tr(
+          r.team_name && (
+            <details>
+              <summary>
+                {tr("Команда: ")}
+                {tr(r.team_name)}
+                {tr(" · вы капитан")}
+              </summary>
+              <p>{tr(r.team_members.join(", "))}</p>
+            </details>
+          ),
         )}
         {changed && !cancelled && (
           <p className="feed-notice">
-            Время или площадка изменились после записи. Проверьте актуальные
-            данные выше.
+            {tr(
+              "Время или площадка изменились после записи. Проверьте актуальные данные выше.",
+            )}
           </p>
         )}
         {conflict && !cancelled && (
           <p className="feed-notice">
-            Пересекается по времени с другой вашей игрой.
+            {tr("Пересекается по времени с другой вашей игрой.")}
           </p>
         )}
         {cancelled && (
           <p className="workspace-muted text-sm">
-            {a.status === "cancelled"
-              ? "Отмена организатором"
-              : r.status === "rejected"
-                ? "Запись отклонена"
-                : "Вы отменили запись"}
-            {r.cancelled_at ? ` · ${dateLabel(r.cancelled_at, true)}` : ""}.{" "}
-            {a.cancellation_reason ?? r.cancellation_reason ?? ""}
+            {tr(
+              a.status === "cancelled"
+                ? "Отмена организатором"
+                : r.status === "rejected"
+                  ? "Запись отклонена"
+                  : "Вы отменили запись",
+            )}
+            {tr(
+              r.cancelled_at
+                ? ` · ${dateLabel(r.cancelled_at, true, language)}`
+                : "",
+            )}
+            .{tr(" ")}
+            {tr(a.cancellation_reason ?? r.cancellation_reason ?? "")}
           </p>
         )}
         <div className="event-actions">
@@ -509,7 +555,7 @@ function GameRecord({
             to="/activity/$id"
             params={{ id: a.id }}
           >
-            Открыть игру →
+            {tr("Открыть игру →")}
           </Link>
           <MapLink event={a} />
           {!cancelled && phase !== "past" && <CalendarButton event={a} />}
@@ -523,7 +569,7 @@ function GameRecord({
                 setDialog("cancel");
               }}
             >
-              Отменить запись
+              {tr("Отменить запись")}
             </Button>
           )}
           {phase === "past" && (
@@ -532,7 +578,7 @@ function GameRecord({
               variant="outline"
               onClick={() => setPanel(panel === "review" ? "" : "review")}
             >
-              Отзыв
+              {tr("Отзыв")}
             </Button>
           )}
           <Button
@@ -540,7 +586,7 @@ function GameRecord({
             variant="ghost"
             onClick={() => setPanel(panel === "history" ? "" : "history")}
           >
-            История
+            {tr("История")}
           </Button>
         </div>
 
@@ -553,25 +599,33 @@ function GameRecord({
           <div className="event-expanded">
             {r.review ? (
               <>
-                <p>Ваша оценка: {"★".repeat(r.review.rating)}</p>
-                <p>{r.review.comment}</p>
-                {r.review.reply && (
-                  <p className="feed-notice">
-                    Ответ организатора: {r.review.reply}
-                  </p>
+                <p>
+                  {tr("Ваша оценка: ")}
+                  {tr("★".repeat(r.review.rating))}
+                </p>
+                <p>{tr(r.review.comment)}</p>
+                {tr(
+                  r.review.reply && (
+                    <p className="feed-notice">
+                      {tr("Ответ организатора: ")}
+                      {tr(r.review.reply)}
+                    </p>
+                  ),
                 )}
                 <p className="workspace-muted text-xs">
-                  Для исправления опубликованного отзыва обратитесь в поддержку.
+                  {tr(
+                    "Для исправления опубликованного отзыва обратитесь в поддержку.",
+                  )}
                 </p>
               </>
             ) : canReview ? (
               <>
-                <p className="text-sm">Оцените проведение игры</p>
+                <p className="text-sm">{tr("Оцените проведение игры")}</p>
                 <div className="event-actions">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button
                       className={`feed-chip ${rating === n ? "is-active" : ""}`}
-                      aria-label={`${n} из 5`}
+                      aria-label={tr("{count} из 5", { count: n })}
                       key={n}
                       onClick={() => setRating(n)}
                     >
@@ -583,17 +637,18 @@ function GameRecord({
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   maxLength={600}
-                  placeholder="Что понравилось или стоит улучшить?"
-                  aria-label="Текст отзыва"
+                  placeholder={tr("Что понравилось или стоит улучшить?")}
+                  aria-label={tr("Текст отзыва")}
                 />
                 <Button className="mt-3" onClick={() => setDialog("review")}>
-                  Предпросмотр отзыва
+                  {tr("Предпросмотр отзыва")}
                 </Button>
               </>
             ) : (
               <p className="workspace-muted">
-                Отзыв доступен после завершения события и подтверждения вашего
-                посещения организатором.
+                {tr(
+                  "Отзыв доступен после завершения события и подтверждения вашего посещения организатором.",
+                )}
               </p>
             )}
           </div>
@@ -604,9 +659,11 @@ function GameRecord({
             registration={r.id}
             topic={r.status === "no_show" ? "attendance" : "general"}
           >
-            {r.status === "no_show"
-              ? "Оспорить неявку"
-              : "Обратиться в поддержку"}
+            {tr(
+              r.status === "no_show"
+                ? "Оспорить неявку"
+                : "Обратиться в поддержку",
+            )}
           </HelpLink>
           {phase === "past" && (
             <Link
@@ -614,46 +671,51 @@ function GameRecord({
               search={{ sport: [a.sport], city: a.city }}
               className="profile-link"
             >
-              Найти похожую игру →
+              {tr("Найти похожую игру →")}
             </Link>
           )}
-          {a.type !== "daily_game" && a.results_submitted_at && (
-            <Link
-              to="/activity/$id"
-              params={{ id: a.id }}
-              hash="competition-results"
-              className="profile-link"
-            >
-              Результаты →
-            </Link>
+          {tr(
+            a.type !== "daily_game" && a.results_submitted_at && (
+              <Link
+                to="/activity/$id"
+                params={{ id: a.id }}
+                hash="competition-results"
+                className="profile-link"
+              >
+                {tr("Результаты →")}
+              </Link>
+            ),
           )}
         </div>
-        {a.dispute_window_ends_at && (
-          <p className="workspace-muted text-xs mt-3">
-            Спор по результатам можно подать до{" "}
-            {dateLabel(a.dispute_window_ends_at, true)}. Связь с поддержкой
-            доступна и позже.
-          </p>
+        {tr(
+          a.dispute_window_ends_at && (
+            <p className="workspace-muted text-xs mt-3">
+              {tr("Спор по результатам можно подать до")}
+              {tr(" ")}
+              {tr(dateLabel(a.dispute_window_ends_at, true, language))}
+              {tr(". Связь с поддержкой доступна и позже.")}
+            </p>
+          ),
         )}
       </div>
       <Confirm
         open={!!dialog}
-        title={
+        title={tr(
           dialog === "cancel"
             ? "Отменить участие?"
             : dialog === "review"
               ? "Опубликовать отзыв?"
-              : "Отменить участие?"
-        }
-        description={
+              : "Отменить участие?",
+        )}
+        description={tr(
           dialog === "cancel"
             ? (r.terms_snapshot?.cancellation_policy ??
-              a.cancellation_policy ??
-              "Запись сохранится в истории.")
+                a.cancellation_policy ??
+                "Запись сохранится в истории.")
             : dialog === "review"
               ? "Отзыв увидит организатор. Исправления после публикации рассматривает поддержка."
-              : "Запись сохранится в истории."
-        }
+              : "Запись сохранится в истории.",
+        )}
         onClose={() => setDialog("")}
         busy={action.busy}
         onConfirm={() =>
@@ -680,11 +742,11 @@ function GameRecord({
       >
         {dialog === "review" ? (
           <p>
-            {rating} ★ · {comment || "Без комментария"}
+            {rating} ★ · {tr(comment || "Без комментария")}
           </p>
         ) : (
           <label>
-            Причина
+            {tr("Причина")}
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -692,7 +754,7 @@ function GameRecord({
             />
           </label>
         )}
-        <ErrorNotice message={action.error} />
+        <ErrorNotice message={tr(action.error)} />
       </Confirm>
     </article>
   );

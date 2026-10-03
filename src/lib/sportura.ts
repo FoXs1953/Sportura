@@ -1,3 +1,4 @@
+import { formatLocalizedDate, type Language } from "./i18n/core";
 import { DISCIPLINES } from "./disciplines";
 import football from "@/assets/sport-football.jpg";
 import minifootball from "@/assets/sport-minifootball.jpg";
@@ -106,9 +107,12 @@ export function spotsLeft(registered: number, max: number): number {
   return Math.max(0, max - registered);
 }
 
-export function formatDateTime(value: string | null): string {
+export function formatDateTime(
+  value: string | null,
+  language: Language = "ru",
+): string {
   if (!value) return "";
-  return new Date(value).toLocaleString("ru-RU", {
+  return formatLocalizedDate(value, language, {
     timeZone: "Asia/Almaty",
     day: "numeric",
     month: "long",
@@ -117,12 +121,15 @@ export function formatDateTime(value: string | null): string {
   });
 }
 
-export function timeLabel(a: {
-  time_text: string | null;
-  date_time: string | null;
-}): string {
+export function timeLabel(
+  a: {
+    time_text: string | null;
+    date_time: string | null;
+  },
+  language: Language = "ru",
+): string {
   if (a.time_text && a.time_text.trim()) return a.time_text;
-  return formatDateTime(a.date_time);
+  return formatDateTime(a.date_time, language);
 }
 
 export const PRIZE_TEMPLATE = { "1": 100 };

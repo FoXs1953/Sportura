@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export function NotificationsTab({
   data: ProfileWorkspace;
   isHost: boolean;
 }) {
+  const { tr, language } = useI18n();
   const [view, setView] = useState("inbox");
   const [unread, setUnread] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,21 +49,21 @@ export function NotificationsTab({
   const list = data.notifications.filter((n) => !unread || !n.read_at);
   return (
     <Panel
-      title="Уведомления"
-      subtitle="Изменения игр и ответы поддержки в одном месте"
+      title={tr("Уведомления")}
+      subtitle={tr("Изменения игр и ответы поддержки в одном месте")}
     >
       <div className="profile-tabs-row">
         <button
           className={`feed-chip ${view === "inbox" ? "is-active" : ""}`}
           onClick={() => setView("inbox")}
         >
-          Входящие
+          {tr("Входящие")}
         </button>
         <button
           className={`feed-chip ${view === "settings" ? "is-active" : ""}`}
           onClick={() => setView("settings")}
         >
-          Настройки
+          {tr("Настройки")}
         </button>
       </div>
       {view === "inbox" ? (
@@ -72,18 +74,19 @@ export function NotificationsTab({
                 type="checkbox"
                 checked={unread}
                 onChange={(e) => setUnread(e.target.checked)}
-              />{" "}
-              Только непрочитанные
+              />
+              {tr(" ")}
+              {tr("Только непрочитанные")}
             </label>
             <Button
               variant="ghost"
               disabled={busy || !data.notifications.some((n) => !n.read_at)}
               onClick={() => void read()}
             >
-              Прочитать все
+              {tr("Прочитать все")}
             </Button>
           </div>
-          <ErrorNotice message={error} />
+          <ErrorNotice message={tr(error)} />
           {list.length ? (
             list.map((n) => (
               <article className="profile-item" key={n.id}>
@@ -92,17 +95,17 @@ export function NotificationsTab({
                     className={`mt-1.5 size-2 shrink-0 rounded-full ${n.read_at ? "bg-[#455054]" : "bg-brand"}`}
                   />
                   <div className="min-w-0 grow">
-                    <h3 className="text-sm font-bold">{n.title}</h3>
-                    <p className="workspace-muted mt-2 text-sm">{n.body}</p>
+                    <h3 className="text-sm font-bold">{tr(n.title)}</h3>
+                    <p className="workspace-muted mt-2 text-sm">{tr(n.body)}</p>
                     <p className="workspace-muted mt-2 text-xs">
-                      {dateLabel(n.created_at, true)}
+                      {tr(dateLabel(n.created_at, true, language))}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-4">
                       <a
                         className="profile-link"
                         href={safeInternalHref(n.href)}
                       >
-                        Открыть
+                        {tr("Открыть")}
                       </a>
                       {!n.read_at && (
                         <button
@@ -110,7 +113,7 @@ export function NotificationsTab({
                           disabled={busy}
                           onClick={() => void read(n.id)}
                         >
-                          Прочитано
+                          {tr("Прочитано")}
                         </button>
                       )}
                     </div>
@@ -119,46 +122,53 @@ export function NotificationsTab({
               </article>
             ))
           ) : (
-            <Empty title={unread ? "Всё прочитано" : "Уведомлений пока нет"}>
-              Новые события появятся здесь автоматически. История хранится с
-              момента подключения раздела.
+            <Empty
+              title={tr(unread ? "Всё прочитано" : "Уведомлений пока нет")}
+            >
+              {tr(
+                "Новые события появятся здесь автоматически. История хранится с момента подключения раздела.",
+              )}
             </Empty>
           )}
         </>
       ) : (
         <>
           <Toggle
-            label="Изменения и отмены игр"
+            label={tr("Изменения и отмены игр")}
             checked={form.value.games}
             onChange={(games) => form.patch({ games })}
           />
 
           <Toggle
-            label="Заявки организатора"
+            label={tr("Заявки организатора")}
             checked={form.value.applications}
             onChange={(applications) => form.patch({ applications })}
           />
           <Toggle
-            label="Ответы поддержки"
+            label={tr("Ответы поддержки")}
             checked={form.value.support}
             onChange={(support) => form.patch({ support })}
           />
           {isHost && (
             <Toggle
-              label="События организатора"
-              description="Новые участники, отмены записей и чеки на проверку"
+              label={tr("События организатора")}
+              description={tr(
+                "Новые участники, отмены записей и чеки на проверку",
+              )}
               checked={form.value.host}
               onChange={(host) => form.patch({ host })}
             />
           )}
           <Toggle
-            label="Рекомендации новых игр"
-            description="Не чаще одного раза в сутки, по городу и видам спорта. По умолчанию выключены."
+            label={tr("Рекомендации новых игр")}
+            description={tr(
+              "Не чаще одного раза в сутки, по городу и видам спорта. По умолчанию выключены.",
+            )}
             checked={form.value.recommendations}
             onChange={(recommendations) => form.patch({ recommendations })}
           />
           <label className="mt-5">
-            Напоминание об игре
+            {tr("Напоминание об игре")}
             <select
               value={form.value.reminder}
               onChange={(e) => form.patch({ reminder: Number(e.target.value) })}
@@ -171,22 +181,24 @@ export function NotificationsTab({
                 [1440, "За сутки"],
               ].map(([v, label]) => (
                 <option key={v} value={v}>
-                  {label}
+                  {tr(label)}
                 </option>
               ))}
             </select>
             <small>
-              Напоминания внутри приложения. Для закрытого браузера нужна
-              отдельная доставка push.
+              {tr(
+                "Напоминания внутри приложения. Для закрытого браузера нужна отдельная доставка push.",
+              )}
             </small>
           </label>
           <SaveRow form={form} />
           <div className="workspace-panel-raised mt-6 p-4">
-            <h3 className="text-sm font-bold">Каналы доставки</h3>
-            <p className="mt-3 text-sm">Внутри Sportura · подключено</p>
+            <h3 className="text-sm font-bold">{tr("Каналы доставки")}</h3>
+            <p className="mt-3 text-sm">{tr("Внутри Sportura · подключено")}</p>
             <p className="workspace-muted mt-2 text-xs">
-              Email и push для игровых уведомлений пока не подключены. Письма
-              входа и восстановления пароля работают отдельно.
+              {tr(
+                "Email и push для игровых уведомлений пока не подключены. Письма входа и восстановления пароля работают отдельно.",
+              )}
             </p>
           </div>
         </>

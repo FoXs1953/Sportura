@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import {
   createFileRoute,
   Link,
@@ -75,6 +76,7 @@ const icons = {
   help: LifeBuoy,
 };
 function Profile() {
+  const { tr } = useI18n();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const tab = search.tab ?? "overview";
@@ -91,7 +93,7 @@ function Profile() {
     search.registration || search.activity || search.review
       ? {
           topic: search.topic ?? "general",
-          subject: "Вопрос по событию",
+          subject: tr("Вопрос по событию"),
           ...(search.registration
             ? { registration_id: search.registration }
             : {}),
@@ -152,30 +154,30 @@ function Profile() {
   return (
     <AppShell
       workspace
-      title="Профиль"
-      subtitle="Ваш спорт. Ваши настройки. Ваша команда."
+      title={tr("Профиль")}
+      subtitle={tr("Ваш спорт. Ваши настройки. Ваша команда.")}
     >
       {me.isPending || (!workspace.isError && !data && !!user) ? (
-        <div className="profile-layout" aria-label="Загружаем профиль">
+        <div className="profile-layout" aria-label={tr("Загружаем профиль")}>
           <div className="workspace-panel h-80 animate-pulse" />
           <div className="workspace-panel h-96 animate-pulse" />
         </div>
       ) : me.isError || workspace.isError || !user || !data ? (
         <div className="workspace-panel p-6">
           <h2 className="workspace-section-title">
-            Не удалось загрузить профиль
+            {tr("Не удалось загрузить профиль")}
           </h2>
-          <ErrorNotice message={errorText(me.error ?? workspace.error)} />
+          <ErrorNotice message={tr(errorText(me.error ?? workspace.error))} />
           <Button
             onClick={() => {
               void me.refetch();
               void workspace.refetch();
             }}
           >
-            Повторить
+            {tr("Повторить")}
           </Button>
           <Link className="profile-link ml-4" to="/my-games">
-            Мои игры
+            {tr("Мои игры")}
           </Link>
         </div>
       ) : (
@@ -185,18 +187,24 @@ function Profile() {
               <img
                 className="profile-cover"
                 src={sportImage(user.sports[0] ?? "Футбол")}
-                alt=""
+                alt={tr("")}
               />
               <div className="profile-identity">
                 <div className="profile-avatar">
-                  {avatar ? <img src={avatar} alt="" /> : user.name.slice(0, 1)}
+                  {tr(
+                    avatar ? (
+                      <img src={avatar} alt={tr("")} />
+                    ) : (
+                      user.name.slice(0, 1)
+                    ),
+                  )}
                 </div>
                 <h2 className="mt-3 break-words text-base font-bold">
-                  {user.name}
+                  {tr(user.name)}
                 </h2>
-                <p className="workspace-muted mt-1 text-xs">{user.city}</p>
+                <p className="workspace-muted mt-1 text-xs">{tr(user.city)}</p>
               </div>
-              <nav className="profile-nav" aria-label="Разделы профиля">
+              <nav className="profile-nav" aria-label={tr("Разделы профиля")}>
                 {profileTabs.map((key) => {
                   const Icon = icons[key];
                   return (
@@ -208,7 +216,7 @@ function Profile() {
                       aria-current={tab === key ? "page" : undefined}
                     >
                       <Icon size={17} />
-                      {tabLabels[key]}
+                      {tr(tabLabels[key])}
                       {key === "notifications" && count > 0 && (
                         <span className="profile-badge-count">{count}</span>
                       )}
@@ -220,19 +228,25 @@ function Profile() {
             <div className="profile-main" key={tab}>
               {tab === "overview" && (
                 <OverviewTab me={user} data={data} go={go} />
-              )}{" "}
-              {tab === "personal" && <PersonalTab me={user} data={data} />}{" "}
-              {tab === "rating" && <RatingTab data={data} report={report} />}{" "}
+              )}
+              {tr(" ")}
+              {tab === "personal" && <PersonalTab me={user} data={data} />}
+              {tr(" ")}
+              {tab === "rating" && <RatingTab data={data} report={report} />}
+              {tr(" ")}
               {tab === "notifications" && (
                 <NotificationsTab
                   data={data}
                   isHost={user.roles.some((r) => r !== "participant")}
                 />
-              )}{" "}
+              )}
+              {tr(" ")}
               {tab === "security" && (
                 <SecurityTab me={user} data={data} report={report} />
-              )}{" "}
-              {tab === "organizer" && <OrganizerTab me={user} data={data} />}{" "}
+              )}
+              {tr(" ")}
+              {tab === "organizer" && <OrganizerTab me={user} data={data} />}
+              {tr(" ")}
               {tab === "help" && (
                 <HelpTab
                   data={data}

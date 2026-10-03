@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +10,6 @@ import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({
     meta: [
@@ -19,8 +19,8 @@ export const Route = createFileRoute("/forgot-password")({
   }),
   component: ForgotPasswordPage,
 });
-
 function ForgotPasswordPage() {
+  const { tr } = useI18n();
   const capabilities = useQuery({
     queryKey: ["auth-capabilities"],
     queryFn: () => getAuthCapabilities(),
@@ -30,7 +30,6 @@ function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
   async function sendReset(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -52,40 +51,43 @@ function ForgotPasswordPage() {
       setBusy(false);
     }
   }
-
   return (
     <AuthFrame
-      title="Забыли пароль?"
-      subtitle="Восстановление доступа к Sportura"
+      title={tr("Забыли пароль?")}
+      subtitle={tr("Восстановление доступа к Sportura")}
     >
       {sent ? (
         <div className="auth-message space-y-4">
           <p role="status" className="text-sm">
-            Запрос восстановления принят. Проверьте входящие и папку «Спам» для
-            адреса {email.trim()}.
+            {tr(
+              "Запрос восстановления принят. Проверьте входящие и папку «Спам» для адреса {email}.",
+              { email: email.trim() },
+            )}
           </p>
           <p className="text-xs text-muted-foreground">
-            Откройте последнюю ссылку из письма и задайте новый пароль. Если
-            письмо не приходит, повторите запрос позже или обратитесь в
-            поддержку.
+            {tr(
+              "Откройте последнюю ссылку из письма и задайте новый пароль. Если письмо не приходит, повторите запрос позже или обратитесь в поддержку.",
+            )}
           </p>
           <button
             type="button"
             className="text-sm text-brand underline"
             onClick={() => setSent(false)}
           >
-            Отправить на другой адрес
+            {tr("Отправить на другой адрес")}
           </button>
         </div>
       ) : (
         <form onSubmit={sendReset} className="space-y-5" aria-busy={busy}>
           <p className="text-sm text-muted-foreground">
-            {emailUnavailable
-              ? "Отправка писем пока недоступна. Попробуйте позже или обратитесь в поддержку."
-              : "Введите почту аккаунта, чтобы запросить ссылку для смены пароля."}
+            {tr(
+              emailUnavailable
+                ? "Отправка писем пока недоступна. Попробуйте позже или обратитесь в поддержку."
+                : "Введите почту аккаунта, чтобы запросить ссылку для смены пароля.",
+            )}
           </p>
           <div className="space-y-2">
-            <Label htmlFor="reset-email">E-mail</Label>
+            <Label htmlFor="reset-email">{tr("E-mail")}</Label>
             <Input
               id="reset-email"
               type="email"
@@ -95,17 +97,19 @@ function ForgotPasswordPage() {
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
+          {tr(
+            error && (
+              <p role="alert" className="text-sm text-destructive">
+                {tr(error)}
+              </p>
+            ),
           )}
           <Button
             type="submit"
             disabled={busy || emailUnavailable}
             className="w-full"
           >
-            {busy ? "Отправляем…" : "Отправить ссылку"}
+            {tr(busy ? "Отправляем…" : "Отправить ссылку")}
           </Button>
         </form>
       )}
@@ -113,7 +117,7 @@ function ForgotPasswordPage() {
         to="/auth"
         className="mt-4 block text-center text-sm text-brand underline"
       >
-        Вернуться ко входу
+        {tr("Вернуться ко входу")}
       </Link>
     </AuthFrame>
   );

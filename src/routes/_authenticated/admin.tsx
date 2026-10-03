@@ -1,3 +1,4 @@
+import { formatDate, useI18n } from "@/lib/i18n";
 import { OrganizerTrust } from "@/components/events/host/trust";
 import { AnalyticsDashboard } from "@/components/analytics/dashboard";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -17,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getSupportAdmin } from "@/lib/profile.functions";
 import { Input } from "@/components/ui/input";
 import { SupportAdmin } from "@/components/profile/support";
+import { organizerApplicationLabel } from "@/components/profile/shared";
 import "@/styles/profile.css";
 import { getMe } from "@/lib/me.functions";
 import {
@@ -36,14 +38,15 @@ import {
 import {
   ACCOUNT_STATUS_LABEL,
   ACTIVITY_TYPE_LABEL,
+  ACTIVITY_STATUS_LABEL,
   PAYMENT_STATUS_LABEL,
   ROLE_LABEL,
   formatKzt,
   type AccountStatus,
+  type ActivityStatus,
   type AppRole,
   type PaymentStatus,
 } from "@/lib/sportura";
-
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
@@ -61,7 +64,6 @@ export const Route = createFileRoute("/_authenticated/admin")({
   }),
   component: Admin,
 });
-
 type Tab =
   | "analytics"
   | "overview"
@@ -76,7 +78,6 @@ type Tab =
   | "settings"
   | "audit"
   | "support";
-
 function downloadCsv(filename: string, csv: string) {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -86,17 +87,17 @@ function downloadCsv(filename: string, csv: string) {
   link.click();
   URL.revokeObjectURL(url);
 }
-
 function Stat({ label, value }: { label: string; value: string | number }) {
+  const { tr } = useI18n();
   return (
     <div className="admin-stat">
-      <strong>{value}</strong>
-      <span>{label}</span>
+      <strong>{tr(value)}</strong>
+      <span>{tr(label)}</span>
     </div>
   );
 }
-
 function Admin() {
+  const { tr, language } = useI18n();
   const queryClient = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => getMe() });
   const isAdmin = Boolean(me?.roles.includes("admin"));
@@ -116,7 +117,6 @@ function Admin() {
     refetchInterval: 30000,
   });
   const [editingId, setEditingId] = useState<string | null>(null);
-
   const overview = useQuery({
     queryKey: ["admin", "overview"],
     queryFn: () => getAdminOverview(),
@@ -142,34 +142,31 @@ function Admin() {
     queryFn: () => listDisputesAdmin(),
     enabled: isStaff && tab === "disputes",
   });
-
   async function exportCsv(
     kind: "users" | "activities" | "registrations" | "payments",
   ) {
     try {
-      const result = await exportAdminCsv({ data: { kind } });
+      const result = await exportAdminCsv({ data: { kind, language } });
       downloadCsv(result.filename, result.csv);
-      toast.success("Файл выгружен");
+      toast.success(tr("Файл выгружен"));
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Не удалось выгрузить файл",
+        tr(err instanceof Error ? err.message : "Не удалось выгрузить файл"),
       );
     }
   }
-
   if (me && !isStaff) {
     return (
-      <AppShell title="Администрирование">
+      <AppShell title={tr("Администрирование")}>
         <div className="panel-frost rounded-3xl p-6 text-center text-sm text-muted-foreground">
-          Раздел доступен лидам и администраторам.
+          {tr("Раздел доступен лидам и администраторам.")}
           <Link to="/" className="mt-3 block text-brand underline">
-            На главную
+            {tr("На главную")}
           </Link>
         </div>
       </AppShell>
     );
   }
-
   async function run(
     action: () => Promise<unknown>,
     success: string,
@@ -177,20 +174,18 @@ function Admin() {
   ) {
     try {
       await action();
-      toast.success(success);
+      toast.success(tr(success));
       for (const key of keys)
         await queryClient.invalidateQueries({ queryKey: ["admin", key] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Ошибка");
+      toast.error(tr(err instanceof Error ? err.message : "Ошибка"));
     }
   }
-
   const o = overview.data;
-
   return (
     <AppShell
-      title={isAdmin ? "Администрирование" : "Кабинет лида"}
-      subtitle="Пользователи, события и управление платформой"
+      title={tr(isAdmin ? "Администрирование" : "Кабинет лида")}
+      subtitle={tr("Пользователи, события и управление платформой")}
       layout="admin"
     >
       <div className="admin-page">
@@ -203,7 +198,7 @@ function Admin() {
                 className="press panel-frost flex w-full items-center justify-between rounded-2xl border border-warning/40 p-4 text-left"
               >
                 <span className="text-sm font-semibold">
-                  Новые заявки организаторов
+                  {tr("Новые заявки организаторов")}
                 </span>
                 <span className="rounded-full bg-warning/20 px-2.5 py-1 text-xs font-semibold text-warning">
                   {o?.applicationsPending}
@@ -217,7 +212,9 @@ function Admin() {
                 onClick={() => setTab("disputes")}
                 className="press panel-frost flex w-full items-center justify-between rounded-2xl p-4 text-left"
               >
-                <span className="text-sm font-semibold">Открытые споры</span>
+                <span className="text-sm font-semibold">
+                  {tr("Открытые споры")}
+                </span>
                 <span className="rounded-full bg-destructive/20 px-2.5 py-1 text-xs font-semibold text-destructive">
                   {o?.disputesOpen}
                 </span>
@@ -229,7 +226,7 @@ function Admin() {
         <div
           className="admin-tabs"
           role="tablist"
-          aria-label="Разделы панели администратора"
+          aria-label={tr("Разделы панели администратора")}
         >
           {(
             [
@@ -238,9 +235,7 @@ function Admin() {
               ["applications", "Заявки", o?.applicationsPending ?? 0],
               ["users", "Пользователи", 0],
               ["activities", "Активности", 0],
-
               ["disputes", "Споры", o?.disputesOpen ?? 0],
-
               ["reports", "Отчёты", 0],
               ["content", "Контент", 0],
               ["settings", "Настройки", 0],
@@ -269,7 +264,7 @@ function Admin() {
                 onClick={() => setTab(key)}
                 className="press"
               >
-                {label}
+                {tr(label)}
                 {count > 0 ? (
                   <span className="ml-1.5 rounded-full bg-warning/25 px-1.5 py-0.5 text-[10px] font-bold text-warning">
                     {count}
@@ -283,20 +278,26 @@ function Admin() {
 
         {tab === "overview" ? (
           <div className="admin-stats">
-            <Stat label="Пользователей" value={o?.users.total ?? "—"} />
-            <Stat label="С ограничениями" value={o?.users.flagged ?? "—"} />
+            <Stat label={tr("Пользователей")} value={o?.users.total ?? "—"} />
             <Stat
-              label="Игровых слотов"
+              label={tr("С ограничениями")}
+              value={o?.users.flagged ?? "—"}
+            />
+            <Stat
+              label={tr("Игровых слотов")}
               value={o?.activities.dailyGames ?? "—"}
             />
             <Stat
-              label="Соревнований"
+              label={tr("Соревнований")}
               value={o?.activities.competitions ?? "—"}
             />
 
-            <Stat label="Открытых споров" value={o?.disputesOpen ?? "—"} />
             <Stat
-              label="Заявок в ожидании"
+              label={tr("Открытых споров")}
+              value={o?.disputesOpen ?? "—"}
+            />
+            <Stat
+              label={tr("Заявок в ожидании")}
               value={o?.applicationsPending ?? "—"}
             />
           </div>
@@ -306,7 +307,7 @@ function Admin() {
           <div className="admin-list">
             {(applications.data ?? []).length === 0 ? (
               <p className="admin-empty panel-frost rounded-2xl p-5 text-sm text-muted-foreground">
-                Заявок нет.
+                {tr("Заявок нет.")}
               </p>
             ) : (
               [...(applications.data ?? [])]
@@ -326,8 +327,8 @@ function Admin() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold">
-                        {a.profile?.name ?? "Пользователь"} →{" "}
-                        {ROLE_LABEL[a.requested_role as AppRole]}
+                        {tr(a.profile?.name ?? "Пользователь")} →{tr(" ")}
+                        {tr(ROLE_LABEL[a.requested_role as AppRole])}
                       </p>
                       <span
                         className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -338,31 +339,45 @@ function Admin() {
                               : "bg-destructive/20 text-destructive"
                         }`}
                       >
-                        {a.status === "pending"
-                          ? "на рассмотрении"
-                          : a.status === "approved"
-                            ? "одобрена"
-                            : "отклонена"}
+                        {tr(
+                          a.status === "pending"
+                            ? "на рассмотрении"
+                            : a.status === "approved"
+                              ? "одобрена"
+                              : "отклонена",
+                        )}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {a.profile?.email ?? "—"} ·{" "}
-                      {a.profile?.phone ?? "телефон не указан"} ·{" "}
-                      {a.profile?.verified ? "подтверждён" : "не подтверждён"} ·{" "}
-                      {new Date(a.created_at).toLocaleDateString("ru-RU")}
+                      {tr(a.profile?.email ?? "—")} ·{tr(" ")}
+                      {tr(a.profile?.phone ?? "телефон не указан")} ·{tr(" ")}
+                      {tr(
+                        a.profile?.verified ? "подтверждён" : "не подтверждён",
+                      )}{" "}
+                      ·{tr(" ")}
+                      {tr(
+                        formatDate(
+                          a.created_at,
+                          { day: "numeric", month: "long", year: "numeric" },
+                          language,
+                        ),
+                      )}
                     </p>
                     {a.motivation ? (
-                      <p className="text-xs">«{a.motivation}»</p>
+                      <p className="whitespace-pre-wrap text-xs">
+                        «{organizerApplicationLabel(a.motivation, tr)}»
+                      </p>
                     ) : null}
                     {a.status !== "pending" && a.admin_notes ? (
                       <p className="text-xs text-muted-foreground">
-                        Комментарий: {a.admin_notes}
+                        {tr("Комментарий: ")}
+                        {tr(a.admin_notes)}
                       </p>
                     ) : null}
                     {a.status === "pending" ? (
                       <>
                         <Textarea
-                          placeholder="Комментарий (необязательно)"
+                          placeholder={tr("Комментарий (необязательно)")}
                           value={notes}
                           onChange={(e) => setNotes(e.target.value)}
                         />
@@ -385,7 +400,7 @@ function Admin() {
                               )
                             }
                           >
-                            Одобрить
+                            {tr("Одобрить")}
                           </Button>
                           <Button
                             size="sm"
@@ -406,7 +421,7 @@ function Admin() {
                               )
                             }
                           >
-                            Отклонить
+                            {tr("Отклонить")}
                           </Button>
                         </div>
                       </>
@@ -423,23 +438,34 @@ function Admin() {
               <div key={u.id} className="panel-frost space-y-2 rounded-2xl p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold">{u.name}</p>
+                    <p className="text-sm font-semibold">{tr(u.name)}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {u.email ?? u.phone ?? "—"} · {u.city}
+                      {tr(u.email ?? u.phone ?? "—")} · {tr(u.city)}
                     </p>
                     <p className="text-[11px] text-muted-foreground">
-                      {(u.roles as AppRole[])
-                        .map((r) => ROLE_LABEL[r])
-                        .join(", ") || "Участник"}
+                      {tr(
+                        (u.roles as AppRole[])
+                          .map((r) => tr(ROLE_LABEL[r]))
+                          .join(", ") || "Участник",
+                      )}
                     </p>
                   </div>
                   <span className="panel-frost-2 rounded-full px-2.5 py-1 text-[11px]">
-                    {ACCOUNT_STATUS_LABEL[u.account_status as AccountStatus]}
+                    {tr(
+                      ACCOUNT_STATUS_LABEL[u.account_status as AccountStatus],
+                    )}
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Рейтинг {u.rating ?? "—"} · пропуски {u.no_show_count} · споры{" "}
-                  {u.dispute_count} · отмены {u.cancellation_count}
+                  {tr("Рейтинг ")}
+                  {tr(u.rating ?? "—")}
+                  {tr(" · пропуски ")}
+                  {u.no_show_count}
+                  {tr(" · споры")}
+                  {tr(" ")}
+                  {u.dispute_count}
+                  {tr(" · отмены ")}
+                  {u.cancellation_count}
                 </p>
                 {(u.roles as AppRole[]).includes("tournament_organizer") && (
                   <OrganizerTrust id={u.id} admin />
@@ -476,15 +502,15 @@ function Admin() {
                           )
                         }
                       >
-                        {hasRole ? "✓ " : ""}
-                        {ROLE_LABEL[r]}
+                        {tr(hasRole ? "✓ " : "")}
+                        {tr(ROLE_LABEL[r])}
                       </Button>
                     );
                   })}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="text-xs">
-                    Причина ограничения (видна пользователю)
+                    {tr("Причина ограничения (видна пользователю)")}
                     <Input
                       value={restrictionNotes[u.id] ?? ""}
                       maxLength={600}
@@ -497,7 +523,7 @@ function Admin() {
                     />
                   </label>
                   <label className="text-xs">
-                    Срок ограничения (необязательно)
+                    {tr("Срок ограничения (необязательно)")}
                     <Input
                       type="datetime-local"
                       value={restrictionDates[u.id] ?? ""}
@@ -544,7 +570,7 @@ function Admin() {
                         )
                       }
                     >
-                      {ACCOUNT_STATUS_LABEL[s]}
+                      {tr(ACCOUNT_STATUS_LABEL[s])}
                     </Button>
                   ))}
                 </div>
@@ -562,16 +588,22 @@ function Admin() {
                   params={{ id: a.id }}
                   className="text-sm font-semibold"
                 >
-                  {a.title}
+                  {tr(a.title)}
                 </Link>
                 <p className="text-[11px] text-muted-foreground">
-                  {ACTIVITY_TYPE_LABEL[a.type as "daily_game"]} · {a.sport} ·{" "}
-                  {a.city} · {a.host_name}
+                  {tr(ACTIVITY_TYPE_LABEL[a.type as "daily_game"])} ·{" "}
+                  {tr(a.sport)} ·{tr(" ")}
+                  {tr(a.city)} · {tr(a.host_name)}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  {a.registered_count}/{a.max_participants} ·{" "}
-                  {a.is_free ? "бесплатно" : formatKzt(a.entry_fee)} ·{" "}
-                  {a.status} · {a.is_private ? "скрыта" : "в ленте"}
+                  {a.registered_count}/{a.max_participants} ·{tr(" ")}
+                  {tr(a.is_free ? "бесплатно" : formatKzt(a.entry_fee))} ·
+                  {tr(" ")}
+                  {tr(
+                    ACTIVITY_STATUS_LABEL[a.status as ActivityStatus] ??
+                      a.status,
+                  )}{" "}
+                  · {tr(a.is_private ? "скрыта" : "в ленте")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button
@@ -581,7 +613,7 @@ function Admin() {
                       setEditingId(editingId === a.id ? null : a.id)
                     }
                   >
-                    {editingId === a.id ? "Закрыть" : "Изменить"}
+                    {tr(editingId === a.id ? "Закрыть" : "Изменить")}
                   </Button>
                   {(
                     [
@@ -611,7 +643,7 @@ function Admin() {
                         )
                       }
                     >
-                      {label}
+                      {tr(label)}
                     </Button>
                   ))}
                   {isAdmin && (
@@ -622,7 +654,9 @@ function Admin() {
                       onClick={() => {
                         if (
                           !confirm(
-                            `Удалить «${a.title}» вместе с записями участников?`,
+                            tr(
+                              `Удалить «${a.title}» вместе с записями участников?`,
+                            ),
                           )
                         )
                           return;
@@ -636,7 +670,7 @@ function Admin() {
                         );
                       }}
                     >
-                      Удалить
+                      {tr("Удалить")}
                     </Button>
                   )}
                 </div>
@@ -664,7 +698,7 @@ function Admin() {
           <div className="space-y-3">
             {(disputes.data ?? []).length === 0 ? (
               <p className="panel-frost rounded-2xl p-5 text-sm text-muted-foreground">
-                Споров нет.
+                {tr("Споров нет.")}
               </p>
             ) : (
               (disputes.data ?? []).map((d) => (
@@ -673,14 +707,23 @@ function Admin() {
                   className="panel-frost space-y-2 rounded-2xl p-4"
                 >
                   <p className="text-sm font-semibold">
-                    {d.activity?.title ?? "Активность"}
+                    {tr(d.activity?.title ?? "Активность")}
                   </p>
-                  <p className="text-xs">{d.reason}</p>
+                  <p className="text-xs">{tr(d.reason)}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Статус: {d.status}
+                    {tr("Статус: ")}
+                    {tr(
+                      (
+                        {
+                          open: "Открыт",
+                          resolved: "Решено",
+                          rejected: "Отклонено",
+                        } as Record<string, string>
+                      )[d.status] ?? d.status,
+                    )}
                   </p>
                   <Textarea
-                    placeholder="Решение администратора"
+                    placeholder={tr("Решение администратора")}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />
@@ -703,7 +746,7 @@ function Admin() {
                         )
                       }
                     >
-                      Удовлетворить
+                      {tr("Удовлетворить")}
                     </Button>
                     <Button
                       size="sm"
@@ -724,7 +767,7 @@ function Admin() {
                         )
                       }
                     >
-                      Отклонить
+                      {tr("Отклонить")}
                     </Button>
                   </div>
                 </div>
@@ -736,9 +779,11 @@ function Admin() {
         {tab === "reports" ? (
           <div className="space-y-4">
             <div className="panel-frost space-y-3 rounded-2xl p-5">
-              <p className="text-sm font-semibold">Выгрузка таблиц</p>
+              <p className="text-sm font-semibold">{tr("Выгрузка таблиц")}</p>
               <p className="text-xs text-muted-foreground">
-                Файлы в формате CSV — открываются в Excel и Google Таблицах.
+                {tr(
+                  "Файлы в формате CSV — открываются в Excel и Google Таблицах.",
+                )}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -747,7 +792,7 @@ function Admin() {
                   className="press"
                   onClick={() => void exportCsv("users")}
                 >
-                  Пользователи
+                  {tr("Пользователи")}
                 </Button>
                 <Button
                   size="sm"
@@ -755,7 +800,7 @@ function Admin() {
                   className="press"
                   onClick={() => void exportCsv("activities")}
                 >
-                  Активности
+                  {tr("Активности")}
                 </Button>
                 <Button
                   size="sm"
@@ -763,7 +808,7 @@ function Admin() {
                   className="press"
                   onClick={() => void exportCsv("registrations")}
                 >
-                  Записи
+                  {tr("Записи")}
                 </Button>
               </div>
             </div>

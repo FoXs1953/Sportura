@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { EVENT_SERIES } from "@/lib/event-series";
 import { EventDisputes } from "@/components/events/disputes";
 import { DISCIPLINES, DISCIPLINE_FIELDS } from "@/lib/disciplines";
@@ -44,11 +45,16 @@ import "@/styles/profile.css";
 import "@/styles/events.css";
 const search = z.object({ code: z.string().max(64).catch("").default("") });
 export const Route = createFileRoute("/activity/$id")({
-  validateSearch: (s: { code?: string } & SearchSchemaInput) => search.parse(s),
+  validateSearch: (
+    s: {
+      code?: string;
+    } & SearchSchemaInput,
+  ) => search.parse(s),
   head: () => ({ meta: [{ title: "Событие — Sportura" }] }),
   component: EventPage,
 });
 function EventPage() {
+  const { tr, language } = useI18n();
   const { id } = Route.useParams();
   const { code } = Route.useSearch();
   const session = useSessionUser();
@@ -106,40 +112,41 @@ function EventPage() {
   return (
     <AppShell
       workspace
-      title={a?.title ?? "Событие"}
-      subtitle={
+      title={tr(a?.title ?? "Событие")}
+      subtitle={tr(
         a
-          ? `${ACTIVITY_TYPE_LABEL[a.type]} · ${a.city} · ${a.sport}`
-          : "Условия участия и подробности"
-      }
+          ? `${tr(ACTIVITY_TYPE_LABEL[a.type])} · ${tr(a.city)} · ${tr(a.sport)}`
+          : "Условия участия и подробности",
+      )}
     >
       <div className="events-workspace">
         {q.isPending ? (
-          <Panel title="Загружаем событие…">
-            <p role="status">Проверяем актуальные места и время.</p>
+          <Panel title={tr("Загружаем событие…")}>
+            <p role="status">{tr("Проверяем актуальные места и время.")}</p>
           </Panel>
         ) : q.error ? (
-          <Panel title="Не удалось открыть событие">
-            <ErrorNotice message={q.error.message} />
-            <Button onClick={() => void q.refetch()}>Повторить</Button>
+          <Panel title={tr("Не удалось открыть событие")}>
+            <ErrorNotice message={tr(q.error.message)} />
+            <Button onClick={() => void q.refetch()}>{tr("Повторить")}</Button>
           </Panel>
         ) : !a ? (
-          <Panel title="Событие недоступно">
+          <Panel title={tr("Событие недоступно")}>
             <p className="workspace-muted">
-              Проверьте ссылку или код приглашения. Для ранее оформленной
-              закрытой записи войдите в аккаунт.
+              {tr(
+                "Проверьте ссылку или код приглашения. Для ранее оформленной закрытой записи войдите в аккаунт.",
+              )}
             </p>
             <div className="event-actions mt-4">
               <Link className="profile-link" to="/join">
-                Ввести код
+                {tr("Ввести код")}
               </Link>
               {!user && (
                 <Link className="profile-link" to="/auth" search={{ redirect }}>
-                  Войти
+                  {tr("Войти")}
                 </Link>
               )}
               <Link className="profile-link" to="/">
-                К ленте
+                {tr("К ленте")}
               </Link>
             </div>
           </Panel>
@@ -148,55 +155,72 @@ function EventPage() {
             <section className="workspace-panel overflow-hidden">
               <img
                 src={a.cover_url || sportImage(a.sport)}
-                alt=""
+                alt={tr("")}
                 className="w-full h-56 sm:h-80 object-cover"
               />
               <div className="p-5 sm:p-7 space-y-5">
                 <div className="event-line">
                   <span className="workspace-tag">
-                    {eventPhase(a) === "live"
-                      ? "Идёт сейчас"
-                      : a.status === "cancelled"
-                        ? "Отменено"
-                        : eventPhase(a) === "past"
-                          ? "Завершилось"
-                          : registrationOpen(a)
-                            ? "Идёт набор"
-                            : "Регистрация закрыта"}
+                    {tr(
+                      eventPhase(a) === "live"
+                        ? "Идёт сейчас"
+                        : a.status === "cancelled"
+                          ? "Отменено"
+                          : eventPhase(a) === "past"
+                            ? "Завершилось"
+                            : registrationOpen(a)
+                              ? "Идёт набор"
+                              : "Регистрация закрыта",
+                    )}
                   </span>
                   <span className="workspace-tag">
-                    {a.participation_mode === "team"
-                      ? "Командная запись"
-                      : "Индивидуальное участие"}{" "}
-                    · {a.skill_level}
+                    {tr(
+                      a.participation_mode === "team"
+                        ? "Командная запись"
+                        : "Индивидуальное участие",
+                    )}
+                    {tr(" ")}· {tr(a.skill_level)}
                   </span>
                 </div>
                 <div className="event-grid">
                   <div className="space-y-3">
-                    <h2 className="event-section-title">{a.title}</h2>
+                    <h2 className="event-section-title">{tr(a.title)}</h2>
                     <p>
-                      {dateLabel(a.date_time, true)}
-                      {a.duration_minutes
-                        ? ` · ${a.duration_minutes} мин.`
-                        : ""}
+                      {tr(dateLabel(a.date_time, true, language))}
+                      {tr(
+                        a.duration_minutes
+                          ? tr("· {count} мин.", { count: a.duration_minutes })
+                          : "",
+                      )}
                     </p>
-                    {a.duration_minutes && a.date_time && (
-                      <p className="workspace-muted text-sm">
-                        Окончание:{" "}
-                        {dateLabel(new Date(eventEnd(a)!).toISOString(), true)}{" "}
-                        · UTC+5
-                      </p>
+                    {tr(
+                      a.duration_minutes && a.date_time && (
+                        <p className="workspace-muted text-sm">
+                          {tr("Окончание:")}
+                          {tr(" ")}
+                          {tr(
+                            dateLabel(
+                              new Date(eventEnd(a)!).toISOString(),
+                              true,
+                              language,
+                            ),
+                          )}
+                          {tr(" ")}· UTC+5
+                        </p>
+                      ),
                     )}
                     <p>
-                      {a.city}, {a.location_text}
-                      {a.district ? ` · ${a.district}` : ""}
+                      {tr(a.city)}, {tr(a.location_text)}
+                      {tr(a.district ? ` · ${a.district}` : "")}
                     </p>
                     <p className="workspace-muted">
-                      {a.venue_type === "indoor"
-                        ? "В помещении"
-                        : a.venue_type === "outdoor"
-                          ? "На улице"
-                          : "Тип площадки не указан"}
+                      {tr(
+                        a.venue_type === "indoor"
+                          ? "В помещении"
+                          : a.venue_type === "outdoor"
+                            ? "На улице"
+                            : "Тип площадки не указан",
+                      )}
                     </p>
                     <div className="event-actions">
                       <MapLink event={a} />
@@ -205,12 +229,14 @@ function EventPage() {
                   </div>
                   <div className="event-muted-box space-y-4">
                     <p className="text-3xl font-bold">
-                      {a.is_free ? "Бесплатно" : formatKzt(a.entry_fee)}
+                      {tr(a.is_free ? "Бесплатно" : formatKzt(a.entry_fee))}
                     </p>
                     <p className="workspace-muted text-sm">
-                      {a.participation_mode === "team"
-                        ? "За команду"
-                        : "За участника"}
+                      {tr(
+                        a.participation_mode === "team"
+                          ? "За команду"
+                          : "За участника",
+                      )}
                     </p>
                     <CapacityMeter
                       registered={a.registered_count}
@@ -218,46 +244,73 @@ function EventPage() {
                     />
                     {a.type !== "daily_game" && (
                       <p className="workspace-muted text-sm">
-                        Минимум для старта: {a.min_participants ?? 2}{" "}
-                        {a.participation_mode === "team"
-                          ? "команд"
-                          : "участников"}
-                        . При недоборе к закрытию регистрации турнир отменится
-                        автоматически.
+                        {tr("Минимум для старта: ")}
+                        {a.min_participants ?? 2}
+                        {tr(" ")}
+                        {tr(
+                          a.participation_mode === "team"
+                            ? "команд"
+                            : "участников",
+                        )}
+                        {tr(
+                          ". При недоборе к закрытию регистрации турнир отменится автоматически.",
+                        )}
                       </p>
                     )}
-                    {a.registration_deadline && (
-                      <p className="text-xs workspace-muted">
-                        Запись до {dateLabel(a.registration_deadline, true)}
-                      </p>
+                    {tr(
+                      a.registration_deadline && (
+                        <p className="text-xs workspace-muted">
+                          {tr("Запись до ")}
+                          {tr(
+                            dateLabel(a.registration_deadline, true, language),
+                          )}
+                        </p>
+                      ),
                     )}
                   </div>
                 </div>
                 {a.status === "cancelled" && (
                   <p className="profile-callout">
-                    Событие отменено:{" "}
-                    {a.cancellation_reason ||
-                      "Подробности уточняйте у организатора"}
+                    {tr("Событие отменено:")}
+                    {tr(" ")}
+                    {tr(
+                      a.cancellation_reason ||
+                        "Подробности уточняйте у организатора",
+                    )}
                     .
                   </p>
                 )}
                 {!!conflict?.length && (
                   <p className="profile-callout">
-                    Пересекается с вашими играми:{" "}
-                    {conflict.map((r) => r.activity.title).join(", ")}.
-                    Проверьте расписание перед записью.
+                    {tr("Пересекается с вашими играми:")}
+                    {tr(" ")}
+                    {tr(conflict.map((r) => r.activity.title).join(", "))}
+                    {tr(". Проверьте расписание перед записью.")}
                   </p>
                 )}
                 {waiting && (
                   <div className="event-muted-box">
                     <h3 className="font-bold">
-                      Вы в листе ожидания · № {waiting.position}
+                      {tr("Вы в листе ожидания · № ")}
+                      {waiting.position}
                     </h3>
                     <p>
-                      {offered
-                        ? `Место предложено вам. Подтвердите участие до ${dateLabel(waiting.offer_expires_at ?? null, true)} (UTC+5).`
-                        : "Сообщим в приложении, когда освободится место. На подтверждение — до 15 минут, но не позже закрытия регистрации или начала события."}{" "}
-                      Очередь не является записью на событие.
+                      {tr(
+                        offered
+                          ? tr(
+                              "Место предложено вам. Подтвердите участие до {date} (UTC+5).",
+                              {
+                                date: dateLabel(
+                                  waiting.offer_expires_at ?? null,
+                                  true,
+                                  language,
+                                ),
+                              },
+                            )
+                          : "Сообщим в приложении, когда освободится место. На подтверждение — до 15 минут, но не позже закрытия регистрации или начала события.",
+                      )}
+                      {tr(" ")}
+                      {tr("Очередь не является записью на событие.")}
                     </p>
                     <Button
                       variant="ghost"
@@ -270,53 +323,61 @@ function EventPage() {
                         )
                       }
                     >
-                      Выйти из очереди
+                      {tr("Выйти из очереди")}
                     </Button>
                   </div>
                 )}
-                {!waiting &&
-                  !isActive &&
-                  user &&
-                  (a.registered_count >= a.max_participants ||
-                    queueHasPriority) &&
-                  eventPhase(a) === "upcoming" &&
-                  (!a.registration_deadline ||
-                    Date.parse(a.registration_deadline) > Date.now()) &&
-                  !q.data?.matches.length && (
-                    <Button
-                      variant="outline"
-                      disabled={action.busy}
-                      onClick={() => {
-                        setJoiningWaitlist(true);
-                        setTerms(false);
-                        setConfirm(true);
-                      }}
-                    >
-                      Встать в лист ожидания
-                    </Button>
-                  )}
+                {tr(
+                  !waiting &&
+                    !isActive &&
+                    user &&
+                    (a.registered_count >= a.max_participants ||
+                      queueHasPriority) &&
+                    eventPhase(a) === "upcoming" &&
+                    (!a.registration_deadline ||
+                      Date.parse(a.registration_deadline) > Date.now()) &&
+                    !q.data?.matches.length && (
+                      <Button
+                        variant="outline"
+                        disabled={action.busy}
+                        onClick={() => {
+                          setJoiningWaitlist(true);
+                          setTerms(false);
+                          setConfirm(true);
+                        }}
+                      >
+                        {tr("Встать в лист ожидания")}
+                      </Button>
+                    ),
+                )}
                 {user && player.isPending ? (
-                  <p role="status">Проверяем вашу запись…</p>
+                  <p role="status">{tr("Проверяем вашу запись…")}</p>
                 ) : user && player.error ? (
                   <>
-                    <ErrorNotice message="Не удалось проверить вашу запись." />
+                    <ErrorNotice
+                      message={tr("Не удалось проверить вашу запись.")}
+                    />
                     <Button
                       variant="outline"
                       onClick={() => void player.refetch()}
                     >
-                      Повторить проверку
+                      {tr("Повторить проверку")}
                     </Button>
                   </>
                 ) : isActive ? (
                   <div className="event-muted-box space-y-3">
                     <h3 className="font-bold">
-                      Ваша запись: {REGISTRATION_STATUS_LABEL[r.status]}
+                      {tr("Ваша запись: ")}
+                      {tr(REGISTRATION_STATUS_LABEL[r.status])}
                     </h3>
 
-                    {r.team_name && (
-                      <p>
-                        Команда: {r.team_name} · {r.team_members.join(", ")}
-                      </p>
+                    {tr(
+                      r.team_name && (
+                        <p>
+                          {tr("Команда: ")}
+                          {tr(r.team_name)} · {tr(r.team_members.join(", "))}
+                        </p>
+                      ),
                     )}
                     <div className="event-actions">
                       <Link
@@ -324,7 +385,7 @@ function EventPage() {
                         to="/my-games"
                         search={{ registration: r.id }}
                       >
-                        Управлять записью →
+                        {tr("Управлять записью →")}
                       </Link>
                       {r.status === "registered" &&
                         eventPhase(a) === "upcoming" && (
@@ -333,7 +394,7 @@ function EventPage() {
                             variant="outline"
                             onClick={() => setCancel(true)}
                           >
-                            Отменить участие
+                            {tr("Отменить участие")}
                           </Button>
                         )}
                     </div>
@@ -342,8 +403,9 @@ function EventPage() {
                   <div className="space-y-3">
                     {r && (
                       <p className="profile-callout">
-                        Предыдущая запись: {REGISTRATION_STATUS_LABEL[r.status]}
-                        . {r.cancellation_reason}
+                        {tr("Предыдущая запись: ")}
+                        {tr(REGISTRATION_STATUS_LABEL[r.status])}.{" "}
+                        {tr(r.cancellation_reason)}
                       </p>
                     )}
                     {registrationOpen(a) && !queueHasPriority ? (
@@ -357,11 +419,13 @@ function EventPage() {
                             setConfirm(true);
                           }}
                         >
-                          {offered
-                            ? "Подтвердить предложенное место"
-                            : r
-                              ? "Записаться снова"
-                              : "Записаться на событие"}
+                          {tr(
+                            offered
+                              ? "Подтвердить предложенное место"
+                              : r
+                                ? "Записаться снова"
+                                : "Записаться на событие",
+                          )}
                         </Button>
                       ) : (
                         <Link
@@ -370,16 +434,18 @@ function EventPage() {
                           onClick={() => trackEvent("register_click")}
                           search={{ redirect }}
                         >
-                          Войти и записаться →
+                          {tr("Войти и записаться →")}
                         </Link>
                       )
                     ) : (
                       <p className="workspace-muted">
-                        {queueHasPriority && registrationOpen(a)
-                          ? "Свободные места предложены участникам очереди. Дождитесь своего предложения."
-                          : a.registered_count >= a.max_participants
-                            ? "Свободных мест нет."
-                            : "Запись на это событие закрыта."}
+                        {tr(
+                          queueHasPriority && registrationOpen(a)
+                            ? "Свободные места предложены участникам очереди. Дождитесь своего предложения."
+                            : a.registered_count >= a.max_participants
+                              ? "Свободных мест нет."
+                              : "Запись на это событие закрыта.",
+                        )}
                       </p>
                     )}
                   </div>
@@ -405,7 +471,7 @@ function EventPage() {
                             )
                           }
                         >
-                          {saved ? "♥ Сохранено" : "♡ Сохранить"}
+                          {tr(saved ? "♥ Сохранено" : "♡ Сохранить")}
                         </Button>
                         {saved && (
                           <label className="event-check">
@@ -421,7 +487,7 @@ function EventPage() {
                                 })
                               }
                             />
-                            Напомнить в приложении за сутки
+                            {tr("Напомнить в приложении за сутки")}
                           </label>
                         )}
                       </>
@@ -431,7 +497,7 @@ function EventPage() {
                         to="/auth"
                         search={{ redirect }}
                       >
-                        Войти, чтобы сохранить
+                        {tr("Войти, чтобы сохранить")}
                       </Link>
                     ))}
                   <Link
@@ -439,35 +505,40 @@ function EventPage() {
                     to="/organizer/$id"
                     params={{ id: a.manager_id ?? a.organizer_id ?? "" }}
                   >
-                    Организатор: {a.host_name} ↗
+                    {tr("Организатор: ")}
+                    {tr(a.host_name)} ↗
                   </Link>
                 </div>
-                <ErrorNotice message={action.error} />
+                <ErrorNotice message={tr(action.error)} />
               </div>
             </section>
-            <Panel title="Об игре">
+            <Panel title={tr("Об игре")}>
               <p className="event-description">
-                {a.description || "Описание пока не добавлено."}
+                {tr(a.description || "Описание пока не добавлено.")}
               </p>
-              {a.notes && (
-                <div className="mt-5">
-                  <h3 className="font-bold">Что взять и как подготовиться</h3>
-                  <p className="event-description workspace-muted mt-2">
-                    {a.notes}
-                  </p>
-                </div>
+              {tr(
+                a.notes && (
+                  <div className="mt-5">
+                    <h3 className="font-bold">
+                      {tr("Что взять и как подготовиться")}
+                    </h3>
+                    <p className="event-description workspace-muted mt-2">
+                      {tr(a.notes)}
+                    </p>
+                  </div>
+                ),
               )}
             </Panel>
-            <Panel title="Правила участия и отмены">
+            <Panel title={tr("Правила участия и отмены")}>
               {a.match_settings && (
                 <dl className="mb-4 grid gap-2">
                   {(DISCIPLINE_FIELDS[a.discipline_id ?? ""] ?? []).map((f) => (
                     <div key={f.key}>
                       <dt className="inline text-muted-foreground">
-                        {f.label}:{" "}
+                        {tr(f.label)}:{tr(" ")}
                       </dt>
                       <dd className="inline">
-                        {a.match_settings?.[f.key] ?? f.default}
+                        {tr(a.match_settings?.[f.key] ?? f.default)}
                       </dd>
                     </div>
                   ))}
@@ -476,8 +547,9 @@ function EventPage() {
               {r?.status === "registered" && (
                 <div className="my-4">
                   <p className="text-sm">
-                    Чек-ин открывается за час до начала и закрывается через 30
-                    минут после старта.
+                    {tr(
+                      "Чек-ин открывается за час до начала и закрывается через 30 минут после старта.",
+                    )}
                   </p>
                   <Button
                     className="mt-2"
@@ -490,38 +562,52 @@ function EventPage() {
                       )
                     }
                   >
-                    {r.checked_in_at
-                      ? "Вы отметились"
-                      : "Подтвердить присутствие"}
+                    {tr(
+                      r.checked_in_at
+                        ? "Вы отметились"
+                        : "Подтвердить присутствие",
+                    )}
                   </Button>
                 </div>
               )}
               <p className="event-description">
-                {a.rules || "Дополнительных ограничений организатор не указал."}
+                {tr(
+                  a.rules ||
+                    "Дополнительных ограничений организатор не указал.",
+                )}
               </p>
               <p className="event-description workspace-muted mt-4">
-                {a.cancellation_policy ||
-                  "Уточните условия участия у организатора."}
+                {tr(
+                  a.cancellation_policy ||
+                    "Уточните условия участия у организатора.",
+                )}
               </p>
 
               <Link className="profile-link inline-block mt-4" to="/legal">
-                Общие правила Sportura ↗
+                {tr("Общие правила Sportura ↗")}
               </Link>
             </Panel>
 
             {a.type !== "daily_game" && q.data && (
               <section id="competition-results">
-                <Panel title="Расписание и результаты">
+                <Panel title={tr("Расписание и результаты")}>
                   {a.event_extras?.series && (
                     <p className="workspace-tag">
-                      {EVENT_SERIES[a.event_extras.series]}
+                      {tr(EVENT_SERIES[a.event_extras.series])}
                     </p>
                   )}
                   {a.event_extras?.series === "rookie_cup" && (
-                    <p>Рейтинг до {a.event_extras.rating_limit ?? 1100}</p>
+                    <p>
+                      {tr("Рейтинг до ")}
+                      {a.event_extras.rating_limit ?? 1100}
+                    </p>
                   )}
-                  {a.event_extras?.qualifier_id && (
-                    <p>Для призёров отборочного турнира, места 1–4.</p>
+                  {tr(
+                    a.event_extras?.qualifier_id && (
+                      <p>
+                        {tr("Для призёров отборочного турнира, места 1–4.")}
+                      </p>
+                    ),
                   )}
                   <CompetitionView data={q.data} />
                   {r && (
@@ -534,26 +620,28 @@ function EventPage() {
                       }
                     />
                   )}
-                  {user && (
-                    <div className="mt-5">
-                      <HelpLink activity={a.id}>
-                        Вопрос или спор по результатам
-                      </HelpLink>
-                    </div>
+                  {tr(
+                    user && (
+                      <div className="mt-5">
+                        <HelpLink activity={a.id}>
+                          {tr("Вопрос или спор по результатам")}
+                        </HelpLink>
+                      </div>
+                    ),
                   )}
                 </Panel>
               </section>
             )}
             <Confirm
               open={confirm}
-              title={
+              title={tr(
                 joiningWaitlist
                   ? "Встать в лист ожидания"
                   : r
                     ? "Подтвердить повторную запись"
-                    : "Подтвердить участие"
-              }
-              description={`${a.title} · ${dateLabel(a.date_time, true)} · ${a.is_free ? "Бесплатно" : formatKzt(a.entry_fee)} ${a.participation_mode === "team" ? "за команду" : ""}`}
+                    : "Подтвердить участие",
+              )}
+              description={`${a.title} · ${dateLabel(a.date_time, true, language)} · ${a.is_free ? tr("Бесплатно") : formatKzt(a.entry_fee)}${a.participation_mode === "team" ? ` ${tr("за команду")}` : ""}`}
               busy={action.busy}
               onClose={() => setConfirm(false)}
               onConfirm={async () => {
@@ -581,7 +669,7 @@ function EventPage() {
                 {a.participation_mode === "team" && (
                   <>
                     <label>
-                      Название команды
+                      {tr("Название команды")}
                       <input
                         value={team}
                         maxLength={100}
@@ -589,7 +677,7 @@ function EventPage() {
                       />
                     </label>
                     <label>
-                      Состав — имя каждого игрока с новой строки
+                      {tr("Состав — имя каждого игрока с новой строки")}
                       <textarea
                         value={members}
                         maxLength={3000}
@@ -598,12 +686,12 @@ function EventPage() {
                       />
                     </label>
                     <p className="workspace-muted text-sm">
-                      Вы будете капитаном и контактным лицом команды.
+                      {tr("Вы будете капитаном и контактным лицом команды.")}
                     </p>
                   </>
                 )}
                 <p className="event-description text-sm">
-                  {a.cancellation_policy}
+                  {tr(a.cancellation_policy)}
                 </p>
                 <label className="event-check">
                   <input
@@ -611,24 +699,24 @@ function EventPage() {
                     checked={terms}
                     onChange={(e) => setTerms(e.target.checked)}
                   />
-                  Принимаю правила участия и условия отмены
+                  {tr("Принимаю правила участия и условия отмены")}
                 </label>
                 {!terms && (
                   <small className="workspace-muted">
-                    Для записи подтвердите условия.
+                    {tr("Для записи подтвердите условия.")}
                   </small>
                 )}
-                <ErrorNotice message={action.error} />
+                <ErrorNotice message={tr(action.error)} />
               </div>
             </Confirm>
             <Confirm
               open={cancel}
-              title="Отменить участие?"
-              description={
+              title={tr("Отменить участие?")}
+              description={tr(
                 r?.terms_snapshot?.cancellation_policy ??
-                a.cancellation_policy ??
-                "Запись сохранится в истории."
-              }
+                  a.cancellation_policy ??
+                  "Запись сохранится в истории.",
+              )}
               busy={action.busy}
               onClose={() => setCancel(false)}
               onConfirm={async () => {
@@ -644,14 +732,14 @@ function EventPage() {
               }}
             >
               <label className="event-form">
-                Причина
+                {tr("Причина")}
                 <textarea
                   value={reason}
                   maxLength={600}
                   onChange={(e) => setReason(e.target.value)}
                 />
               </label>
-              <ErrorNotice message={action.error} />
+              <ErrorNotice message={tr(action.error)} />
             </Confirm>
           </>
         )}

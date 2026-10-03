@@ -125,3 +125,22 @@ test("malformed URL filters fall back to valid defaults", () => {
     defaultFeedFilters,
   );
 });
+
+test("search finds the Kazakh display text without changing stored values", () => {
+  const rows = [
+    activity("karaganda", {
+      location_text: "Караганда",
+      title: "Футбол по субботам",
+    }),
+    activity("astana", { location_text: "Астана" }),
+  ];
+  assert.deepEqual(
+    ids(filterFeed(rows, { ...defaultFeedFilters, q: "ҚАРАҒАНДЫ" })),
+    ["karaganda"],
+  );
+  assert.deepEqual(
+    ids(filterFeed(rows, { ...defaultFeedFilters, q: "Сенбілік" })),
+    ["karaganda"],
+  );
+  assert.equal(rows[0]?.location_text, "Караганда");
+});

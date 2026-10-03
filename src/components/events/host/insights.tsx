@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { disputeAction } from "@/lib/competition-admin.functions";
 import { useState } from "react";
@@ -24,6 +25,7 @@ export function HostInsights({
   data: HostWorkspace;
   onSelect: (id: string) => void;
 }) {
+  const { tr, language, locale } = useI18n();
   const disputes = useQuery({
     queryKey: ["disputes", "all"],
     queryFn: () => disputeAction({ data: { action: "list", payload: {} } }),
@@ -93,12 +95,14 @@ export function HostInsights({
   return (
     <>
       <Panel
-        title="Статистика и отзывы"
-        description="Период относится к дате события. Показатели рассчитаны по вашим событиям и записям."
+        title={tr("Статистика и отзывы")}
+        description={tr(
+          "Период относится к дате события. Показатели рассчитаны по вашим событиям и записям.",
+        )}
       >
         <div className="event-filters mb-5">
           <label>
-            С
+            {tr("С")}
             <input
               type="date"
               value={from}
@@ -106,7 +110,7 @@ export function HostInsights({
             />
           </label>
           <label>
-            По
+            {tr("По")}
             <input
               type="date"
               value={to}
@@ -114,11 +118,13 @@ export function HostInsights({
             />
           </label>
           <label>
-            Спорт
+            {tr("Спорт")}
             <select value={sport} onChange={(e) => setSport(e.target.value)}>
-              <option value="all">Все</option>
+              <option value="all">{tr("Все")}</option>
               {SPORTS.map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} value={s}>
+                  {tr(s)}
+                </option>
               ))}
             </select>
           </label>
@@ -181,15 +187,15 @@ export function HostInsights({
             ],
           ].map(([l, n]) => (
             <a key={l} href="#insight-source" className="event-muted-box">
-              <small>{l}</small>
-              <p className="text-xl font-bold">{n}</p>
+              <small>{tr(l)}</small>
+              <p className="text-xl font-bold">{tr(n)}</p>
             </a>
           ))}
         </div>
         <p className="event-count-note mt-3">
-          Возврат за 14 дней считается по датам событий для участников, у
-          которых прошло полное окно наблюдения. Повторные — участники с двумя и
-          более активными записями за выбранный период.
+          {tr(
+            "Возврат за 14 дней считается по датам событий для участников, у которых прошло полное окно наблюдения. Повторные — участники с двумя и более активными записями за выбранный период.",
+          )}
         </p>
         <div className="event-grid mt-5">
           {[
@@ -198,7 +204,7 @@ export function HostInsights({
               "Дни и время",
               groups((a) =>
                 a.date_time
-                  ? new Date(a.date_time).toLocaleString("ru-RU", {
+                  ? new Date(a.date_time).toLocaleString(locale, {
                       weekday: "long",
                       hour: "2-digit",
                       timeZone: "Asia/Almaty",
@@ -208,10 +214,10 @@ export function HostInsights({
             ],
           ].map(([title, items]) => (
             <div className="event-muted-box" key={String(title)}>
-              <h3 className="font-bold mb-2">{String(title)}</h3>
+              <h3 className="font-bold mb-2">{tr(String(title))}</h3>
               {(items as [string, number][]).map(([name, count]) => (
                 <p key={name} className="event-line text-sm">
-                  <span>{name}</span>
+                  <span>{tr(name)}</span>
                   <strong>{count}</strong>
                 </p>
               ))}
@@ -219,7 +225,9 @@ export function HostInsights({
           ))}
         </div>
         <details className="mt-5" id="insight-source">
-          <summary>Исходные события ({events.length})</summary>
+          <summary>
+            {tr("Исходные события ({count})", { count: events.length })}
+          </summary>
           <div className="event-rows mt-3">
             {events.map((a) => (
               <button
@@ -227,20 +235,28 @@ export function HostInsights({
                 className="event-row text-left"
                 onClick={() => onSelect(a.id)}
               >
-                {a.title} · {dateLabel(a.date_time)} ·{" "}
-                {regs.filter((r) => r.activity_id === a.id).length} записей
+                {tr(a.title)} · {tr(dateLabel(a.date_time, false, language))} ·
+                {tr(" ")}
+                {regs.filter((r) => r.activity_id === a.id).length}
+                {tr(" записей")}
               </button>
             ))}
           </div>
         </details>
       </Panel>
       <Panel
-        title="Отзывы об организации"
-        description={
+        title={tr("Отзывы об организации")}
+        description={tr(
           reviews.length
-            ? `${(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)} из 5 · ${reviews.length} оценок${reviews.length < 5 ? " · Пока мало отзывов" : ""}`
-            : "Оценок пока нет"
-        }
+            ? tr("{rating} из 5 · {count} оценок{note}", {
+                rating: (
+                  reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+                ).toFixed(1),
+                count: reviews.length,
+                note: reviews.length < 5 ? ` ${tr("· Пока мало отзывов")}` : "",
+              })
+            : "Оценок пока нет",
+        )}
       >
         <div className="event-actions mb-5">
           {[5, 4, 3, 2, 1].map((n) => (
@@ -260,15 +276,15 @@ export function HostInsights({
               <ReviewReply
                 key={r.id}
                 review={r}
-                title={
+                title={tr(
                   data.activities.find((a) => a.id === r.activity_id)?.title ??
-                  ""
-                }
+                    "",
+                )}
               />
             ))}
           {!reviews.length && (
             <Empty
-              title="Отзывы появятся после игр"
+              title={tr("Отзывы появятся после игр")}
               text="Оценку может оставить участник с подтверждённым посещением завершённого события."
             />
           )}
@@ -284,20 +300,21 @@ function ReviewReply({
   review: EventReview;
   title: string;
 }) {
+  const { tr, language } = useI18n();
   const [text, setText] = useState(r.reply ?? "");
   const action = useEventAction();
   return (
     <article className="event-row space-y-3">
       <div className="event-line">
         <h3>
-          {r.author} · {r.rating} ★
+          {tr(r.author)} · {r.rating} ★
         </h3>
-        <small>{dateLabel(r.created_at)}</small>
+        <small>{tr(dateLabel(r.created_at, false, language))}</small>
       </div>
-      <p className="workspace-muted">{title}</p>
-      <p className="event-description">{r.comment || "Без комментария"}</p>
+      <p className="workspace-muted">{tr(title)}</p>
+      <p className="event-description">{tr(r.comment || "Без комментария")}</p>
       <label>
-        Ответ организатора
+        {tr("Ответ организатора")}
         <textarea
           value={text}
           rows={3}
@@ -313,7 +330,7 @@ function ReviewReply({
             void action.mutate("review_reply", { id: r.id, body: text })
           }
         >
-          Сохранить ответ
+          {tr("Сохранить ответ")}
         </Button>
         <Link
           className="profile-link"
@@ -325,10 +342,10 @@ function ReviewReply({
             review: r.id,
           }}
         >
-          Пожаловаться на отзыв
+          {tr("Пожаловаться на отзыв")}
         </Link>
       </div>
-      <ErrorNotice message={action.error} />
+      <ErrorNotice message={tr(action.error)} />
     </article>
   );
 }

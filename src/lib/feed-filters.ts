@@ -1,3 +1,4 @@
+import { translateText } from "./i18n/core.ts";
 import { z } from "zod";
 import type { PublicActivity } from "./activities.functions";
 
@@ -71,7 +72,11 @@ export function filterFeed(
         activity.location_text,
         activity.sport,
         activity.host_name,
-      ].some((text) => text.toLocaleLowerCase("ru").includes(search))
+      ].some((text) =>
+        [text, translateText(text, "kk")].some((label) =>
+          label.toLocaleLowerCase().includes(search),
+        ),
+      )
     )
       return false;
     if (filters.date !== "all") {

@@ -1,3 +1,4 @@
+import { useI18n, formatDate } from "@/lib/i18n";
 import { disputeAction } from "@/lib/competition-admin.functions";
 import { WeatherReschedule } from "@/components/events/prizes";
 import { EventDisputes } from "@/components/events/disputes";
@@ -100,6 +101,7 @@ export const Route = createFileRoute("/_authenticated/host")({
   component: HostPage,
 });
 function HostPage() {
+  const { tr } = useI18n();
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMe() });
   const q = useQuery({
     queryKey: ["event-host"],
@@ -110,21 +112,21 @@ function HostPage() {
   return (
     <AppShell
       workspace
-      title="Кабинет организатора"
-      subtitle="События, участники и результаты в одном месте"
+      title={tr("Кабинет организатора")}
+      subtitle={tr("События, участники и результаты в одном месте")}
     >
       <UnsavedChanges>
         <div className="events-workspace">
           {me.isPending || q.isPending ? (
-            <Panel title="Загружаем кабинет…">
+            <Panel title={tr("Загружаем кабинет…")}>
               <p className="workspace-muted">
-                Получаем события и последние изменения.
+                {tr("Получаем события и последние изменения.")}
               </p>
             </Panel>
           ) : me.error || q.error ? (
-            <Panel title="Не удалось загрузить кабинет">
+            <Panel title={tr("Не удалось загрузить кабинет")}>
               <ErrorNotice
-                message={me.error?.message ?? q.error?.message ?? ""}
+                message={tr(me.error?.message ?? q.error?.message ?? "")}
               />
               <Button
                 onClick={() => {
@@ -132,23 +134,23 @@ function HostPage() {
                   void q.refetch();
                 }}
               >
-                Повторить
+                {tr("Повторить")}
               </Button>
             </Panel>
           ) : me.data &&
             !me.data.roles.some((r) =>
               ["admin", "sports_manager", "tournament_organizer"].includes(r),
             ) ? (
-            <Panel title="Станьте организатором">
+            <Panel title={tr("Станьте организатором")}>
               <p className="workspace-muted mb-4">
-                Подайте заявку, чтобы создавать игры или соревнования.
+                {tr("Подайте заявку, чтобы создавать игры или соревнования.")}
               </p>
               <Link
                 className="workspace-primary-link"
                 to="/profile"
                 search={{ tab: "organizer" }}
               >
-                Подать заявку →
+                {tr("Подать заявку →")}
               </Link>
             </Panel>
           ) : me.data && q.data ? (
@@ -160,6 +162,7 @@ function HostPage() {
   );
 }
 function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
+  const { tr } = useI18n();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const [editor, setEditor] = useState<{
@@ -230,10 +233,10 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
             go("events");
           }}
         >
-          + Создать событие
+          {tr("+ Создать событие")}
         </Button>
       </div>
-      <nav className="event-tabs" aria-label="Кабинет организатора">
+      <nav className="event-tabs" aria-label={tr("Кабинет организатора")}>
         {Object.entries(tabs)
           .filter(([key]) => key !== "payments")
           .filter(([k]) => k !== "competitions" || canComp)
@@ -244,11 +247,11 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
               className={search.tab === k ? "is-active" : ""}
               onClick={() => go(k as keyof typeof tabs)}
             >
-              {l}
+              {tr(l)}
             </button>
           ))}
       </nav>
-      <ErrorNotice message={action.error} />
+      <ErrorNotice message={tr(action.error)} />
       {search.tab === "events" && editor ? (
         <EventWizard
           key={editor.key}
@@ -286,12 +289,11 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
           key={`${search.tab}:${search.event}:${search.status}`}
           data={data}
           eventId={search.event ?? ""}
-
           initialStatus={search.status ?? "all"}
         />
       ) : search.tab === "competitions" ? (
         <>
-          <Panel title="Турниры и лиги">
+          <Panel title={tr("Турниры и лиги")}>
             <div className="event-rows">
               {data.activities
                 .filter((a) => a.type !== "daily_game")
@@ -301,23 +303,29 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
                     key={a.id}
                     onClick={() => go("competitions", a.id)}
                   >
-                    <h3>{a.title}</h3>
+                    <h3>{tr(a.title)}</h3>
                     <p className="workspace-muted">
-                      {ACTIVITY_TYPE_LABEL[a.type]} ·{" "}
-                      {ACTIVITY_STATUS_LABEL[a.status]} · {a.registered_count}{" "}
-                      {a.participation_mode === "team"
-                        ? "команд"
-                        : "участников"}{" "}
-                      ·{" "}
-                      {data.matches.some((m) => m.activity_id === a.id)
-                        ? "Расписание создано"
-                        : "Подготовка расписания"}
+                      {tr(ACTIVITY_TYPE_LABEL[a.type])} ·{tr(" ")}
+                      {tr(ACTIVITY_STATUS_LABEL[a.status])} ·{" "}
+                      {a.registered_count}
+                      {tr(" ")}
+                      {tr(
+                        a.participation_mode === "team"
+                          ? "команд"
+                          : "участников",
+                      )}
+                      {tr(" ")}·{tr(" ")}
+                      {tr(
+                        data.matches.some((m) => m.activity_id === a.id)
+                          ? "Расписание создано"
+                          : "Подготовка расписания",
+                      )}
                     </p>
                   </button>
                 ))}
               {!data.activities.some((a) => a.type !== "daily_game") && (
                 <Empty
-                  title="Первое соревнование впереди"
+                  title={tr("Первое соревнование впереди")}
                   text="Создайте турнир или лигу и откройте набор участников."
                 />
               )}
@@ -372,6 +380,7 @@ function Overview({
     status?: string,
   ) => void;
 }) {
+  const { tr, language } = useI18n();
   const disputes = useQuery({
     queryKey: ["disputes", "all"],
     queryFn: () => disputeAction({ data: { action: "list", payload: {} } }),
@@ -408,22 +417,22 @@ function Overview({
   return (
     <>
       <Panel
-        title={me.name}
-        description={`${me.city} · ${me.roles
+        title={tr(me.name)}
+        description={`${tr(me.city)} · ${me.roles
           .filter((r) => r !== "participant")
-          .map((r) => ROLE_LABEL[r])
+          .map((r) => tr(ROLE_LABEL[r]))
           .join(", ")}`}
       >
         <div className="event-line">
           <span className="workspace-tag">
-            {me.verified ? "Профиль проверен" : "Роль организатора активна"}
+            {tr(me.verified ? "Профиль проверен" : "Роль организатора активна")}
           </span>
           <Link
             className="profile-link"
             to="/organizer/$id"
             params={{ id: me.id }}
           >
-            Публичная страница ↗
+            {tr("Публичная страница ↗")}
           </Link>
         </div>
       </Panel>
@@ -446,29 +455,30 @@ function Overview({
             onClick={fn as () => void}
           >
             <strong>{Number(n)}</strong>
-            <span>{String(l)}</span>
+            <span>{tr(String(l))}</span>
           </button>
         ))}
       </div>
       {future[0] && (
-        <Panel title="Ближайшее событие">
+        <Panel title={tr("Ближайшее событие")}>
           <EventSummary a={future[0]} data={d} />
           <div className="event-actions mt-4">
             <Button onClick={() => go("events", future[0]!.id)}>
-              Управлять событием
+              {tr("Управлять событием")}
             </Button>
             <CalendarButton event={future[0]} />
           </div>
         </Panel>
       )}
-      <Panel title="Требует внимания">
+      <Panel title={tr("Требует внимания")}>
         {openDisputes > 0 && (
           <Button
             className="mb-3"
             variant="outline"
             onClick={() => go("disputes")}
           >
-            Открытые споры: {openDisputes} →
+            {tr("Открытые споры: ")}
+            {openDisputes} →
           </Button>
         )}
         <div className="event-rows">
@@ -478,11 +488,13 @@ function Overview({
               className="event-row text-left"
               onClick={() => go("events", a.id)}
             >
-              {a.title}:{" "}
-              {eventPhase(a) === "upcoming"
-                ? "набрано меньше половины состава"
-                : "проверьте посещение и результаты"}{" "}
-              →
+              {tr(a.title)}:{tr(" ")}
+              {tr(
+                eventPhase(a) === "upcoming"
+                  ? "набрано меньше половины состава"
+                  : "проверьте посещение и результаты",
+              )}
+              {tr(" ")}→
             </button>
           ))}
           {d.notifications.slice(0, 5).map((n) => (
@@ -495,19 +507,22 @@ function Overview({
                   : "/host"
               }
             >
-              <strong>{n.title}</strong>
-              <p className="workspace-muted text-sm">{n.body}</p>
+              <strong>{tr(n.title)}</strong>
+              <p className="workspace-muted text-sm">{tr(n.body)}</p>
             </a>
           ))}
           {!checks.length &&
             !refunds.length &&
             !attention.length &&
             !d.notifications.length && (
-              <Empty title="Всё спокойно" text="Новые задачи появятся здесь." />
+              <Empty
+                title={tr("Всё спокойно")}
+                text="Новые задачи появятся здесь."
+              />
             )}
         </div>
       </Panel>
-      <Panel title="План на сегодня">
+      <Panel title={tr("План на сегодня")}>
         <div className="event-rows">
           {d.activities
             .filter(
@@ -521,7 +536,7 @@ function Overview({
                 className="event-row text-left"
                 onClick={() => go("events", a.id)}
               >
-                {dateLabel(a.date_time, true)} · {a.title} →
+                {tr(dateLabel(a.date_time, true, language))} · {tr(a.title)} →
               </button>
             ))}
         </div>
@@ -529,12 +544,12 @@ function Overview({
           localDateTime(a.date_time).startsWith(today),
         ) && (
           <p className="workspace-muted">
-            Сегодня событий нет. Можно подготовить следующую игру.
+            {tr("Сегодня событий нет. Можно подготовить следующую игру.")}
           </p>
         )}
       </Panel>
       {!d.activities.length && (
-        <Panel title="Первые шаги">
+        <Panel title={tr("Первые шаги")}>
           <ol className="list-decimal ml-5 space-y-2">
             <li>
               <Link
@@ -542,32 +557,35 @@ function Overview({
                 to="/profile"
                 search={{ tab: "organizer" }}
               >
-                Заполните сведения организатора
+                {tr("Заполните сведения организатора")}
               </Link>
             </li>
-            <li>Создайте событие и сохраните черновик.</li>
-            <li>Проверьте карточку и опубликуйте.</li>
+            <li>{tr("Создайте событие и сохраните черновик.")}</li>
+            <li>{tr("Проверьте карточку и опубликуйте.")}</li>
           </ol>
         </Panel>
       )}
-      <Panel title="Последние изменения">
+      <Panel title={tr("Последние изменения")}>
         <History items={d.history.slice(0, 8)} />
       </Panel>
     </>
   );
 }
 function EventSummary({ a, data }: { a: Event; data: HostWorkspace }) {
+  const { tr, language } = useI18n();
   const regs = data.registrations.filter((r) => r.activity_id === a.id);
   return (
     <div className="event-line">
       <div>
-        <h3 className="event-title">{a.title}</h3>
+        <h3 className="event-title">{tr(a.title)}</h3>
         <p className="workspace-muted mt-2">
-          {dateLabel(a.date_time, true)} · {a.location_text}
+          {tr(dateLabel(a.date_time, true, language))} · {tr(a.location_text)}
         </p>
         <p className="text-sm mt-2">
-          {ACTIVITY_TYPE_LABEL[a.type]} · {ACTIVITY_STATUS_LABEL[a.status]} ·{" "}
-          {a.registered_count}/{a.max_participants} мест · Бесплатное участие
+          {tr(ACTIVITY_TYPE_LABEL[a.type])} ·{" "}
+          {tr(ACTIVITY_STATUS_LABEL[a.status])} ·{tr(" ")}
+          {a.registered_count}/{a.max_participants}
+          {tr(" мест · Бесплатное участие")}
         </p>
       </div>
     </div>
@@ -586,6 +604,7 @@ function EventList({
   edit: (a: Event) => void;
   duplicate: (a: Event) => void;
 }) {
+  const { tr, language } = useI18n();
   const [tab, setTab] = useState("upcoming");
   const [q, setQ] = useState("");
   const [sport, setSport] = useState("all");
@@ -612,11 +631,11 @@ function EventList({
     (d) => d.kind === "draft" && !d.published_id,
   );
   return (
-    <Panel title="Мои события">
+    <Panel title={tr("Мои события")}>
       <div className="event-actions mb-4">
         {[
           ["upcoming", "Предстоящие"],
-          ["drafts", `Черновики (${drafts.length})`],
+          ["drafts", tr("Черновики ({count})", { count: drafts.length })],
           ["past", "Завершённые"],
           ["cancelled", "Отменённые"],
         ].map(([k, l]) => (
@@ -625,7 +644,7 @@ function EventList({
             variant={tab === k ? "default" : "outline"}
             onClick={() => setTab(k!)}
           >
-            {l}
+            {tr(l)}
           </Button>
         ))}
       </div>
@@ -634,20 +653,20 @@ function EventList({
           {drafts.map((d) => (
             <div className="event-row event-line" key={d.id}>
               <div>
-                <h3>{d.name}</h3>
-                <small>{dateLabel(d.updated_at)}</small>
+                <h3>{tr(d.name)}</h3>
+                <small>{tr(dateLabel(d.updated_at, false, language))}</small>
               </div>
               <div className="event-actions">
-                <Button onClick={() => draft(d)}>Продолжить</Button>
+                <Button onClick={() => draft(d)}>{tr("Продолжить")}</Button>
                 <Button variant="ghost" onClick={() => setRemove(d)}>
-                  Удалить
+                  {tr("Удалить")}
                 </Button>
               </div>
             </div>
           ))}
           {!drafts.length && (
             <Empty
-              title="Нет черновиков"
+              title={tr("Нет черновиков")}
               text="Создайте событие — его можно сохранить на любом этапе."
             />
           )}
@@ -656,49 +675,51 @@ function EventList({
         <>
           <div className="event-filters mb-5">
             <label>
-              Поиск
+              {tr("Поиск")}
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Название или площадка"
+                placeholder={tr("Название или площадка")}
               />
             </label>
             <label>
-              Спорт
+              {tr("Спорт")}
               <select value={sport} onChange={(e) => setSport(e.target.value)}>
-                <option value="all">Все</option>
+                <option value="all">{tr("Все")}</option>
                 {SPORTS.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Формат
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="all">Все</option>
-                {Object.entries(ACTIVITY_TYPE_LABEL).map(([k, l]) => (
-                  <option key={k} value={k}>
-                    {l}
+                  <option key={s} value={s}>
+                    {tr(s)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Статус
+              {tr("Формат")}
+              <select value={type} onChange={(e) => setType(e.target.value)}>
+                <option value="all">{tr("Все")}</option>
+                {Object.entries(ACTIVITY_TYPE_LABEL).map(([k, l]) => (
+                  <option key={k} value={k}>
+                    {tr(l)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {tr("Статус")}
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
-                <option value="all">Все</option>
+                <option value="all">{tr("Все")}</option>
                 {Object.entries(ACTIVITY_STATUS_LABEL).map(([k, l]) => (
                   <option key={k} value={k}>
-                    {l}
+                    {tr(l)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Дата
+              {tr("Дата")}
               <input
                 type="date"
                 value={date}
@@ -711,7 +732,7 @@ function EventList({
             className="mb-4"
             onClick={() => setCalendar(!calendar)}
           >
-            {calendar ? "Показать карточки" : "Календарь по датам"}
+            {tr(calendar ? "Показать карточки" : "Календарь по датам")}
           </Button>
           <div className="event-rows">
             {rows.map((a, i) => (
@@ -721,25 +742,25 @@ function EventList({
                     localDateTime(rows[i - 1]?.date_time).slice(0, 10) !==
                       localDateTime(a.date_time).slice(0, 10)) && (
                     <h3 className="event-date-heading">
-                      {new Date(a.date_time ?? "").toLocaleDateString("ru-RU", {
-                        timeZone: "Asia/Almaty",
-                        day: "numeric",
-                        month: "long",
-                      })}
+                      {formatDate(
+                        a.date_time ?? "",
+                        { day: "numeric", month: "long" },
+                        language,
+                      )}
                     </h3>
                   )}
                 <article className="event-row">
                   <EventSummary a={a} data={data} />
                   <div className="event-actions mt-4">
                     <Button size="sm" onClick={() => select(a.id)}>
-                      Управлять
+                      {tr("Управлять")}
                     </Button>
                     <Link
                       className="profile-link"
                       to="/activity/$id"
                       params={{ id: a.id }}
                     >
-                      Вид игрока ↗
+                      {tr("Вид игрока ↗")}
                     </Link>
                     {!["completed", "cancelled"].includes(a.status) && (
                       <Button
@@ -747,7 +768,7 @@ function EventList({
                         variant="outline"
                         onClick={() => edit(a)}
                       >
-                        Редактировать
+                        {tr("Редактировать")}
                       </Button>
                     )}
                     <Button
@@ -755,7 +776,7 @@ function EventList({
                       variant="outline"
                       onClick={() => duplicate(a)}
                     >
-                      Создать похожее
+                      {tr("Создать похожее")}
                     </Button>
                     <CopyEvent event={a} />
                   </div>
@@ -764,7 +785,7 @@ function EventList({
             ))}
             {!rows.length && (
               <Empty
-                title="Нет событий по этим условиям"
+                title={tr("Нет событий по этим условиям")}
                 text="Измените фильтры или создайте новое событие."
               />
             )}
@@ -773,8 +794,8 @@ function EventList({
       )}
       <Confirm
         open={!!remove}
-        title="Удалить черновик?"
-        description={remove?.name ?? ""}
+        title={tr("Удалить черновик?")}
+        description={tr(remove?.name ?? "")}
         busy={action.busy}
         onClose={() => setRemove(null)}
         onConfirm={async () => {
@@ -785,11 +806,12 @@ function EventList({
             setRemove(null);
         }}
       />
-      <ErrorNotice message={action.error} />
+      <ErrorNotice message={tr(action.error)} />
     </Panel>
   );
 }
 function CopyEvent({ event: a }: { event: Event }) {
+  const { tr } = useI18n();
   return (
     <Button
       variant="ghost"
@@ -799,15 +821,17 @@ function CopyEvent({ event: a }: { event: Event }) {
           await navigator.clipboard.writeText(
             `https://sportura.vercel.app/activity/${a.id}${a.is_private && a.invite_code ? "?code=" + encodeURIComponent(a.invite_code) : ""}`,
           );
-          toast.success("Ссылка скопирована");
+          toast.success(tr("Ссылка скопирована"));
         } catch {
           toast.error(
-            "Браузер не разрешил копирование. Откройте событие и скопируйте адрес.",
+            tr(
+              "Браузер не разрешил копирование. Откройте событие и скопируйте адрес.",
+            ),
           );
         }
       }}
     >
-      Скопировать ссылку
+      {tr("Скопировать ссылку")}
     </Button>
   );
 }
@@ -830,6 +854,7 @@ function EventManagement({
   template: () => void;
   back: () => void;
 }) {
+  const { tr } = useI18n();
   const [actionName, setActionName] = useState("");
   const [reason, setReason] = useState("");
   const action = useEventAction();
@@ -838,27 +863,28 @@ function EventManagement({
     <>
       <WeatherReschedule event={a} />
       <Panel
-        title={a.title}
-        description={`${ACTIVITY_TYPE_LABEL[a.type]} · ${ACTIVITY_STATUS_LABEL[a.status]}`}
+        title={tr(a.title)}
+        description={`${tr(ACTIVITY_TYPE_LABEL[a.type])} · ${tr(ACTIVITY_STATUS_LABEL[a.status])}`}
       >
         <div className="event-actions">
           <Button variant="ghost" onClick={back}>
-            ← Все события
+            {tr("← Все события")}
           </Button>
           <Link
             className="profile-link"
             to="/activity/$id"
             params={{ id: a.id }}
           >
-            Открыть как игрок
+            {tr("Открыть как игрок")}
           </Link>
           <CopyEvent event={a} />
         </div>
         {a.is_private && (
           <div className="profile-callout mt-4">
             <p>
-              Код приглашения:{" "}
-              <strong className="break-all">{a.invite_code}</strong>
+              {tr("Код приглашения:")}
+              {tr(" ")}
+              <strong className="break-all">{tr(a.invite_code)}</strong>
             </p>
             <Button
               size="sm"
@@ -866,20 +892,19 @@ function EventManagement({
               onClick={() =>
                 void navigator.clipboard
                   .writeText(a.invite_code ?? "")
-                  .then(() => toast.success("Код скопирован"))
-                  .catch(() => toast.error("Скопируйте код вручную"))
+                  .then(() => toast.success(tr("Код скопирован")))
+                  .catch(() => toast.error(tr("Скопируйте код вручную")))
               }
             >
-              Копировать код
+              {tr("Копировать код")}
             </Button>
           </div>
         )}
       </Panel>
-      <nav className="event-tabs" aria-label="Управление событием">
+      <nav className="event-tabs" aria-label={tr("Управление событием")}>
         {Object.entries({
           overview: "Обзор",
           participants: "Участники",
-
           results: "Результаты",
           history: "История",
         }).map(([k, l]) => (
@@ -888,48 +913,48 @@ function EventManagement({
             className={section === k ? "is-active" : ""}
             onClick={() => select(k)}
           >
-            {l}
+            {tr(l)}
           </button>
         ))}
       </nav>
       {section === "overview" ? (
-        <Panel title="Сведения и действия">
+        <Panel title={tr("Сведения и действия")}>
           <img
             src={a.cover_url || sportImage(a.sport)}
             className="h-48 w-full object-cover rounded-xl mb-5"
-            alt=""
+            alt={tr("")}
           />
           <EventSummary a={a} data={data} />
-          <p className="event-description mt-4">{a.description}</p>
+          <p className="event-description mt-4">{tr(a.description)}</p>
           <div className="event-actions mt-5">
             <MapLink event={a} />
             <CalendarButton event={a} />
             {!["completed", "cancelled"].includes(a.status) && (
               <>
                 <Button variant="outline" onClick={edit}>
-                  Редактировать
+                  {tr("Редактировать")}
                 </Button>
                 {a.type === "daily_game" && (
                   <Button
                     variant="outline"
                     onClick={() => setActionName("completed")}
                   >
-                    Завершить
+                    {tr("Завершить")}
                   </Button>
                 )}
                 <Button
                   variant="outline"
                   onClick={() => setActionName("cancelled")}
                 >
-                  Отменить событие
+                  {tr("Отменить событие")}
                 </Button>
               </>
             )}
             <Button variant="outline" onClick={duplicate}>
-              Создать похожее
+              {tr("Создать похожее")}
             </Button>
             <Button variant="outline" onClick={template}>
-              Сохранить как шаблон
+              {tr("Сохранить как шаблон")}
             </Button>
             <HelpLink activity={a.id} />
           </div>
@@ -938,36 +963,40 @@ function EventManagement({
         <Participants key={section} data={data} eventId={a.id} />
       ) : section === "results" ? (
         a.type === "daily_game" ? (
-          <Panel title="Результат игры">
+          <Panel title={tr("Результат игры")}>
             <p className="workspace-muted">
-              Для обычной игры результатом служит подтверждённая посещаемость.
-              Отметьте участников и завершите событие — после этого они смогут
-              оставить отзывы.
+              {tr(
+                "Для обычной игры результатом служит подтверждённая посещаемость. Отметьте участников и завершите событие — после этого они смогут оставить отзывы.",
+              )}
             </p>
             <Button className="mt-4" onClick={() => select("participants")}>
-              Отметить посещение
+              {tr("Отметить посещение")}
             </Button>
           </Panel>
         ) : (
           <HostCompetition event={a} registrations={regs} />
         )
       ) : (
-        <Panel title="История события">
+        <Panel title={tr("История события")}>
           <History items={data.history.filter((h) => h.activity_id === a.id)} />
         </Panel>
       )}
       <Confirm
         open={!!actionName}
-        title={
+        title={tr(
           actionName === "cancelled"
             ? "Отменить событие?"
-            : "Завершить событие?"
-        }
-        description={
+            : "Завершить событие?",
+        )}
+        description={tr(
           actionName === "cancelled"
-            ? `Будут уведомлены ${regs.filter((r) => !["cancelled", "rejected"].includes(r.status)).length} участников. `
-            : "После завершения участники с отмеченным посещением смогут оставить отзыв."
-        }
+            ? tr("Будут уведомлены {count} участников.", {
+                count: regs.filter(
+                  (r) => !["cancelled", "rejected"].includes(r.status),
+                ).length,
+              })
+            : "После завершения участники с отмеченным посещением смогут оставить отзыв.",
+        )}
         busy={action.busy}
         onClose={() => setActionName("")}
         onConfirm={async () => {
@@ -984,14 +1013,14 @@ function EventManagement({
         }}
       >
         <label className="event-form">
-          Причина / комментарий
+          {tr("Причина / комментарий")}
           <textarea
             value={reason}
             maxLength={600}
             onChange={(e) => setReason(e.target.value)}
           />
         </label>
-        <ErrorNotice message={action.error} />
+        <ErrorNotice message={tr(action.error)} />
       </Confirm>
     </>
   );

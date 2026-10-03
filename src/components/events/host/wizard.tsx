@@ -1,3 +1,4 @@
+import { useI18n, formatDate } from "@/lib/i18n";
 import { EVENT_SERIES, type EventExtras } from "@/lib/event-series";
 import {
   COMPETITION_FORMATS,
@@ -55,13 +56,17 @@ export function EventWizard({
   onDone: (id: string) => void;
   onClose: () => void;
 }) {
+  const { tr, language } = useI18n();
   const [step, setStep] = useState(0);
   const [confirm, setConfirm] = useState(false);
   const [errors, setErrors] = useState<
     Partial<Record<keyof EventDraft, string>>
   >({});
   const action = useEventAction();
-  const saved = useRef<{ id: string; version?: string }>({
+  const saved = useRef<{
+    id: string;
+    version?: string;
+  }>({
     id: document?.id ?? crypto.randomUUID(),
     ...(document?.updated_at ? { version: document.updated_at } : {}),
   });
@@ -82,7 +87,7 @@ export function EventWizard({
         payload: {
           id: saved.current.id,
           kind: "draft",
-          name: value.title || "Новое событие",
+          name: value.title || tr("Новое событие"),
           data: {
             ...value,
             entry_fee: value.type === "daily_game" ? 0 : value.entry_fee,
@@ -108,7 +113,7 @@ export function EventWizard({
   };
   const field = (key: keyof EventDraft, label: string, type = "text") => (
     <label>
-      {label}
+      {tr(label)}
       <input
         type={type}
         value={String(v[key] ?? "")}
@@ -119,7 +124,11 @@ export function EventWizard({
         }
         aria-invalid={!!errors[key]}
       />
-      {errors[key] && <span className="event-error-field">{errors[key]}</span>}
+      {tr(
+        errors[key] && (
+          <span className="event-error-field">{tr(errors[key])}</span>
+        ),
+      )}
     </label>
   );
   function validate() {
@@ -168,15 +177,17 @@ export function EventWizard({
   }
   return (
     <Panel
-      title={
+      title={tr(
         event || document?.activity_id
           ? "Редактирование события"
-          : "Новое событие"
-      }
-      description="Черновик хранится в аккаунте. Время — Астана / Алматы (UTC+5)."
+          : "Новое событие",
+      )}
+      description={tr(
+        "Черновик хранится в аккаунте. Время — Астана / Алматы (UTC+5).",
+      )}
     >
       <fieldset disabled={form.busy || action.busy} className="event-form">
-        <nav className="event-wizard-steps" aria-label="Этапы создания">
+        <nav className="event-wizard-steps" aria-label={tr("Этапы создания")}>
           {steps.map((s, i) => (
             <button
               key={s}
@@ -187,14 +198,14 @@ export function EventWizard({
               }}
               disabled={form.busy}
             >
-              {i + 1}. {s}
+              {i + 1}. {tr(s)}
             </button>
           ))}
         </nav>
         {step === 0 && (
           <>
             <label>
-              Формат
+              {tr("Формат")}
               <select
                 value={v.type}
                 disabled={!!event || !!document?.activity_id}
@@ -220,7 +231,7 @@ export function EventWizard({
                   .filter(([t]) => t === "daily_game" || competition)
                   .map(([k, l]) => (
                     <option key={k} value={k}>
-                      {l}
+                      {tr(l)}
                     </option>
                   ))}
               </select>
@@ -228,7 +239,7 @@ export function EventWizard({
             {v.type !== "daily_game" && (
               <div className="event-form-grid">
                 <label>
-                  Тип участия
+                  {tr("Тип участия")}
                   <select
                     value={v.tier ?? "spark"}
                     onChange={(e) =>
@@ -253,13 +264,13 @@ export function EventWizard({
                       )
                       .map(([key, label]) => (
                         <option key={key} value={key}>
-                          {label}
+                          {tr(label)}
                         </option>
                       ))}
                   </select>
                 </label>
                 <label>
-                  Сетка
+                  {tr("Сетка")}
                   <select
                     value={
                       v.competition_format ??
@@ -276,7 +287,7 @@ export function EventWizard({
                     {Object.entries(COMPETITION_FORMATS).map(
                       ([key, format]) => (
                         <option key={key} value={key}>
-                          {format.label}
+                          {tr(format.label)}
                         </option>
                       ),
                     )}
@@ -286,7 +297,7 @@ export function EventWizard({
             )}
             {v.competition_format === "league_playoff" && (
               <label>
-                Кругов лиги
+                {tr("Кругов лиги")}
                 <select
                   value={v.match_settings?.["league_legs"] ?? "1"}
                   onChange={(e) =>
@@ -298,15 +309,17 @@ export function EventWizard({
                     })
                   }
                 >
-                  <option value="1">Один — одна встреча с каждым</option>
-                  <option value="2">Два — дома и в гостях</option>
+                  <option value="1">
+                    {tr("Один — одна встреча с каждым")}
+                  </option>
+                  <option value="2">{tr("Два — дома и в гостях")}</option>
                 </select>
               </label>
             )}
             {v.type !== "daily_game" && (
               <div className="event-form-grid">
                 <label>
-                  Серия
+                  {tr("Серия")}
                   <select
                     value={v.event_extras?.series ?? "open"}
                     onChange={(e) =>
@@ -322,14 +335,14 @@ export function EventWizard({
                   >
                     {Object.entries(EVENT_SERIES).map(([key, label]) => (
                       <option key={key} value={key}>
-                        {label}
+                        {tr(label)}
                       </option>
                     ))}
                   </select>
                 </label>
                 {v.event_extras?.series === "rookie_cup" && (
                   <label>
-                    Максимальный рейтинг
+                    {tr("Максимальный рейтинг")}
                     <select
                       value={v.event_extras.rating_limit ?? 1100}
                       onChange={(e) =>
@@ -342,13 +355,15 @@ export function EventWizard({
                       }
                     >
                       {[1000, 1100, 1200, 1300, 1400].map((n) => (
-                        <option key={n}>{n}</option>
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
                       ))}
                     </select>
                   </label>
                 )}
                 <label>
-                  Отбор на участие
+                  {tr("Отбор на участие")}
                   <select
                     value={v.event_extras?.qualifier_id ?? ""}
                     onChange={(e) =>
@@ -360,7 +375,7 @@ export function EventWizard({
                       })
                     }
                   >
-                    <option value="">Открытая регистрация</option>
+                    <option value="">{tr("Открытая регистрация")}</option>
                     {qualifiers
                       .filter(
                         (a) =>
@@ -372,19 +387,21 @@ export function EventWizard({
                       )
                       .map((a) => (
                         <option key={a.id} value={a.id}>
-                          Призёры 1–4: {a.title}
+                          {tr("Призёры 1–4: ")}
+                          {tr(a.title)}
                         </option>
                       ))}
                   </select>
                 </label>
                 <p className="workspace-muted text-xs wide">
-                  Название серии не меняет дату и стоимость. Для платных
-                  форматов доступны только черновики.
+                  {tr(
+                    "Название серии не меняет дату и стоимость. Для платных форматов доступны только черновики.",
+                  )}
                 </p>
               </div>
             )}
             <label>
-              Использовать шаблон
+              {tr("Использовать шаблон")}
               <select
                 defaultValue=""
                 onChange={(e) => {
@@ -397,7 +414,7 @@ export function EventWizard({
                     });
                 }}
               >
-                <option value="">Без шаблона</option>
+                <option value="">{tr("Без шаблона")}</option>
                 {documents
                   .filter(
                     (d) =>
@@ -406,7 +423,7 @@ export function EventWizard({
                   )
                   .map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name}
+                      {tr(d.name)}
                     </option>
                   ))}
               </select>
@@ -418,7 +435,7 @@ export function EventWizard({
             <div className="event-form-grid">
               {field("title", "Название")}
               <label>
-                Вид спорта
+                {tr("Вид спорта")}
                 <select
                   value={v.sport}
                   onChange={(e) => {
@@ -435,18 +452,22 @@ export function EventWizard({
                   }}
                 >
                   {SPORTS.map((s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {tr(s)}
+                    </option>
                   ))}
                 </select>
               </label>
               <label>
-                Уровень
+                {tr("Уровень")}
                 <select
                   value={v.skill_level}
                   onChange={(e) => update({ skill_level: e.target.value })}
                 >
                   {SKILL_LEVELS.map((s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {tr(s)}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -458,7 +479,7 @@ export function EventWizard({
             </div>
             <fieldset className="event-form-grid">
               <legend className="mb-3 font-semibold">
-                Настройки дисциплины
+                {tr("Настройки дисциплины")}
               </legend>
               {(
                 DISCIPLINE_FIELDS[
@@ -466,7 +487,7 @@ export function EventWizard({
                 ] ?? []
               ).map((f) => (
                 <label key={f.key}>
-                  {f.label}
+                  {tr(f.label)}
                   {f.type === "select" ? (
                     <select
                       value={v.match_settings?.[f.key] ?? f.default}
@@ -480,7 +501,9 @@ export function EventWizard({
                       }
                     >
                       {f.options?.map((o) => (
-                        <option key={o}>{o}</option>
+                        <option key={o} value={o}>
+                          {tr(o)}
+                        </option>
                       ))}
                     </select>
                   ) : (
@@ -489,7 +512,7 @@ export function EventWizard({
                       min={f.min}
                       max={f.max}
                       maxLength={300}
-                      value={v.match_settings?.[f.key] ?? f.default}
+                      value={tr(v.match_settings?.[f.key] ?? f.default)}
                       onChange={(e) =>
                         update({
                           match_settings: {
@@ -505,14 +528,14 @@ export function EventWizard({
             </fieldset>
             <img
               src={v.cover_url || sportImage(v.sport)}
-              alt="Предпросмотр обложки"
+              alt={tr("Предпросмотр обложки")}
               className="h-40 w-full rounded-xl object-cover"
               onError={(e) => {
                 e.currentTarget.src = sportImage(v.sport);
               }}
             />
             <label>
-              Описание
+              {tr("Описание")}
               <textarea
                 rows={4}
                 maxLength={3000}
@@ -525,7 +548,7 @@ export function EventWizard({
         {step === 2 && (
           <>
             <label>
-              Сохранённая площадка
+              {tr("Сохранённая площадка")}
               <select
                 defaultValue=""
                 onChange={(e) => {
@@ -548,25 +571,27 @@ export function EventWizard({
                   }
                 }}
               >
-                <option value="">Ввести новую</option>
+                <option value="">{tr("Ввести новую")}</option>
                 {documents
                   .filter((d) => d.kind === "venue")
                   .map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name}
+                      {tr(d.name)}
                     </option>
                   ))}
               </select>
             </label>
             <div className="event-form-grid">
               <label>
-                Город
+                {tr("Город")}
                 <select
                   value={v.city}
                   onChange={(e) => update({ city: e.target.value })}
                 >
                   {CITIES.map((s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {tr(s)}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -574,18 +599,18 @@ export function EventWizard({
               {field("location_text", "Площадка и адрес")}
               {field("two_gis_url", "Ссылка 2GIS", "url")}
               <label>
-                Тип площадки
+                {tr("Тип площадки")}
                 <select
                   value={v.venue_type}
                   onChange={(e) => update({ venue_type: e.target.value })}
                 >
-                  <option value="unknown">Не указан</option>
-                  <option value="indoor">В помещении</option>
-                  <option value="outdoor">На улице</option>
+                  <option value="unknown">{tr("Не указан")}</option>
+                  <option value="indoor">{tr("В помещении")}</option>
+                  <option value="outdoor">{tr("На улице")}</option>
                 </select>
               </label>
               <label>
-                Начало
+                {tr("Начало")}
                 <input
                   type="datetime-local"
                   value={localDateTime(v.date_time)}
@@ -593,13 +618,17 @@ export function EventWizard({
                     update({ date_time: isoDateTime(e.target.value) })
                   }
                 />
-                {errors.date_time && (
-                  <span className="event-error-field">{errors.date_time}</span>
+                {tr(
+                  errors.date_time && (
+                    <span className="event-error-field">
+                      {tr(errors.date_time)}
+                    </span>
+                  ),
                 )}
               </label>
               {v.type === "league" ? (
                 <label>
-                  Длительность сезона
+                  {tr("Длительность сезона")}
                   <select
                     value={v.duration_minutes}
                     onChange={(e) =>
@@ -610,12 +639,14 @@ export function EventWizard({
                       v.duration_minutes,
                     ) && (
                       <option value={v.duration_minutes}>
-                        {v.duration_minutes} минут (текущее значение)
+                        {v.duration_minutes}
+                        {tr(" минут (текущее значение)")}
                       </option>
                     )}
                     {[4, 6, 8, 10].map((weeks) => (
                       <option key={weeks} value={weeks * 10080}>
-                        {weeks} недель
+                        {weeks}
+                        {tr(" недель")}
                       </option>
                     ))}
                   </select>
@@ -624,7 +655,7 @@ export function EventWizard({
                 field("duration_minutes", "Продолжительность, минут", "number")
               )}
               <label>
-                Окончание регистрации
+                {tr("Окончание регистрации")}
                 <input
                   type="datetime-local"
                   value={localDateTime(v.registration_deadline)}
@@ -634,10 +665,12 @@ export function EventWizard({
                     })
                   }
                 />
-                {errors.registration_deadline && (
-                  <span className="event-error-field">
-                    {errors.registration_deadline}
-                  </span>
+                {tr(
+                  errors.registration_deadline && (
+                    <span className="event-error-field">
+                      {tr(errors.registration_deadline)}
+                    </span>
+                  ),
                 )}
               </label>
             </div>
@@ -646,7 +679,7 @@ export function EventWizard({
         {step === 3 && (
           <>
             <label>
-              Запись
+              {tr("Запись")}
               <select
                 value={v.participation_mode}
                 onChange={(e) =>
@@ -665,8 +698,10 @@ export function EventWizard({
                   })
                 }
               >
-                <option value="individual">Индивидуальная</option>
-                <option value="team">Командная — записывает капитан</option>
+                <option value="individual">{tr("Индивидуальная")}</option>
+                <option value="team">
+                  {tr("Командная — записывает капитан")}
+                </option>
               </select>
             </label>
             {field(
@@ -690,18 +725,17 @@ export function EventWizard({
                   "number",
                 )}
                 <p className="workspace-muted">
-                  Платный турнир можно подготовить и сохранить как черновик.
-                  Публикация и запись откроются после подключения платёжного
-                  провайдера Sportura.
+                  {tr(
+                    "Платный турнир можно подготовить и сохранить как черновик. Публикация и запись откроются после подключения платёжного провайдера Sportura.",
+                  )}
                 </p>
               </>
             )}
             {v.type !== "daily_game" && (
               <p className="workspace-muted">
-                Если к дедлайну регистрации минимум не набран, турнир отменится
-                автоматически. Без отдельного дедлайна проверка выполняется при
-                наступлении времени старта. Для командной записи считаются
-                команды.
+                {tr(
+                  "Если к дедлайну регистрации минимум не набран, турнир отменится автоматически. Без отдельного дедлайна проверка выполняется при наступлении времени старта. Для командной записи считаются команды.",
+                )}
               </p>
             )}
             {v.participation_mode === "team" && (
@@ -720,26 +754,28 @@ export function EventWizard({
                 })
               }
             >
-              Вставить регламент дисциплины
+              {tr("Вставить регламент дисциплины")}
             </button>
             <label>
-              Правила и ограничения
+              {tr("Правила и ограничения")}
               <textarea
                 rows={4}
                 maxLength={4000}
-                value={v.rules}
+                value={tr(v.rules)}
                 onChange={(e) => update({ rules: e.target.value })}
               />
             </label>
             {v.type !== "daily_game" && (
               <p className="workspace-muted">
-                {
+                {tr(
                   COMPETITION_FORMATS[
                     v.competition_format ?? "single_elimination"
-                  ].description
-                }{" "}
-                До 128 команд или игроков. Дополнительные правила укажите в
-                регламенте.
+                  ].description,
+                )}
+                {tr(" ")}
+                {tr(
+                  "До 128 команд или игроков. Дополнительные правила укажите в регламенте.",
+                )}
               </p>
             )}
           </>
@@ -754,15 +790,17 @@ export function EventWizard({
                 checked={v.is_private}
                 onChange={(e) => update({ is_private: e.target.checked })}
               />
-              Закрытое событие — доступ по коду
+              {tr("Закрытое событие — доступ по коду")}
             </label>
             <p className="workspace-muted">
-              {v.is_private
-                ? "Код и ссылка появятся после публикации. Событие скрыто из ленты."
-                : "Событие появится в общей ленте."}
+              {tr(
+                v.is_private
+                  ? "Код и ссылка появятся после публикации. Событие скрыто из ленты."
+                  : "Событие появится в общей ленте.",
+              )}
             </p>
             <label>
-              Что взять с собой
+              {tr("Что взять с собой")}
               <textarea
                 rows={3}
                 maxLength={1000}
@@ -775,45 +813,62 @@ export function EventWizard({
         {step === 5 && (
           <div className="event-muted-box space-y-3">
             <h3 className="event-title">
-              {v.title || "Название не заполнено"}
+              {tr(v.title || "Название не заполнено")}
             </h3>
             <p>
-              {ACTIVITY_TYPE_LABEL[v.type]} · {v.sport} · {v.skill_level}
+              {tr(ACTIVITY_TYPE_LABEL[v.type])} · {tr(v.sport)} ·{" "}
+              {tr(v.skill_level)}
             </p>
             <p>
-              {v.city}, {v.location_text}
+              {tr(v.city)}, {tr(v.location_text)}
             </p>
             <p>
-              {v.date_time
-                ? new Date(v.date_time).toLocaleString("ru-RU", {
-                    timeZone: "Asia/Almaty",
-                  })
-                : "Выберите время"}{" "}
-              · {v.duration_minutes} мин.
+              {tr(
+                v.date_time
+                  ? formatDate(
+                      v.date_time,
+                      {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                      language,
+                    )
+                  : "Выберите время",
+              )}
+              {tr(" ")}· {v.duration_minutes}
+              {tr(" мин.")}
             </p>
             <p>
-              {v.max_participants}{" "}
-              {v.participation_mode === "team" ? "команд" : "участников"} ·{" "}
-              {v.entry_fee ? formatKzt(v.entry_fee) : "Бесплатно"} ·{" "}
-              {v.is_private ? "По приглашению" : "Открытая запись"}
+              {v.max_participants}
+              {tr(" ")}
+              {tr(v.participation_mode === "team" ? "команд" : "участников")} ·
+              {tr(" ")}
+              {tr(v.entry_fee ? formatKzt(v.entry_fee) : "Бесплатно")} ·
+              {tr(" ")}
+              {tr(v.is_private ? "По приглашению" : "Открытая запись")}
             </p>
-            <p className="event-description">{v.description}</p>
-            <p className="event-description">{v.rules}</p>
-            <p className="event-description">{v.cancellation_policy}</p>
+            <p className="event-description">{tr(v.description)}</p>
+            <p className="event-description">{tr(v.rules)}</p>
+            <p className="event-description">{tr(v.cancellation_policy)}</p>
             {Object.entries(errors).map(([k, e]) => (
               <p className="event-error-field" key={k}>
-                {e}
+                {tr(e)}
               </p>
             ))}
           </div>
         )}
-        <ErrorNotice message={form.error || action.error} />
+        <ErrorNotice message={tr(form.error || action.error)} />
         <p className="event-count-note">
-          {form.dirty
-            ? "Есть несохранённые изменения"
-            : saved.current.version
-              ? "Черновик сохранён в аккаунте"
-              : "Заполните форму и сохраните черновик"}
+          {tr(
+            form.dirty
+              ? "Есть несохранённые изменения"
+              : saved.current.version
+                ? "Черновик сохранён в аккаунте"
+                : "Заполните форму и сохраните черновик",
+          )}
         </p>
         <div className="event-actions">
           <Button
@@ -821,7 +876,7 @@ export function EventWizard({
             disabled={form.busy || action.busy}
             onClick={() => void form.submit()}
           >
-            Сохранить черновик
+            {tr("Сохранить черновик")}
           </Button>
           {step < 5 ? (
             <Button
@@ -830,7 +885,7 @@ export function EventWizard({
                 if (await form.submit()) setStep(step + 1);
               }}
             >
-              Далее
+              {tr("Далее")}
             </Button>
           ) : (
             <Button
@@ -839,13 +894,14 @@ export function EventWizard({
                 if (validate()) setConfirm(true);
               }}
             >
-              Опубликовать
+              {tr("Опубликовать")}
             </Button>
           )}
           {step === 5 && v.entry_fee > 0 && (
             <p className="workspace-muted">
-              Платный турнир сохраните как черновик. Публикация станет доступна
-              после подключения платёжного провайдера Sportura.
+              {tr(
+                "Платный турнир сохраните как черновик. Публикация станет доступна после подключения платёжного провайдера Sportura.",
+              )}
             </p>
           )}
           <Button
@@ -854,15 +910,17 @@ export function EventWizard({
               if (!form.dirty || (await form.submit())) onClose();
             }}
           >
-            Закрыть
+            {tr("Закрыть")}
           </Button>
         </div>
         <Confirm
           open={confirm}
-          title={
-            event ? "Сохранить изменения события?" : "Опубликовать событие?"
-          }
-          description="Проверьте время, стоимость и правила. Записавшиеся участники получат уведомление об изменениях."
+          title={tr(
+            event ? "Сохранить изменения события?" : "Опубликовать событие?",
+          )}
+          description={tr(
+            "Проверьте время, стоимость и правила. Записавшиеся участники получат уведомление об изменениях.",
+          )}
           busy={action.busy || form.busy}
           onClose={() => setConfirm(false)}
           onConfirm={async () => {

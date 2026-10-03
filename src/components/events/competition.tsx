@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { ItemPrizes } from "./prizes";
 import {
   COMPETITION_FORMATS,
@@ -28,21 +29,32 @@ import {
   dateLabel,
 } from "./shared";
 export function CompetitionView({ data }: { data: CompetitionData }) {
+  const { tr, language } = useI18n();
   return (
     <div className="space-y-5">
-      {data.activity.results_submitted_at && (
-        <div className="profile-callout">
-          <h3 className="font-bold">Опубликованные итоги</h3>
-          {data.results.map((r) => (
-            <p key={r.id}>
-              {r.placement}. {r.participant_name}
+      {tr(
+        data.activity.results_submitted_at && (
+          <div className="profile-callout">
+            <h3 className="font-bold">{tr("Опубликованные итоги")}</h3>
+            {data.results.map((r) => (
+              <p key={r.id}>
+                {r.placement}. {tr(r.participant_name)}
+              </p>
+            ))}
+            <p className="text-xs">
+              {tr(
+                "Вопросы по результатам принимаются через поддержку. Окно споров: до {date}.",
+                {
+                  date: dateLabel(
+                    data.activity.dispute_window_ends_at,
+                    false,
+                    language,
+                  ),
+                },
+              )}
             </p>
-          ))}
-          <p className="text-xs">
-            Вопросы по результатам принимаются через поддержку. Окно споров: до{" "}
-            {dateLabel(data.activity.dispute_window_ends_at)}.
-          </p>
-        </div>
+          </div>
+        ),
       )}
       {hasStandings(data.activity.competition_format) && (
         <Standings data={data} />
@@ -53,42 +65,56 @@ export function CompetitionView({ data }: { data: CompetitionData }) {
         {data.matches.map((m) => (
           <article className="event-match" key={m.id}>
             <p className="workspace-kicker">
-              {matchStageLabel(m.stage, m.group_number)} · Раунд {m.round} ·
-              Матч {m.position}
+              {tr(matchStageLabel(m.stage, m.group_number))}
+              {tr(" · Раунд ")}
+              {m.round}
+              {tr(" · Матч ")}
+              {m.position}
             </p>
             <h3>
-              {m.home_name} — {m.away_name}
+              {tr(m.home_name)} — {tr(m.away_name)}
             </h3>
             <p className="event-match-score">
-              {m.home_score ?? "—"} : {m.away_score ?? "—"}
+              {tr(m.home_score ?? "—")} : {tr(m.away_score ?? "—")}
             </p>
-            {m.winner_id && (
-              <p className="text-sm">
-                Победитель:{" "}
-                {m.winner_id === m.home_id ? m.home_name : m.away_name}
-              </p>
+            {tr(
+              m.winner_id && (
+                <p className="text-sm">
+                  {tr("Победитель:")}
+                  {tr(" ")}
+                  {tr(m.winner_id === m.home_id ? m.home_name : m.away_name)}
+                </p>
+              ),
             )}
             <p className="workspace-muted text-sm">
-              {m.starts_at ? dateLabel(m.starts_at) : "Время уточняется"} ·{" "}
-              {m.location || "Площадка уточняется"}
+              {tr(
+                m.starts_at
+                  ? dateLabel(m.starts_at, false, language)
+                  : "Время уточняется",
+              )}{" "}
+              ·{tr(" ")}
+              {tr(m.location || "Площадка уточняется")}
             </p>
           </article>
         ))}
       </div>
       {!!data.byes?.length && (
         <div className="profile-callout">
-          <h3 className="font-bold">Проходы без матча</h3>
+          <h3 className="font-bold">{tr("Проходы без матча")}</h3>
           {data.byes.map((b) => (
             <p key={`${b.round}:${b.registration_id}`}>
-              Раунд {b.round}: {b.name}
-              {b.points > 0 ? ` · +${b.points} очка` : ""}
+              {tr("Раунд ")}
+              {b.round}: {tr(b.name)}
+              {tr(
+                b.points > 0 ? tr("· +{count} очка", { count: b.points }) : "",
+              )}
             </p>
           ))}
         </div>
       )}
       {!data.matches.length && (
         <Empty
-          title="Расписание готовится"
+          title={tr("Расписание готовится")}
           text="Организатор опубликует пары и время матчей после набора участников."
         />
       )}
@@ -96,20 +122,25 @@ export function CompetitionView({ data }: { data: CompetitionData }) {
   );
 }
 export function Standings({ data }: { data: CompetitionData }) {
+  const { tr } = useI18n();
   return (
     <div className="event-table-wrap">
       <table className="event-table">
         <caption className="text-left mb-2">
-          Турнирная таблица · победа {data.activity.win_points}, ничья{" "}
-          {data.activity.draw_points}. При равенстве:{" "}
-          {data.activity.competition_format === "swiss"
-            ? "очки соперников"
-            : "очки личных встреч"}
-          , разница, забитые
-          {data.activity.competition_format === "round_robin"
-            ? "; полный итоговый паритет решает организатор по регламенту"
-            : ", посев"}
-          .
+          {tr(
+            "Турнирная таблица · победа: {win}, ничья: {draw}. При равенстве: {criteria}.",
+            {
+              win: data.activity.win_points,
+              draw: data.activity.draw_points,
+              criteria: tr(
+                data.activity.competition_format === "swiss"
+                  ? "очки соперников, разница, забитые, посев"
+                  : data.activity.competition_format === "round_robin"
+                    ? "очки личных встреч, разница, забитые; полный итоговый паритет решает организатор по регламенту"
+                    : "очки личных встреч, разница, забитые, посев",
+              ),
+            },
+          )}
         </caption>
         <thead>
           <tr>
@@ -127,7 +158,7 @@ export function Standings({ data }: { data: CompetitionData }) {
                 : []),
             ].map((h) => (
               <th key={h} scope="col">
-                {h}
+                {tr(h)}
               </th>
             ))}
           </tr>
@@ -136,11 +167,13 @@ export function Standings({ data }: { data: CompetitionData }) {
           {data.standings.map((s) => (
             <tr key={s.registration_id}>
               <th scope="row">
-                {s.group_number &&
-                data.activity.competition_format === "groups_playoff"
-                  ? `Группа ${s.group_number} · `
-                  : ""}
-                {s.name}
+                {tr(
+                  s.group_number &&
+                    data.activity.competition_format === "groups_playoff"
+                    ? tr("Группа {group} · ", { group: s.group_number })
+                    : "",
+                )}
+                {tr(s.name)}
               </th>
               <td>{s.played}</td>
               <td>{s.won}</td>
@@ -170,6 +203,7 @@ export function HostCompetition({
   event: Event;
   registrations: Registration[];
 }) {
+  const { tr } = useI18n();
   const q = useQuery({
     queryKey: ["event-public", a.id, "host"],
     queryFn: () => readEvent({ data: { id: a.id } }),
@@ -211,41 +245,41 @@ export function HostCompetition({
   );
   if (q.isPending)
     return (
-      <Panel title="Соревнование">
-        <p>Загружаем расписание…</p>
+      <Panel title={tr("Соревнование")}>
+        <p>{tr("Загружаем расписание…")}</p>
       </Panel>
     );
   if (q.error)
     return (
-      <Panel title="Соревнование">
-        <ErrorNotice message={q.error.message} />
-        <Button onClick={() => void q.refetch()}>Повторить</Button>
+      <Panel title={tr("Соревнование")}>
+        <ErrorNotice message={tr(q.error.message)} />
+        <Button onClick={() => void q.refetch()}>{tr("Повторить")}</Button>
       </Panel>
     );
   if (!q.data)
     return (
       <Empty
-        title="Соревнование недоступно"
+        title={tr("Соревнование недоступно")}
         text="Обновите страницу или обратитесь в поддержку."
       />
     );
   const d = q.data;
   return (
     <Panel
-      title={a.title}
-      description={
+      title={tr(a.title)}
+      description={tr(
         COMPETITION_FORMATS[a.competition_format ?? "single_elimination"]
-          .description
-      }
+          .description,
+      )}
     >
       <div className="space-y-5">
         <p className="event-description">
-          {a.rules || "Дополнительный регламент не указан."}
+          {tr(a.rules || "Дополнительный регламент не указан.")}
         </p>
         <div className="event-actions">
           {!d.matches.length ? (
             <Button onClick={() => setDecision("generate")}>
-              Сформировать расписание
+              {tr("Сформировать расписание")}
             </Button>
           ) : (
             <>
@@ -255,22 +289,24 @@ export function HostCompetition({
                     variant="outline"
                     onClick={() => setDecision("advance")}
                   >
-                    Следующий раунд
+                    {tr("Следующий раунд")}
                   </Button>
                 )}
               <Button variant="outline" onClick={() => setPreview(!preview)}>
-                {preview ? "Редактировать матчи" : "Предпросмотр итогов"}
+                {tr(preview ? "Редактировать матчи" : "Предпросмотр итогов")}
               </Button>
               <Button onClick={() => setDecision("publish_results")}>
-                {a.results_submitted_at
-                  ? "Обновить публикацию"
-                  : "Опубликовать итоги"}
+                {tr(
+                  a.results_submitted_at
+                    ? "Обновить публикацию"
+                    : "Опубликовать итоги",
+                )}
               </Button>
             </>
           )}
-          <HelpLink activity={a.id}>Вопрос по результатам</HelpLink>
+          <HelpLink activity={a.id}>{tr("Вопрос по результатам")}</HelpLink>
         </div>
-        <ErrorNotice message={action.error} />
+        <ErrorNotice message={tr(action.error)} />
         {!a.results_submitted_at &&
           d.matches.some((m) => !m.starts_at && m.home_score === null) && (
             <AutoSchedule event={a} />
@@ -295,20 +331,20 @@ export function HostCompetition({
         <ItemPrizes data={d} registrations={registrations} />
         <Confirm
           open={!!decision}
-          title={
+          title={tr(
             decision === "generate"
               ? "Сформировать пары?"
               : decision === "advance"
                 ? "Создать следующий раунд?"
-                : "Опубликовать результаты?"
-          }
-          description={
+                : "Опубликовать результаты?",
+          )}
+          description={tr(
             decision === "generate"
               ? "В сетку войдут текущие активные участники. Новая запись будет закрыта. Проверьте состав до подтверждения."
               : decision === "advance"
                 ? "Результаты текущего раунда будут зафиксированы для следующих матчей."
-                : "Итоги станут доступны участникам. Все матчи должны иметь результат. При равенстве показателей выберите победителя по регламенту."
-          }
+                : "Итоги станут доступны участникам. Все матчи должны иметь результат. При равенстве показателей выберите победителя по регламенту.",
+          )}
           busy={action.busy}
           onClose={() => setDecision(null)}
           onConfirm={async () => {
@@ -338,21 +374,26 @@ export function HostCompetition({
           {decision === "generate" && advanced && (
             <div className="event-form">
               <label>
-                Посев
+                {tr("Посев")}
                 <select
                   value={seeding}
                   onChange={(e) => setSeeding(e.target.value)}
                 >
-                  <option value="registration">По порядку регистрации</option>
-                  <option value="random">Случайная жеребьёвка</option>
-                  <option value="rating">По спортивному рейтингу</option>
-                  <option value="manual">Выбрать порядок</option>
+                  <option value="registration">
+                    {tr("По порядку регистрации")}
+                  </option>
+                  <option value="random">{tr("Случайная жеребьёвка")}</option>
+                  <option value="rating">
+                    {tr("По спортивному рейтингу")}
+                  </option>
+                  <option value="manual">{tr("Выбрать порядок")}</option>
                 </select>
               </label>
               {seeding === "manual" &&
                 ordered.map((id, index) => (
                   <label key={index}>
-                    Место посева {index + 1}
+                    {tr("Место посева ")}
+                    {index + 1}
                     <select
                       value={id}
                       onChange={(e) => {
@@ -368,7 +409,7 @@ export function HostCompetition({
                     >
                       {active.map((r) => (
                         <option key={r.id} value={r.id}>
-                          {r.team_name || r.name}
+                          {tr(r.team_name || r.name)}
                         </option>
                       ))}
                     </select>
@@ -379,21 +420,21 @@ export function HostCompetition({
           {decision === "publish_results" && (
             <div className="event-form">
               <label>
-                Победитель при полном равенстве
+                {tr("Победитель при полном равенстве")}
                 <select
                   value={winner}
                   onChange={(e) => setWinner(e.target.value)}
                 >
-                  <option value="">По результатам матчей</option>
+                  <option value="">{tr("По результатам матчей")}</option>
                   {d.standings.map((s) => (
                     <option key={s.registration_id} value={s.registration_id}>
-                      {s.name}
+                      {tr(s.name)}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                Причина исправления / правило разрешения ничьей
+                {tr("Причина исправления / правило разрешения ничьей")}
                 <textarea
                   maxLength={1000}
                   value={reason}
@@ -408,6 +449,7 @@ export function HostCompetition({
   );
 }
 function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
+  const { tr } = useI18n();
   const [form, setForm] = useState({
     starts_at: localDateTime(m.starts_at),
     duration_minutes: m.duration_minutes,
@@ -445,15 +487,19 @@ function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
       }}
     >
       <p className="workspace-kicker">
-        {matchStageLabel(m.stage, m.group_number)} · Раунд {m.round} · Матч{" "}
+        {tr(matchStageLabel(m.stage, m.group_number))}
+        {tr(" · Раунд ")}
+        {m.round}
+        {tr(" · Матч")}
+        {tr(" ")}
         {m.position}
       </p>
       <h3 className="font-bold">
-        {m.home_name} — {m.away_name}
+        {tr(m.home_name)} — {tr(m.away_name)}
       </h3>
       <div className="event-form-grid">
         <label>
-          Начало, UTC+5
+          {tr("Начало, UTC+5")}
           <input
             type="datetime-local"
             value={form.starts_at}
@@ -461,7 +507,7 @@ function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
           />
         </label>
         <label>
-          Минут
+          {tr("Минут")}
           <input
             type="number"
             min="5"
@@ -473,7 +519,7 @@ function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
           />
         </label>
         <label className="wide">
-          Площадка
+          {tr("Площадка")}
           <input
             maxLength={200}
             value={form.location}
@@ -481,7 +527,7 @@ function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
           />
         </label>
         <label>
-          {m.home_name}
+          {tr(m.home_name)}
           <input
             type="number"
             min="0"
@@ -491,7 +537,7 @@ function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
           />
         </label>
         <label>
-          {m.away_name}
+          {tr(m.away_name)}
           <input
             type="number"
             min="0"
@@ -505,34 +551,34 @@ function MatchEditor({ match: m, event: a }: { match: Match; event: Event }) {
         a.competition_format === "double_elimination" ||
         m.stage === "playoff") && (
         <label>
-          Победитель при равном счёте
+          {tr("Победитель при равном счёте")}
           <select
             value={form.winner_id}
             onChange={(e) => setForm({ ...form, winner_id: e.target.value })}
           >
-            <option value="">По счёту</option>
-            <option value={m.home_id}>{m.home_name}</option>
-            <option value={m.away_id}>{m.away_name}</option>
+            <option value="">{tr("По счёту")}</option>
+            <option value={m.home_id}>{tr(m.home_name)}</option>
+            <option value={m.away_id}>{tr(m.away_name)}</option>
           </select>
         </label>
       )}
       <label>
-        Причина изменения
+        {tr("Причина изменения")}
         <input
           value={form.reason}
           maxLength={1000}
           onChange={(e) => setForm({ ...form, reason: e.target.value })}
         />
       </label>
-      <ErrorNotice message={action.error} />
+      <ErrorNotice message={tr(action.error)} />
       <Button type="submit" variant="outline" disabled={action.busy}>
-        Сохранить матч
+        {tr("Сохранить матч")}
       </Button>
     </form>
   );
 }
-
 function AutoSchedule({ event: a }: { event: Event }) {
+  const { tr } = useI18n();
   const action = useEventAction();
   const [start, setStart] = useState(localDateTime(a.date_time));
   const [minutes, setMinutes] = useState(60);
@@ -540,7 +586,9 @@ function AutoSchedule({ event: a }: { event: Event }) {
   const [perDay, setPerDay] = useState(4);
   return (
     <details className="event-muted-box">
-      <summary className="font-bold">Распределить матчи по дням</summary>
+      <summary className="font-bold">
+        {tr("Распределить матчи по дням")}
+      </summary>
       <form
         className="event-form mt-4"
         onSubmit={async (e) => {
@@ -565,7 +613,7 @@ function AutoSchedule({ event: a }: { event: Event }) {
       >
         <div className="event-form-grid">
           <label>
-            Первый матч, UTC+5
+            {tr("Первый матч, UTC+5")}
             <input
               required
               type="datetime-local"
@@ -574,53 +622,59 @@ function AutoSchedule({ event: a }: { event: Event }) {
             />
           </label>
           <label>
-            Минут на матч
+            {tr("Минут на матч")}
             <select
               value={minutes}
               onChange={(e) => setMinutes(Number(e.target.value))}
             >
               {[10, 15, 20, 30, 45, 60, 90, 120].map((n) => (
-                <option key={n}>{n}</option>
+                <option key={n} value={n}>
+                  {n}
+                </option>
               ))}
             </select>
           </label>
           <label>
-            Перерыв
+            {tr("Перерыв")}
             <select
               value={gap}
               onChange={(e) => setGap(Number(e.target.value))}
             >
               {[0, 5, 10, 15, 20, 30, 60].map((n) => (
                 <option key={n} value={n}>
-                  {n} мин
+                  {n}
+                  {tr(" мин")}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            Матчей в день
+            {tr("Матчей в день")}
             <select
               value={perDay}
               onChange={(e) => setPerDay(Number(e.target.value))}
             >
               {[1, 2, 3, 4, 6, 8, 12].map((n) => (
-                <option key={n}>{n}</option>
+                <option key={n} value={n}>
+                  {n}
+                </option>
               ))}
             </select>
           </label>
         </div>
         <p className="workspace-muted text-sm">
-          Матчи без времени пройдут последовательно на площадке события.
-          Следующий день начинается в то же время. Участники получат
-          уведомление.
+          {tr(
+            "Матчи без времени пройдут последовательно на площадке события. Следующий день начинается в то же время. Участники получат уведомление.",
+          )}
         </p>
-        <ErrorNotice message={action.error} />
-        <Button disabled={action.busy}>Опубликовать расписание</Button>
+        <ErrorNotice message={tr(action.error)} />
+        <Button disabled={action.busy}>{tr("Опубликовать расписание")}</Button>
       </form>
     </details>
   );
 }
 function MatchCalendar({ data }: { data: CompetitionData }) {
+  const { tr } = useI18n();
   const matches = data.matches.filter((m) => m.starts_at);
   if (!matches.length) return null;
   const stamp = (d: Date) =>
@@ -662,7 +716,7 @@ function MatchCalendar({ data }: { data: CompetitionData }) {
         )
       }
     >
-      Скачать календарь матчей
+      {tr("Скачать календарь матчей")}
     </Button>
   );
 }

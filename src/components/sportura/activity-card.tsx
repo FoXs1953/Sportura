@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, MapPin, Clock, Star, UsersRound } from "lucide-react";
 import { isRegistrationOpen } from "@/lib/feed-filters";
@@ -12,16 +13,15 @@ import {
   timeLabel,
   type ActivityStatus,
 } from "@/lib/sportura";
-
 export function StatusBadge({ status }: { status: ActivityStatus }) {
+  const { tr, language } = useI18n();
   return (
     <span className={`feed-status feed-status-${status}`}>
       <i aria-hidden="true" />
-      {ACTIVITY_STATUS_LABEL[status]}
+      {tr(ACTIVITY_STATUS_LABEL[status])}
     </span>
   );
 }
-
 export function CapacityMeter({
   registered,
   max,
@@ -31,6 +31,7 @@ export function CapacityMeter({
   max: number;
   size?: "md" | "lg";
 }) {
+  const { tr, language } = useI18n();
   const percent = capacityPercent(registered, max);
   const left = spotsLeft(registered, max);
   return (
@@ -42,7 +43,7 @@ export function CapacityMeter({
           {registered} <span className="text-muted-foreground">/ {max}</span>
         </div>
         <span className="text-xs text-muted-foreground">
-          {left > 0 ? `осталось ${left}` : "мест нет"}
+          {tr(left > 0 ? `осталось ${left}` : "мест нет")}
         </span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-panel-2">
@@ -54,7 +55,6 @@ export function CapacityMeter({
     </div>
   );
 }
-
 export function ActivityCard({
   activity,
   priority = false,
@@ -68,6 +68,7 @@ export function ActivityCard({
   };
   priority?: boolean;
 }) {
+  const { tr, language } = useI18n();
   const open = isRegistrationOpen(activity);
   const closed =
     activity.status === "cancelled" || activity.status === "completed";
@@ -87,14 +88,13 @@ export function ActivityCard({
       ? "full"
       : activity.status;
   const placeWord = new Intl.PluralRules("ru").select(left);
-
   return (
     <article className={`feed-card ${closed ? "feed-card-closed" : ""}`}>
       <Link
         to="/activity/$id"
         params={{ id: activity.id }}
         className="feed-card-link"
-        aria-label={`Открыть событие: ${activity.title}`}
+        aria-label={tr(`Открыть событие: ${activity.title}`)}
       >
         <div className="feed-card-image">
           <img
@@ -102,7 +102,7 @@ export function ActivityCard({
             onError={(e) => {
               e.currentTarget.src = sportImage(activity.sport);
             }}
-            alt=""
+            alt={tr("")}
             width={640}
             height={360}
             loading={priority ? "eager" : "lazy"}
@@ -110,55 +110,63 @@ export function ActivityCard({
           />
           <div className="feed-card-badges">
             <span className="feed-format">
-              {activity.tier === "spark"
-                ? "Spark"
-                : activity.tier === "blitz"
-                  ? "Blitz Cup"
-                  : ACTIVITY_TYPE_LABEL[activity.type]}
+              {tr(
+                activity.tier === "spark"
+                  ? "Spark"
+                  : activity.tier === "blitz"
+                    ? "Blitz Cup"
+                    : ACTIVITY_TYPE_LABEL[activity.type],
+              )}
             </span>
             <span className={`feed-status feed-status-${status}`}>
               <i aria-hidden="true" />
-              {open
-                ? "Идёт набор"
-                : activity.status === "cancelled"
-                  ? "Отменено"
-                  : activity.status === "completed"
-                    ? "Завершено"
-                    : activity.date_time &&
-                        Date.parse(activity.date_time) <= Date.now()
-                      ? Date.parse(activity.date_time) +
-                          (activity.duration_minutes ?? 120) * 60000 >
-                        Date.now()
-                        ? "Идёт сейчас"
-                        : "Завершилось"
-                      : left === 0
-                        ? "Мест нет"
-                        : "Регистрация закрыта"}
+              {tr(
+                open
+                  ? "Идёт набор"
+                  : activity.status === "cancelled"
+                    ? "Отменено"
+                    : activity.status === "completed"
+                      ? "Завершено"
+                      : activity.date_time &&
+                          Date.parse(activity.date_time) <= Date.now()
+                        ? Date.parse(activity.date_time) +
+                            (activity.duration_minutes ?? 120) * 60000 >
+                          Date.now()
+                          ? "Идёт сейчас"
+                          : "Завершилось"
+                        : left === 0
+                          ? "Мест нет"
+                          : "Регистрация закрыта",
+              )}
             </span>
           </div>
-          <span className="feed-card-sport">{activity.sport}</span>
+          <span className="feed-card-sport">{tr(activity.sport)}</span>
           <span className="feed-card-arrow">
             <ArrowUpRight size={18} aria-hidden="true" />
           </span>
         </div>
         <div className="feed-card-body">
-          <h3>{activity.title}</h3>
+          <h3>{tr(activity.title)}</h3>
           <div className="feed-card-details">
             <p className="feed-card-time">
               <Clock size={15} aria-hidden="true" />
-              <span>{timeLabel(activity) || "Время уточняется"}</span>
+              <span>
+                {tr(timeLabel(activity, language) || "Время уточняется")}
+              </span>
             </p>
             <p>
               <MapPin size={15} aria-hidden="true" />
               <span>
-                {activity.city} ·{" "}
-                {activity.location_text || "Площадка уточняется"}
+                {tr(activity.city)} ·{tr(" ")}
+                {tr(activity.location_text || "Площадка уточняется")}
               </span>
             </p>
           </div>
           <p className="workspace-muted text-xs">
-            {activity.skill_level || "Любой уровень"}
-            {activity.host_approved ? " · Организатор с одобренной ролью" : ""}
+            {tr(activity.skill_level || "Любой уровень")}
+            {tr(
+              activity.host_approved ? " · Организатор с одобренной ролью" : "",
+            )}
           </p>
           <div className="feed-card-capacity">
             <div className="feed-capacity-label">
@@ -166,24 +174,29 @@ export function ActivityCard({
                 <UsersRound size={14} aria-hidden="true" />
                 <strong>{activity.registered_count}</strong>
                 <span>
-                  / {activity.max_participants}{" "}
-                  {activity.participation_mode === "team"
-                    ? "команд"
-                    : "участников"}
+                  / {activity.max_participants}
+                  {tr(" ")}
+                  {tr(
+                    activity.participation_mode === "team"
+                      ? "команд"
+                      : "участников",
+                  )}
                 </span>
               </span>
               <span className={open && left <= 3 ? "feed-last-spots" : ""}>
-                {!open
-                  ? "Запись закрыта"
-                  : left > 0
-                    ? `${left} ${placeWord === "one" ? "место" : placeWord === "few" ? "места" : "мест"}`
-                    : "Мест нет"}
+                {tr(
+                  !open
+                    ? "Запись закрыта"
+                    : left > 0
+                      ? `${left} ${placeWord === "one" ? "место" : placeWord === "few" ? "места" : "мест"}`
+                      : "Мест нет",
+                )}
               </span>
             </div>
             <div
               className="feed-capacity-track"
               role="meter"
-              aria-label="Заполненность события"
+              aria-label={tr("Заполненность события")}
               aria-valuemin={0}
               aria-valuemax={activity.max_participants || 1}
               aria-valuenow={Math.min(
@@ -197,25 +210,29 @@ export function ActivityCard({
           <div className="feed-card-footer">
             <div className="feed-host">
               <span className="feed-avatar" aria-hidden="true">
-                {initials || "S"}
+                {tr(initials || "S")}
               </span>
               <span className="feed-host-text">
                 <span className="feed-host-name">
-                  {activity.host_name || "Организатор"}
+                  {tr(activity.host_name || "Организатор")}
                 </span>
                 <span className="feed-host-rating">
-                  {activity.host_rating ? (
-                    <>
-                      <Star size={11} aria-hidden="true" />
-                      {activity.host_rating.toFixed(1)}
-                      <span>
-                        {activity.host_rating_count
-                          ? `${activity.host_rating_count} оценок`
-                          : "организатор"}
-                      </span>
-                    </>
-                  ) : (
-                    "Организатор"
+                  {tr(
+                    activity.host_rating ? (
+                      <>
+                        <Star size={11} aria-hidden="true" />
+                        {tr(activity.host_rating.toFixed(1))}
+                        <span>
+                          {tr(
+                            activity.host_rating_count
+                              ? `${activity.host_rating_count} оценок`
+                              : "организатор",
+                          )}
+                        </span>
+                      </>
+                    ) : (
+                      "Организатор"
+                    ),
                   )}
                 </span>
               </span>
@@ -224,14 +241,16 @@ export function ActivityCard({
               className={`feed-card-price ${activity.is_free ? "is-free" : ""}`}
             >
               <strong>
-                {activity.is_free ? "Бесплатно" : priceLabel(activity)}
+                {tr(activity.is_free ? "Бесплатно" : priceLabel(activity))}
               </strong>
               <span>
-                {activity.participation_mode === "team"
-                  ? "за команду"
-                  : activity.is_free
-                    ? "за участие"
-                    : "с участника"}
+                {tr(
+                  activity.participation_mode === "team"
+                    ? "за команду"
+                    : activity.is_free
+                      ? "за участие"
+                      : "с участника",
+                )}
               </span>
             </div>
           </div>

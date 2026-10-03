@@ -1,9 +1,8 @@
+import { useI18n } from "@/lib/i18n";
 import { type ReactNode } from "react";
 import { FeedShell } from "@/components/sportura/feed-shell";
 import { BrandMark } from "@/components/sportura/brand-mark";
-
 type PageLayout = "wide" | "standard" | "compact" | "admin";
-
 export function AppShell({
   children,
   title,
@@ -21,34 +20,42 @@ export function AppShell({
   layout?: PageLayout;
   showBrandBadge?: boolean;
 }) {
+  const { tr } = useI18n();
   const pageLayout = layout ?? (workspace ? "wide" : "standard");
-
   return (
     <FeedShell>
       <div className={`sportura-page sportura-page-${pageLayout}`}>
-        {(title || subtitle || action) && (
-          <section
-            className="feed-intro"
-            aria-label={title ?? "Раздел Sportura"}
-          >
-            <div>
-              {showBrandBadge && (
-                <span className="feed-location">
-                  <BrandMark size={18} /> Sportura
-                </span>
-              )}
-              {title && (
-                <h1>
-                  {title}
-                  <span className="feed-title-dot">.</span>
-                </h1>
-              )}
-              {subtitle && <p>{subtitle}</p>}
-            </div>
-            {action}
-          </section>
+        {tr(
+          (title || subtitle || action) && (
+            <section
+              className="feed-intro"
+              aria-label={tr(title ?? "Раздел Sportura")}
+            >
+              <div>
+                {showBrandBadge && (
+                  <span className="feed-location">
+                    <BrandMark size={18} /> Sportura
+                  </span>
+                )}
+                {tr(
+                  title && (
+                    <h1>
+                      {tr(title)}
+                      {!/[.!?…]$/.test(tr(title).trimEnd()) && (
+                        <span className="feed-title-dot" aria-hidden="true">
+                          .
+                        </span>
+                      )}
+                    </h1>
+                  ),
+                )}
+                {tr(subtitle && <p>{tr(subtitle)}</p>)}
+              </div>
+              {tr(action)}
+            </section>
+          ),
         )}
-        {children}
+        {tr(children)}
       </div>
     </FeedShell>
   );

@@ -1,3 +1,4 @@
+import { formatDate, useI18n } from "@/lib/i18n";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -13,13 +14,11 @@ import { AppShell } from "@/components/sportura/shell";
 import { getOrganizerProfile } from "@/lib/organizer.functions";
 import { signedAvatarUrl } from "@/lib/storage";
 import { ACTIVITY_TYPE_LABEL, sportImage, timeLabel } from "@/lib/sportura";
-
 const orgQuery = (id: string) =>
   queryOptions({
     queryKey: ["organizer", id],
     queryFn: () => getOrganizerProfile({ data: { id } }),
   });
-
 export const Route = createFileRoute("/organizer/$id")({
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(orgQuery(params.id)),
@@ -42,31 +41,39 @@ export const Route = createFileRoute("/organizer/$id")({
       ],
     };
   },
-  errorComponent: () => (
-    <AppShell workspace title="Организатор">
-      <div className="workspace-panel workspace-empty" role="alert">
-        <h2>Не удалось открыть профиль</h2>
-        <p>Попробуйте обновить страницу или вернитесь к списку игр.</p>
-        <Link to="/" className="workspace-primary-link">
-          Вернуться к играм
-        </Link>
-      </div>
-    </AppShell>
-  ),
-  notFoundComponent: () => (
-    <AppShell workspace title="Организатор">
-      <div className="workspace-panel workspace-empty">
-        <h2>Профиль не найден</h2>
-        <Link to="/" className="workspace-primary-link">
-          Вернуться к играм
-        </Link>
-      </div>
-    </AppShell>
-  ),
+  errorComponent: function LocalizedRouteState() {
+    const { tr, language } = useI18n();
+    return (
+      <AppShell workspace title={tr("Организатор")}>
+        <div className="workspace-panel workspace-empty" role="alert">
+          <h2>{tr("Не удалось открыть профиль")}</h2>
+          <p>
+            {tr("Попробуйте обновить страницу или вернитесь к списку игр.")}
+          </p>
+          <Link to="/" className="workspace-primary-link">
+            {tr("Вернуться к играм")}
+          </Link>
+        </div>
+      </AppShell>
+    );
+  },
+  notFoundComponent: function LocalizedRouteState() {
+    const { tr, language } = useI18n();
+    return (
+      <AppShell workspace title={tr("Организатор")}>
+        <div className="workspace-panel workspace-empty">
+          <h2>{tr("Профиль не найден")}</h2>
+          <Link to="/" className="workspace-primary-link">
+            {tr("Вернуться к играм")}
+          </Link>
+        </div>
+      </AppShell>
+    );
+  },
   component: OrganizerPage,
 });
-
 function OrganizerPage() {
+  const { tr, language } = useI18n();
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(orgQuery(id));
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -87,14 +94,13 @@ function OrganizerPage() {
       active = false;
     };
   }, [data?.profile.avatar_url]);
-
   if (!data)
     return (
-      <AppShell workspace title="Организатор">
+      <AppShell workspace title={tr("Организатор")}>
         <div className="workspace-panel workspace-empty">
-          <h2>Профиль не найден</h2>
+          <h2>{tr("Профиль не найден")}</h2>
           <Link to="/" className="workspace-primary-link">
-            Вернуться к играм
+            {tr("Вернуться к играм")}
           </Link>
         </div>
       </AppShell>
@@ -107,12 +113,11 @@ function OrganizerPage() {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
-
   return (
     <AppShell
       workspace
-      title="Организатор"
-      subtitle="Игры, опыт и отзывы сообщества"
+      title={tr("Организатор")}
+      subtitle={tr("Игры, опыт и отзывы сообщества")}
     >
       <div className="grid items-start gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-5">
@@ -120,7 +125,7 @@ function OrganizerPage() {
             <div className="h-28 w-full overflow-hidden">
               <img
                 src={sportImage(upcoming[0]?.sport ?? "Футбол")}
-                alt=""
+                alt={tr("")}
                 width={640}
                 height={280}
                 className="size-full object-cover"
@@ -131,50 +136,56 @@ function OrganizerPage() {
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
-                    alt={profile.name}
+                    alt={tr(profile.name)}
                     className="size-full object-cover"
                   />
                 ) : (
                   <span className="font-display text-2xl">
-                    {initials || "S"}
+                    {tr(initials || "S")}
                   </span>
                 )}
               </div>
               <h2 className="workspace-section-title mt-4 text-xl">
-                {profile.name}
+                {tr(profile.name)}
               </h2>
               <p className="workspace-muted mt-1 flex items-center gap-1 text-xs">
                 <MapPin size={14} aria-hidden="true" />
-                {profile.city || "Казахстан"}
+                {tr(profile.city || "Казахстан")}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {profile.verified && (
                   <span className="workspace-tag is-success">
-                    <ShieldCheck size={14} /> Роль одобрена
+                    <ShieldCheck size={14} />
+                    {tr(" Роль одобрена")}
                   </span>
                 )}
                 <span className="workspace-tag">
-                  На Sportura с {new Date(profile.created_at).getFullYear()}{" "}
-                  года
+                  {tr("На Sportura с {year} года", {
+                    year: new Date(profile.created_at).getFullYear(),
+                  })}
                 </span>
               </div>
-              {profile.contact &&
-                /^https:\/\/t\.me\/[A-Za-z0-9_]{5,32}$/.test(
-                  profile.contact,
-                ) && (
-                  <a
-                    className="profile-link inline-block mt-3"
-                    href={profile.contact}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Связаться с организатором ↗
-                  </a>
-                )}
-              {profile.bio && (
-                <p className="mt-4 whitespace-pre-wrap text-sm">
-                  {profile.bio}
-                </p>
+              {tr(
+                profile.contact &&
+                  /^https:\/\/t\.me\/[A-Za-z0-9_]{5,32}$/.test(
+                    profile.contact,
+                  ) && (
+                    <a
+                      className="profile-link inline-block mt-3"
+                      href={profile.contact}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {tr("Связаться с организатором ↗")}
+                    </a>
+                  ),
+              )}
+              {tr(
+                profile.bio && (
+                  <p className="mt-4 whitespace-pre-wrap text-sm">
+                    {tr(profile.bio)}
+                  </p>
+                ),
               )}
               {data.statsVisible && (
                 <div className="mt-5 flex items-center gap-2 border-t border-border pt-4">
@@ -185,12 +196,16 @@ function OrganizerPage() {
                     aria-hidden="true"
                   />
                   <strong className="font-display text-xl">
-                    {profile.rating ? Number(profile.rating).toFixed(1) : "—"}
+                    {tr(
+                      profile.rating ? Number(profile.rating).toFixed(1) : "—",
+                    )}
                   </strong>
                   <span className="workspace-muted text-xs">
-                    {profile.rating_count
-                      ? `${profile.rating_count} отзывов`
-                      : "Пока без оценок"}
+                    {tr(
+                      profile.rating_count
+                        ? `${profile.rating_count} отзывов`
+                        : "Пока без оценок",
+                    )}
                   </span>
                 </div>
               )}
@@ -200,23 +215,23 @@ function OrganizerPage() {
             <div className="workspace-stats">
               <div className="workspace-stat">
                 <strong>{stats.games}</strong>
-                <span>Игр создано</span>
+                <span>{tr("Игр создано")}</span>
               </div>
               <div className="workspace-stat">
                 <strong>{stats.competitions}</strong>
-                <span>Турниров и лиг</span>
+                <span>{tr("Турниров и лиг")}</span>
               </div>
               <div className="workspace-stat">
                 <strong>{stats.players}</strong>
-                <span>Записей игроков</span>
+                <span>{tr("Записей игроков")}</span>
               </div>
               <div className="workspace-stat">
                 <strong>{stats.completed}</strong>
-                <span>Проведено</span>
+                <span>{tr("Проведено")}</span>
               </div>
               <div className="workspace-stat">
                 <strong>{stats.cancelled}</strong>
-                <span>Отменено</span>
+                <span>{tr("Отменено")}</span>
               </div>
             </div>
           )}
@@ -228,23 +243,26 @@ function OrganizerPage() {
           >
             <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="workspace-overline">Календарь</p>
+                <p className="workspace-overline">{tr("Календарь")}</p>
                 <h2
                   id="upcoming-title"
                   className="workspace-section-title mt-2"
                 >
-                  Ближайшие события
+                  {tr("Ближайшие события")}
                 </h2>
               </div>
-              <span className="workspace-tag">{upcoming.length} открыто</span>
+              <span className="workspace-tag">
+                {upcoming.length}
+                {tr(" открыто")}
+              </span>
             </div>
             {upcoming.length === 0 ? (
               <div className="workspace-empty rounded-xl border border-dashed border-border">
                 <div className="workspace-empty-icon">
                   <CalendarDays size={23} />
                 </div>
-                <h3>Открытых событий пока нет</h3>
-                <p>Новые игры организатора появятся здесь.</p>
+                <h3>{tr("Открытых событий пока нет")}</h3>
+                <p>{tr("Новые игры организатора появятся здесь.")}</p>
               </div>
             ) : (
               <ul className="divide-y divide-border">
@@ -257,14 +275,16 @@ function OrganizerPage() {
                     >
                       <div className="min-w-0">
                         <span className="workspace-tag is-accent">
-                          {ACTIVITY_TYPE_LABEL[a.type]}
+                          {tr(ACTIVITY_TYPE_LABEL[a.type])}
                         </span>
                         <h3 className="mt-2 text-sm font-bold group-hover:text-brand">
-                          {a.title}
+                          {tr(a.title)}
                         </h3>
                         <p className="workspace-muted mt-1 text-xs">
-                          {timeLabel(a) || "Время уточняется"} ·{" "}
-                          {a.registered_count}/{a.max_participants} участников
+                          {tr(timeLabel(a, language) || "Время уточняется")} ·
+                          {tr(" ")}
+                          {a.registered_count}/{a.max_participants}
+                          {tr(" участников")}
                         </p>
                       </div>
                       <ArrowRight
@@ -285,12 +305,12 @@ function OrganizerPage() {
             >
               <div className="mb-5 flex items-end justify-between gap-3">
                 <div>
-                  <p className="workspace-overline">Сообщество</p>
+                  <p className="workspace-overline">{tr("Сообщество")}</p>
                   <h2
                     id="reviews-title"
                     className="workspace-section-title mt-2"
                   >
-                    Отзывы игроков
+                    {tr("Отзывы игроков")}
                   </h2>
                 </div>
                 <span className="workspace-tag">
@@ -302,9 +322,11 @@ function OrganizerPage() {
                   <div className="workspace-empty-icon">
                     <Star size={23} />
                   </div>
-                  <h3>Отзывов пока нет</h3>
+                  <h3>{tr("Отзывов пока нет")}</h3>
                   <p>
-                    После проведённых игр участники смогут оставить свою оценку.
+                    {tr(
+                      "После проведённых игр участники смогут оставить свою оценку.",
+                    )}
                   </p>
                 </div>
               ) : (
@@ -314,24 +336,30 @@ function OrganizerPage() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="grid size-8 place-items-center rounded-lg bg-muted text-xs font-bold">
-                            {(review.reviewer || "У").slice(0, 1).toUpperCase()}
+                            {tr(
+                              (review.reviewer || "У")
+                                .slice(0, 1)
+                                .toUpperCase(),
+                            )}
                           </span>
                           <strong className="text-xs">
-                            {review.reviewer || "Участник"}
+                            {tr(review.reviewer || "Участник")}
                           </strong>
                         </div>
                         <time
                           className="workspace-muted text-[11px]"
                           dateTime={review.created_at}
                         >
-                          {new Date(review.created_at).toLocaleDateString(
-                            "ru-RU",
+                          {formatDate(
+                            review.created_at,
+                            { day: "numeric", month: "long", year: "numeric" },
+                            language,
                           )}
                         </time>
                       </div>
                       <div
                         className="mt-2 flex gap-0.5 text-brand"
-                        aria-label={`Оценка ${review.rating} из 5`}
+                        aria-label={tr(`Оценка ${review.rating} из 5`)}
                       >
                         {[1, 2, 3, 4, 5].map((n) => (
                           <Star
@@ -341,10 +369,12 @@ function OrganizerPage() {
                           />
                         ))}
                       </div>
-                      {review.comment && (
-                        <p className="mt-2 text-sm leading-relaxed text-foreground">
-                          {review.comment}
-                        </p>
+                      {tr(
+                        review.comment && (
+                          <p className="mt-2 text-sm leading-relaxed text-foreground">
+                            {tr(review.comment)}
+                          </p>
+                        ),
                       )}
                     </li>
                   ))}

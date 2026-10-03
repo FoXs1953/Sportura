@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAnalytics } from "@/lib/analytics.functions";
@@ -24,6 +25,7 @@ const day = (date: Date) =>
     day: "2-digit",
   }).format(date);
 export function AnalyticsDashboard() {
+  const { tr } = useI18n();
   const [period, setPeriod] = useState(7);
   const [dates, setDates] = useState(() => ({
     from: day(new Date(Date.now() - 6 * 86400000)),
@@ -53,7 +55,7 @@ export function AnalyticsDashboard() {
   function download() {
     if (!a) return;
     const rows = [
-      ["Показатель", "Значение"],
+      [tr("Показатель"), tr("Значение")],
       ...[
         "visitors",
         "activity_views",
@@ -62,11 +64,11 @@ export function AnalyticsDashboard() {
         "registrations",
       ]
         .map((k) => [k, a.funnel[k]] as const)
-        .map(([k, v]) => [labels[k], v]),
+        .map(([k, v]) => [tr(labels[k]), v]),
       ["DAU", a.active.dau],
       ["WAU", a.active.wau],
       ["MAU", a.active.mau],
-      ["Дата", "Новые аккаунты", "Визиты"],
+      [tr("Дата"), tr("Новые аккаунты"), tr("Визиты")],
       ...a.daily.map((d) => [d.day, d.accounts, d.visits]),
     ];
     const blob = new Blob(
@@ -86,19 +88,19 @@ export function AnalyticsDashboard() {
     URL.revokeObjectURL(url);
   }
   return (
-    <section className="space-y-6" aria-label="Аналитика">
+    <section className="space-y-6" aria-label={tr("Аналитика")}>
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-sm">
-          Период
+          {tr("Период")}
           <select
             className="workspace-input block"
             value={period}
             onChange={(e) => preset(Number(e.target.value))}
           >
-            <option value={1}>Сегодня</option>
-            <option value={7}>7 дней</option>
-            <option value={30}>30 дней</option>
-            <option value={0}>Свои даты</option>
+            <option value={1}>{tr("Сегодня")}</option>
+            <option value={7}>{tr("7 дней")}</option>
+            <option value={30}>{tr("30 дней")}</option>
+            <option value={0}>{tr("Свои даты")}</option>
           </select>
         </label>
         {period === 0 && (
@@ -110,9 +112,9 @@ export function AnalyticsDashboard() {
             }}
           >
             <label>
-              С
+              {tr("С")}
               <input
-                aria-label="Начало периода"
+                aria-label={tr("Начало периода")}
                 className="workspace-input block"
                 type="date"
                 required
@@ -122,9 +124,9 @@ export function AnalyticsDashboard() {
               />
             </label>
             <label>
-              По
+              {tr("По")}
               <input
-                aria-label="Конец периода"
+                aria-label={tr("Конец периода")}
                 className="workspace-input block"
                 type="date"
                 required
@@ -134,20 +136,20 @@ export function AnalyticsDashboard() {
                 onChange={(e) => setDates({ ...dates, to: e.target.value })}
               />
             </label>
-            <button className="feed-chip">Применить</button>
+            <button className="feed-chip">{tr("Применить")}</button>
           </form>
         )}
         <button disabled={!a} className="feed-chip" onClick={download}>
-          Скачать CSV
+          {tr("Скачать CSV")}
         </button>
       </div>
       {q.isPending ? (
-        <p role="status">Собираем статистику…</p>
+        <p role="status">{tr("Собираем статистику…")}</p>
       ) : q.isError ? (
         <div role="alert">
-          <p>{q.error.message}</p>
+          <p>{tr(q.error.message)}</p>
           <button className="feed-chip" onClick={() => q.refetch()}>
-            Повторить
+            {tr("Повторить")}
           </button>
         </div>
       ) : (
@@ -169,25 +171,25 @@ export function AnalyticsDashboard() {
                 ],
               ].map(([label, value]) => (
                 <div className="admin-stat" key={label}>
-                  <strong>{value}</strong>
-                  <span>{label}</span>
+                  <strong>{tr(value)}</strong>
+                  <span>{tr(label)}</span>
                 </div>
               ))}
             </div>
             <p className="text-sm text-muted-foreground">
-              Трафик — только посетители, разрешившие аналитику. Аккаунты и
-              записи — все данные базы. Соотношение этих показателей не является
-              точной конверсией. Дни считаются по времени Астаны.
+              {tr(
+                "Трафик — только посетители, разрешившие аналитику. Аккаунты и записи — все данные базы. Соотношение этих показателей не является точной конверсией. Дни считаются по времени Астаны.",
+              )}
             </p>
             <div className="grid gap-6 lg:grid-cols-2">
               <section className="workspace-panel">
                 <h2 className="text-lg font-semibold">
-                  Воронка новых участников
+                  {tr("Воронка новых участников")}
                 </h2>
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Последовательность действий новых участников с согласием на
-                  аналитику. Существующие аккаунты не входят в этап создания
-                  аккаунта.
+                  {tr(
+                    "Последовательность действий новых участников с согласием на аналитику. Существующие аккаунты не входят в этап создания аккаунта.",
+                  )}
                 </p>
                 {[
                   "visitors",
@@ -202,42 +204,53 @@ export function AnalyticsDashboard() {
                       key={key}
                       className="flex justify-between border-b border-white/10 py-3"
                     >
-                      <span>{labels[key]}</span>
+                      <span>{tr(labels[key])}</span>
                       <strong>{n}</strong>
                     </div>
                   ))}
               </section>
               <section className="workspace-panel">
-                <h2 className="text-lg font-semibold">Источники визитов</h2>
+                <h2 className="text-lg font-semibold">
+                  {tr("Источники визитов")}
+                </h2>
                 {a.sources.length ? (
                   a.sources.map((s) => (
                     <div
                       className="flex justify-between border-b border-white/10 py-3"
                       key={s.source}
                     >
-                      <span>{labels[s.source]}</span>
+                      <span>{tr(labels[s.source])}</span>
                       <strong>{s.visits}</strong>
                     </div>
                   ))
                 ) : (
                   <p className="py-6 text-muted-foreground">
-                    Пока нет посещений с согласием на аналитику.
+                    {tr("Пока нет посещений с согласием на аналитику.")}
                   </p>
                 )}
-                <h3 className="mt-6 font-semibold">Активные аккаунты</h3>
+                <h3 className="mt-6 font-semibold">
+                  {tr("Активные аккаунты")}
+                </h3>
                 <p className="mt-2">
-                  День: {a.active.dau} · Неделя: {a.active.wau} · Месяц:{" "}
+                  {tr("День: ")}
+                  {a.active.dau}
+                  {tr(" · Неделя: ")}
+                  {a.active.wau}
+                  {tr(" · Месяц:")}
+                  {tr(" ")}
                   {a.active.mau}
                 </p>
               </section>
             </div>
             <section className="workspace-panel">
-              <h2 className="text-lg font-semibold">Регистрации по дням</h2>
+              <h2 className="text-lg font-semibold">
+                {tr("Регистрации по дням")}
+              </h2>
               <div className="mt-4 overflow-x-auto">
                 <div
                   className="flex h-40 min-w-max items-end gap-2"
                   role="img"
-                  aria-label="График новых аккаунтов по дням"
+                  aria-label={tr("График новых аккаунтов по дням")}
                 >
                   {a.daily.map((d) => (
                     <div
@@ -251,25 +264,25 @@ export function AnalyticsDashboard() {
                           height: `${Math.max(2, (d.accounts / Math.max(1, ...a.daily.map((x) => x.accounts))) * 110)}px`,
                         }}
                       />
-                      <span className="mt-2">{d.day.slice(8)}</span>
+                      <span className="mt-2">{tr(d.day.slice(8))}</span>
                     </div>
                   ))}
                 </div>
               </div>
               <details className="mt-4">
-                <summary>Таблица по дням</summary>
+                <summary>{tr("Таблица по дням")}</summary>
                 <table className="w-full text-sm">
                   <thead>
                     <tr>
-                      <th className="text-left">Дата</th>
-                      <th>Аккаунты</th>
-                      <th>Визиты</th>
+                      <th className="text-left">{tr("Дата")}</th>
+                      <th>{tr("Аккаунты")}</th>
+                      <th>{tr("Визиты")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {a.daily.map((d) => (
                       <tr key={d.day}>
-                        <td>{d.day}</td>
+                        <td>{tr(d.day)}</td>
                         <td className="text-center">{d.accounts}</td>
                         <td className="text-center">{d.visits}</td>
                       </tr>
@@ -280,39 +293,54 @@ export function AnalyticsDashboard() {
             </section>
             <div className="grid gap-6 lg:grid-cols-2">
               <section className="workspace-panel">
-                <h2 className="font-semibold">Участие</h2>
-                <p className="mt-3">Записей: {a.activity.registrations}</p>
+                <h2 className="font-semibold">{tr("Участие")}</h2>
+                <p className="mt-3">
+                  {tr("Записей: ")}
+                  {a.activity.registrations}
+                </p>
 
                 <p>
-                  Отмены: {a.activity.cancelled} · Неявки: {a.activity.no_show}
+                  {tr("Отмены: ")}
+                  {a.activity.cancelled}
+                  {tr(" · Неявки: ")}
+                  {a.activity.no_show}
                 </p>
               </section>
               <section className="workspace-panel">
-                <h2 className="font-semibold">Организаторы</h2>
+                <h2 className="font-semibold">{tr("Организаторы")}</h2>
                 <p className="mt-3">
-                  Заявки: {a.organizers.applications} · Одобрено:{" "}
+                  {tr("Заявки: ")}
+                  {a.organizers.applications}
+                  {tr(" · Одобрено:")}
+                  {tr(" ")}
                   {a.organizers.approved}
                 </p>
-                <p>Создано событий: {a.organizers.events}</p>
                 <p>
-                  Заполняемость:{" "}
-                  {percent(a.organizers.occupied, a.organizers.capacity)}
+                  {tr("Создано событий: ")}
+                  {a.organizers.events}
+                </p>
+                <p>
+                  {tr("Заполняемость:")}
+                  {tr(" ")}
+                  {tr(percent(a.organizers.occupied, a.organizers.capacity))}
                 </p>
               </section>
             </div>
             <section className="workspace-panel">
-              <h2 className="font-semibold">Популярные страницы</h2>
+              <h2 className="font-semibold">{tr("Популярные страницы")}</h2>
               {a.pages.map((p) => (
                 <div
                   className="flex justify-between gap-4 border-b border-white/10 py-3"
                   key={p.path}
                 >
-                  <span className="break-all">{p.path}</span>
+                  <span className="break-all">{tr(p.path)}</span>
                   <strong>{p.views}</strong>
                 </div>
               ))}
               {!a.pages.length && (
-                <p className="mt-3 text-muted-foreground">Данных пока нет.</p>
+                <p className="mt-3 text-muted-foreground">
+                  {tr("Данных пока нет.")}
+                </p>
               )}
             </section>
           </>

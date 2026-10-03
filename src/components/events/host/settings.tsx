@@ -1,3 +1,5 @@
+import { useI18n } from "@/lib/i18n";
+import { CITIES, SKILL_LEVELS } from "@/lib/sportura";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -16,14 +18,17 @@ export function HostSettings({
   data: HostWorkspace;
   onTemplate: (d: HostDocument) => void;
 }) {
+  const { tr } = useI18n();
   const action = useEventAction();
   const [remove, setRemove] = useState<HostDocument | null>(null);
   const [editing, setEditing] = useState<HostDocument | null | undefined>();
   return (
     <>
       <Panel
-        title="Настройки и помощь"
-        description="Публичная информация и уведомления синхронизированы с профилем."
+        title={tr("Настройки и помощь")}
+        description={tr(
+          "Публичная информация и уведомления синхронизированы с профилем.",
+        )}
       >
         <div className="event-grid">
           {[
@@ -46,16 +51,16 @@ export function HostSettings({
               to="/profile"
               search={{ tab: tab! }}
             >
-              <h3 className="font-bold">{title} ↗</h3>
-              <p className="workspace-muted text-sm">{text}</p>
+              <h3 className="font-bold">{tr(title)} ↗</h3>
+              <p className="workspace-muted text-sm">{tr(text)}</p>
             </Link>
           ))}
         </div>
       </Panel>
-      <Panel title="Площадки и значения по умолчанию">
+      <Panel title={tr("Площадки и значения по умолчанию")}>
         <div className="event-actions mb-4">
           <Button variant="outline" onClick={() => setEditing(null)}>
-            Добавить площадку
+            {tr("Добавить площадку")}
           </Button>
           <Button
             variant="outline"
@@ -73,7 +78,7 @@ export function HostSettings({
               )
             }
           >
-            Настроить значения по умолчанию
+            {tr("Настроить значения по умолчанию")}
           </Button>
         </div>
         {editing !== undefined && (
@@ -89,9 +94,9 @@ export function HostSettings({
             .map((d) => (
               <div className="event-row event-line" key={d.id}>
                 <div>
-                  <h3>{d.name}</h3>
+                  <h3>{tr(d.name)}</h3>
                   <p className="workspace-muted">
-                    {d.data.city} · {d.data.location_text}
+                    {tr(d.data.city)} · {tr(d.data.location_text)}
                   </p>
                 </div>
                 <div className="event-actions">
@@ -100,14 +105,14 @@ export function HostSettings({
                     variant="outline"
                     onClick={() => setEditing(d)}
                   >
-                    Изменить
+                    {tr("Изменить")}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setRemove(d)}
                   >
-                    Удалить
+                    {tr("Удалить")}
                   </Button>
                 </div>
               </div>
@@ -115,38 +120,40 @@ export function HostSettings({
         </div>
       </Panel>
       <Panel
-        title="Шаблоны"
-        description="Сохраните опубликованное событие как шаблон в его управлении. Дата новой игры выбирается заново."
+        title={tr("Шаблоны")}
+        description={tr(
+          "Сохраните опубликованное событие как шаблон в его управлении. Дата новой игры выбирается заново.",
+        )}
       >
         <div className="event-rows">
           {data.documents
             .filter((d) => d.kind === "template")
             .map((d) => (
               <div className="event-row event-line" key={d.id}>
-                <h3>{d.name}</h3>
+                <h3>{tr(d.name)}</h3>
                 <div className="event-actions">
                   <Button size="sm" onClick={() => onTemplate(d)}>
-                    Создать по шаблону
+                    {tr("Создать по шаблону")}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setRemove(d)}
                   >
-                    Удалить
+                    {tr("Удалить")}
                   </Button>
                 </div>
               </div>
             ))}
           {!data.documents.some((d) => d.kind === "template") && (
             <Empty
-              title="Шаблонов пока нет"
+              title={tr("Шаблонов пока нет")}
               text="Откройте своё событие и нажмите «Сохранить как шаблон»."
             />
           )}
         </div>
       </Panel>
-      <Panel title="Как управлять событиями">
+      <Panel title={tr("Как управлять событиями")}>
         <div className="event-help-list">
           {[
             [
@@ -171,29 +178,29 @@ export function HostSettings({
             ],
           ].map(([title, text]) => (
             <details key={title}>
-              <summary>{title}</summary>
-              <p>{text}</p>
+              <summary>{tr(title)}</summary>
+              <p>{tr(text)}</p>
             </details>
           ))}
         </div>
         <div className="event-actions mt-5">
           <Link className="profile-link" to="/legal">
-            Правила и дата обновления ↗
+            {tr("Правила и дата обновления ↗")}
           </Link>
           <Link
             className="profile-link"
             to="/profile"
             search={{ tab: "organizer" }}
           >
-            Права и ограничения ↗
+            {tr("Права и ограничения ↗")}
           </Link>
         </div>
       </Panel>
-      <ErrorNotice message={action.error} />
+      <ErrorNotice message={tr(action.error)} />
       <Confirm
         open={!!remove}
-        title="Удалить сохранённый документ?"
-        description={remove?.name ?? ""}
+        title={tr("Удалить сохранённый документ?")}
+        description={tr(remove?.name ?? "")}
         busy={action.busy}
         onClose={() => setRemove(null)}
         onConfirm={async () => {
@@ -214,6 +221,7 @@ function DocumentEditor({
   document: HostDocument | null;
   onClose: () => void;
 }) {
+  const { tr } = useI18n();
   const [id] = useState(d?.id ?? crypto.randomUUID());
   const [version, setVersion] = useState(d?.updated_at ?? "");
   const kind = d?.kind ?? "venue";
@@ -240,7 +248,7 @@ function DocumentEditor({
   return (
     <div className="event-form event-muted-box">
       <h3 className="font-bold">
-        {kind === "venue" ? "Площадка" : "Настройки новых событий"}
+        {tr(kind === "venue" ? "Площадка" : "Настройки новых событий")}
       </h3>
       {kind === "venue" ? (
         <div className="event-form-grid">
@@ -253,29 +261,45 @@ function DocumentEditor({
             ["notes", "Примечание"],
           ].map(([k, l]) => (
             <label key={k}>
-              {l}
-              <input
-                value={String(v[k as keyof typeof v])}
-                onChange={(e) => form.patch({ [k!]: e.target.value })}
-              />
+              {tr(l)}
+              {k === "city" ? (
+                <select
+                  value={v.city}
+                  onChange={(e) => form.patch({ city: e.target.value })}
+                >
+                  {!CITIES.some((city) => city === v.city) && (
+                    <option value={v.city}>{tr(v.city)}</option>
+                  )}
+                  {CITIES.map((city) => (
+                    <option key={city} value={city}>
+                      {tr(city)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={String(v[k as keyof typeof v])}
+                  onChange={(e) => form.patch({ [k!]: e.target.value })}
+                />
+              )}
             </label>
           ))}
           <label>
-            Площадка
+            {tr("Площадка")}
             <select
               value={v.venue_type}
               onChange={(e) => form.patch({ venue_type: e.target.value })}
             >
-              <option value="unknown">Не указано</option>
-              <option value="indoor">В помещении</option>
-              <option value="outdoor">На улице</option>
+              <option value="unknown">{tr("Не указано")}</option>
+              <option value="indoor">{tr("В помещении")}</option>
+              <option value="outdoor">{tr("На улице")}</option>
             </select>
           </label>
         </div>
       ) : (
         <div className="event-form-grid">
           <label>
-            Продолжительность, минут
+            {tr("Продолжительность, минут")}
             <input
               type="number"
               min="15"
@@ -287,7 +311,7 @@ function DocumentEditor({
             />
           </label>
           <label>
-            Количество мест
+            {tr("Количество мест")}
             <input
               type="number"
               min="2"
@@ -299,16 +323,25 @@ function DocumentEditor({
             />
           </label>
           <label>
-            Уровень
-            <input
+            {tr("Уровень")}
+            <select
               value={v.skill_level}
               onChange={(e) => form.patch({ skill_level: e.target.value })}
-            />
+            >
+              {!SKILL_LEVELS.some((level) => level === v.skill_level) && (
+                <option value={v.skill_level}>{tr(v.skill_level)}</option>
+              )}
+              {SKILL_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {tr(level)}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
-            Условия отмены
+            {tr("Условия отмены")}
             <textarea
-              value={v.cancellation_policy}
+              value={tr(v.cancellation_policy)}
               onChange={(e) =>
                 form.patch({ cancellation_policy: e.target.value })
               }
@@ -316,7 +349,7 @@ function DocumentEditor({
           </label>
         </div>
       )}
-      <ErrorNotice message={form.error} />
+      <ErrorNotice message={tr(form.error)} />
       <div className="event-actions">
         <Button
           disabled={form.busy}
@@ -324,7 +357,7 @@ function DocumentEditor({
             if (await form.submit()) onClose();
           }}
         >
-          Сохранить
+          {tr("Сохранить")}
         </Button>
         <Button
           variant="ghost"
@@ -332,7 +365,7 @@ function DocumentEditor({
             if (!form.dirty || (await form.submit())) onClose();
           }}
         >
-          Закрыть
+          {tr("Закрыть")}
         </Button>
       </div>
     </div>

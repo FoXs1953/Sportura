@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Tables } from "./database.types";
 import type { Caller, Tx } from "./db.server";
 import { asStaff } from "./staff";
+import { formatLocalizedDate, translator, type Language } from "./i18n/core";
 
 /** Runs fn as the caller after checking the admin role; RLS still applies. */
 async function asAdmin<T>(caller: Caller, fn: (tx: Tx) => Promise<T>) {
@@ -308,26 +309,46 @@ function csvEscape(value: unknown): string {
   return /[",;\n]/.test(s) ? `"${s}"` : s;
 }
 
-function toCsv(headers: string[], rows: unknown[][]): string {
+function toCsv(
+  headers: string[],
+  rows: unknown[][],
+  language: Language,
+): string {
+  const tr = translator(language);
   const lines = [
-    headers.join(";"),
+    headers.map((header) => csvEscape(tr(header))).join(";"),
     ...rows.map((r) => r.map(csvEscape).join(";")),
   ];
   // BOM so Excel on Windows reads Cyrillic correctly
   return `﻿${lines.join("\r\n")}`;
 }
 
-const ruDate = (value: string | null) =>
-  value ? new Date(value).toLocaleString("ru-RU") : "";
+const csvDate = (value: string | null, language: Language) =>
+  value
+    ? formatLocalizedDate(value, language, {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "";
 
 /** Admin-only CSV export for reporting and reconciliation. */
 export const exportAdminCsv = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((input: unknown) =>
-    z.object({ kind: z.enum(CSV_KINDS) }).parse(input),
+    z
+      .object({
+        kind: z.enum(CSV_KINDS),
+        language: z.enum(["kk", "ru"]).optional().default("ru"),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) =>
     asAdmin(context.caller, async (tx) => {
+      const tr = translator(data.language);
       if (data.kind === "users") {
         const rows = await tx<Tables<"profiles">[]>`
           SELECT id, name, email, phone, city, verified, account_status, rating, rating_count,
@@ -357,8 +378,8 @@ export const exportAdminCsv = createServerFn({ method: "POST" })
               u.name,
               u.email,
               u.phone,
-              u.city,
-              u.verified ? "да" : "нет",
+              tr(u.city),
+              tr(u.verified ? "да" : "нет"),
               u.account_status,
               u.rating,
               u.rating_count,
@@ -366,8 +387,9 @@ export const exportAdminCsv = createServerFn({ method: "POST" })
               u.no_show_count,
               u.cancellation_count,
               u.dispute_count,
-              ruDate(u.created_at),
+              csvDate(u.created_at, data.language),
             ]),
+            data.language,
           ),
         };
       }
@@ -403,19 +425,20 @@ export const exportAdminCsv = createServerFn({ method: "POST" })
               a.title,
               a.type,
               a.status,
-              a.sport,
-              a.city,
+              tr(a.sport),
+              tr(a.city),
               a.location_text,
               a.host_name,
-              ruDate(a.date_time),
+              csvDate(a.date_time, data.language),
               a.time_text,
               a.entry_fee,
-              a.is_free ? "да" : "нет",
+              tr(a.is_free ? "да" : "нет"),
               a.commission_percent,
               a.registered_count,
               a.max_participants,
-              ruDate(a.created_at),
+              csvDate(a.created_at, data.language),
             ]),
+            data.language,
           ),
         };
       }
@@ -462,7 +485,7 @@ export const exportAdminCsv = createServerFn({ method: "POST" })
             rows.map((r) => [
               r.id,
               r.title,
-              r.sport,
+              tr(r.sport),
               r.name,
               r.phone,
               r.email,
@@ -470,9 +493,10 @@ export const exportAdminCsv = createServerFn({ method: "POST" })
               r.payment_status,
               r.payment_reference,
               r.entry_fee,
-              ruDate(r.created_at),
-              ruDate(r.paid_at),
+              csvDate(r.created_at, data.language),
+              csvDate(r.paid_at, data.language),
             ]),
+            data.language,
           ),
         };
       }
@@ -514,8 +538,9 @@ export const exportAdminCsv = createServerFn({ method: "POST" })
             h.payment_reference,
             h.note,
             h.changed_by,
-            ruDate(h.created_at),
+            csvDate(h.created_at, data.language),
           ]),
+          data.language,
         ),
       };
     }),

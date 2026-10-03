@@ -1,7 +1,7 @@
+import { useI18n } from "@/lib/i18n";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/sportura/shell";
 import { PageBlocks } from "@/components/sportura/page-blocks";
-
 export const Route = createFileRoute("/legal")({
   head: () => ({
     meta: [
@@ -20,8 +20,10 @@ export const Route = createFileRoute("/legal")({
   }),
   component: Legal,
 });
-
-const SECTIONS: { title: string; body: string[] }[] = [
+const SECTIONS: {
+  title: string;
+  body: string[];
+}[] = [
   {
     title: "1. Участие",
     body: [
@@ -67,24 +69,24 @@ const SECTIONS: { title: string; body: string[] }[] = [
     ],
   },
 ];
-
 function Legal() {
+  const { tr } = useI18n();
   return (
     <AppShell
-      title="Правила и политики"
-      subtitle="Документы платформы Sportura"
+      title={tr("Правила и политики")}
+      subtitle={tr("Документы платформы Sportura")}
     >
       <PageBlocks page="legal" />
       <p className="workspace-muted mb-5 text-xs">
-        Редакция от 30 сентября 2026 года
+        {tr("Редакция от 30 сентября 2026 года")}
       </p>
       <div className="legal-page grid gap-4 md:grid-cols-2">
         {SECTIONS.map((s) => (
           <section key={s.title} className="panel-frost rounded-3xl p-5">
-            <h2 className="text-base font-semibold">{s.title}</h2>
+            <h2 className="text-base font-semibold">{tr(s.title)}</h2>
             <div className="mt-2 space-y-2 text-sm text-muted-foreground">
               {s.body.map((p) => (
-                <p key={p}>{p}</p>
+                <p key={p}>{tr(p)}</p>
               ))}
             </div>
           </section>

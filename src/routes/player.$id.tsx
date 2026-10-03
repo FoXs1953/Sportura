@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { SportsProgress } from "@/components/profile/progress";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
@@ -19,56 +20,71 @@ export const Route = createFileRoute("/player/$id")({
     ],
   }),
   component: Player,
-  errorComponent: () => (
-    <AppShell title="Профиль игрока">
-      <Empty title="Профиль недоступен">
-        <Link to="/">Вернуться в ленту</Link>
-      </Empty>
-    </AppShell>
-  ),
+  errorComponent: function LocalizedRouteState() {
+    const { tr, language } = useI18n();
+    return (
+      <AppShell title={tr("Профиль игрока")}>
+        <Empty title={tr("Профиль недоступен")}>
+          <Link to="/">{tr("Вернуться в ленту")}</Link>
+        </Empty>
+      </AppShell>
+    );
+  },
 });
 function Player() {
+  const { tr, language } = useI18n();
   const { id } = Route.useParams();
   const { data: p } = useSuspenseQuery(query(id));
   return (
-    <AppShell title="Профиль игрока" subtitle="Публичная информация Sportura">
+    <AppShell
+      title={tr("Профиль игрока")}
+      subtitle={tr("Публичная информация Sportura")}
+    >
       {p ? (
         <Panel
-          title={p.name}
-          subtitle={`${p.city} · На Sportura с ${dateLabel(p.created_at)}`}
+          title={tr(p.name)}
+          subtitle={tr(
+            `${p.city} · На Sportura с ${dateLabel(p.created_at, false, language)}`,
+          )}
         >
-          {p.avatar_url && (
-            <img
-              src={p.avatar_url}
-              alt={p.name}
-              className="mb-5 size-20 rounded-2xl object-cover"
-            />
+          {tr(
+            p.avatar_url && (
+              <img
+                src={p.avatar_url}
+                alt={tr(p.name)}
+                className="mb-5 size-20 rounded-2xl object-cover"
+              />
+            ),
           )}
           <div className="flex flex-wrap gap-2">
             {p.sports.map((s) => (
               <span className="workspace-tag" key={s}>
-                {s}
+                {tr(s)}
               </span>
             ))}
           </div>
-          {p.bio && (
-            <p className="mt-5 whitespace-pre-wrap text-sm leading-relaxed">
-              {p.bio}
-            </p>
+          {tr(
+            p.bio && (
+              <p className="mt-5 whitespace-pre-wrap text-sm leading-relaxed">
+                {tr(p.bio)}
+              </p>
+            ),
           )}
           {p.rating_count !== null && (
             <p className="mt-5 text-sm">
-              ★ {p.rating?.toFixed(1) ?? "Пока без оценок"} · {p.rating_count}{" "}
-              отзывов
+              ★ {tr(p.rating?.toFixed(1) ?? "Пока без оценок")} ·{" "}
+              {p.rating_count}
+              {tr(" ")}
+              {tr("отзывов")}
             </p>
           )}
           <SportsProgress data={p.progress} />
           <p className="workspace-muted mt-6 text-xs">
-            Контактные данные не публикуются.
+            {tr("Контактные данные не публикуются.")}
           </p>
         </Panel>
       ) : (
-        <Empty title="Профиль не найден" />
+        <Empty title={tr("Профиль не найден")} />
       )}
     </AppShell>
   );

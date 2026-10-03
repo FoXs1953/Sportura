@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   useProfileForm,
   useSectionForm,
   dateLabel,
+  organizerApplicationLabel,
 } from "./shared";
 export function OrganizerTab({
   me,
@@ -28,6 +30,7 @@ export function OrganizerTab({
   me: MyProfile;
   data: ProfileWorkspace;
 }) {
+  const { tr, language } = useI18n();
   const [review, setReview] = useState(false);
   const roles = ["sports_manager", "tournament_organizer"] as const;
   const available = roles.filter(
@@ -78,21 +81,24 @@ export function OrganizerTab({
   return (
     <>
       <Panel
-        title="Роль организатора"
-        subtitle="Создавайте события, собирайте команды и управляйте участниками."
+        title={tr("Роль организатора")}
+        subtitle={tr(
+          "Создавайте события, собирайте команды и управляйте участниками.",
+        )}
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="workspace-panel-raised p-4">
-            <h3 className="text-sm font-bold">Спорт-менеджер</h3>
+            <h3 className="text-sm font-bold">{tr("Спорт-менеджер")}</h3>
             <p className="workspace-muted mt-2 text-sm">
-              Проводит игры, управляет составом и отмечает посещаемость.
+              {tr("Проводит игры, управляет составом и отмечает посещаемость.")}
             </p>
           </div>
           <div className="workspace-panel-raised p-4">
-            <h3 className="text-sm font-bold">Организатор турниров</h3>
+            <h3 className="text-sm font-bold">{tr("Организатор турниров")}</h3>
             <p className="workspace-muted mt-2 text-sm">
-              Создаёт турниры и лиги, публикует результаты и управляет
-              соревнованиями.
+              {tr(
+                "Создаёт турниры и лиги, публикует результаты и управляет соревнованиями.",
+              )}
             </p>
           </div>
         </div>
@@ -102,31 +108,35 @@ export function OrganizerTab({
               key={r.label}
               className={r.done ? "text-[#9ed9a2]" : "text-[#e9c67f]"}
             >
-              {r.done ? "✓" : "○"} {r.label}
+              {tr(r.done ? "✓" : "○")} {tr(r.label)}
             </li>
           ))}
         </ul>
         {isHost && (
           <div className="mt-5">
-            <span className="workspace-tag is-success">Роль одобрена</span>
+            <span className="workspace-tag is-success">
+              {tr("Роль одобрена")}
+            </span>
             <p className="workspace-muted mt-2 text-xs">
-              {me.roles
-                .filter((r) => roles.includes(r as (typeof roles)[number]))
-                .map((r) => ROLE_LABEL[r])
-                .join(", ") || "Доступ администратора"}
-              . Одобрение роли не означает проверку документов личности.
+              {tr(
+                me.roles
+                  .filter((r) => roles.includes(r as (typeof roles)[number]))
+                  .map((r) => tr(ROLE_LABEL[r]))
+                  .join(", ") || "Доступ администратора",
+              )}
+              {tr(". Одобрение роли не означает проверку документов личности.")}
             </p>
             <Link className="workspace-primary-link mt-4" to="/host">
-              Перейти в кабинет →
+              {tr("Перейти в кабинет →")}
             </Link>
           </div>
         )}
       </Panel>
       {isHost && (
-        <Panel title="Публичные данные организатора">
+        <Panel title={tr("Публичные данные организатора")}>
           <div className="space-y-4">
             <label>
-              Название организатора
+              {tr("Название организатора")}
               <Input
                 maxLength={80}
                 value={host.value.host_name}
@@ -134,16 +144,16 @@ export function OrganizerTab({
               />
             </label>
             <label>
-              Публичная ссылка Telegram
+              {tr("Публичная ссылка Telegram")}
               <Input
                 value={host.value.host_contact}
                 maxLength={120}
                 onChange={(e) => host.patch({ host_contact: e.target.value })}
-                placeholder="https://t.me/your_name"
+                placeholder={tr("https://t.me/your_name")}
               />
             </label>
             <label>
-              Об организаторе
+              {tr("Об организаторе")}
               <Textarea
                 rows={4}
                 maxLength={1000}
@@ -158,17 +168,17 @@ export function OrganizerTab({
             to="/organizer/$id"
             params={{ id: me.id }}
           >
-            Публичная страница организатора ↗
+            {tr("Публичная страница организатора ↗")}
           </Link>
         </Panel>
       )}
       {available.length > 0 && !pending && (
         <Panel
-          title={isHost ? "Получить дополнительную роль" : "Заявка на роль"}
+          title={tr(isHost ? "Получить дополнительную роль" : "Заявка на роль")}
         >
           <div className="space-y-5">
             <label>
-              Роль
+              {tr("Роль")}
               <select
                 value={form.value.role}
                 onChange={(e) =>
@@ -177,13 +187,13 @@ export function OrganizerTab({
               >
                 {available.map((role) => (
                   <option value={role} key={role}>
-                    {ROLE_LABEL[role]}
+                    {tr(ROLE_LABEL[role])}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Город
+              {tr("Город")}
               <Input
                 value={form.value.city}
                 maxLength={60}
@@ -191,7 +201,7 @@ export function OrganizerTab({
               />
             </label>
             <div>
-              <h3 className="mb-3 text-sm font-bold">Виды спорта</h3>
+              <h3 className="mb-3 text-sm font-bold">{tr("Виды спорта")}</h3>
               <div className="flex flex-wrap gap-2">
                 {SPORTS.map((s) => (
                   <button
@@ -206,22 +216,22 @@ export function OrganizerTab({
                       })
                     }
                   >
-                    {s}
+                    {tr(s)}
                   </button>
                 ))}
               </div>
             </div>
             <label>
-              Площадки
+              {tr("Площадки")}
               <Input
                 maxLength={200}
                 value={form.value.venues}
                 onChange={(e) => form.patch({ venues: e.target.value })}
-                placeholder="Название и адрес или район"
+                placeholder={tr("Название и адрес или район")}
               />
             </label>
             <label>
-              Опыт проведения событий
+              {tr("Опыт проведения событий")}
               <Textarea
                 rows={4}
                 maxLength={500}
@@ -230,16 +240,16 @@ export function OrganizerTab({
               />
             </label>
             <label>
-              Публичный профиль или канал (необязательно)
+              {tr("Публичный профиль или канал (необязательно)")}
               <Input
                 value={form.value.links}
                 maxLength={300}
                 onChange={(e) => form.patch({ links: e.target.value })}
-                placeholder="Ссылка на ваши прошлые события"
+                placeholder={tr("Ссылка на ваши прошлые события")}
               />
             </label>
             <label>
-              Как часто планируете проводить?
+              {tr("Как часто планируете проводить?")}
               <select
                 value={form.value.frequency}
                 onChange={(e) => form.patch({ frequency: e.target.value })}
@@ -250,16 +260,20 @@ export function OrganizerTab({
                   "Ежемесячно",
                   "Разовое событие",
                 ].map((v) => (
-                  <option key={v}>{v}</option>
+                  <option key={v} value={v}>
+                    {tr(v)}
+                  </option>
                 ))}
               </select>
             </label>
             {!canApply && (
               <p className="text-sm text-[#e9c67f]">
-                Перед отправкой выполните условия выше в разделе личных данных.
+                {tr(
+                  "Перед отправкой выполните условия выше в разделе личных данных.",
+                )}
               </p>
             )}
-            <ErrorNotice message={form.error} />
+            <ErrorNotice message={tr(form.error)} />
             <Button
               disabled={
                 !canApply ||
@@ -271,92 +285,100 @@ export function OrganizerTab({
               }
               onClick={() => setReview(true)}
             >
-              Проверить заявку
+              {tr("Проверить заявку")}
             </Button>
           </div>
           <Dialog open={review} onOpenChange={setReview}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Проверка заявки</DialogTitle>
+                <DialogTitle>{tr("Проверка заявки")}</DialogTitle>
                 <DialogDescription>
-                  Эти сведения получит администратор Sportura.
+                  {tr("Эти сведения получит администратор Sportura.")}
                 </DialogDescription>
               </DialogHeader>
               <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="workspace-muted">Роль</dt>
-                  <dd>{ROLE_LABEL[form.value.role]}</dd>
+                  <dt className="workspace-muted">{tr("Роль")}</dt>
+                  <dd>{tr(ROLE_LABEL[form.value.role])}</dd>
                 </div>
                 <div>
-                  <dt className="workspace-muted">Город и спорт</dt>
+                  <dt className="workspace-muted">{tr("Город и спорт")}</dt>
                   <dd>
-                    {form.value.city} · {form.value.sports.join(", ")}
+                    {tr(form.value.city)} ·{" "}
+                    {form.value.sports.map((sport) => tr(sport)).join(", ")}
                   </dd>
                 </div>
                 <div>
-                  <dt className="workspace-muted">Площадки и частота</dt>
+                  <dt className="workspace-muted">
+                    {tr("Площадки и частота")}
+                  </dt>
                   <dd>
-                    {form.value.venues} · {form.value.frequency}
+                    {tr(form.value.venues)} · {tr(form.value.frequency)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="workspace-muted">Опыт</dt>
+                  <dt className="workspace-muted">{tr("Опыт")}</dt>
                   <dd className="whitespace-pre-wrap">
-                    {form.value.experience}
+                    {tr(form.value.experience)}
                   </dd>
                 </div>
               </dl>
-              <ErrorNotice message={form.error} />
+              <ErrorNotice message={tr(form.error)} />
               <Button
                 disabled={form.busy}
                 onClick={async () => {
                   if (await form.submit()) setReview(false);
                 }}
               >
-                {form.busy ? "Отправляем…" : "Отправить заявку"}
+                {tr(form.busy ? "Отправляем…" : "Отправить заявку")}
               </Button>
             </DialogContent>
           </Dialog>
         </Panel>
       )}
-      <Panel title="История заявок">
+      <Panel title={tr("История заявок")}>
         {data.applications.length ? (
           data.applications.map((a) => (
             <article className="profile-item" key={a.id}>
               <div className="flex flex-wrap justify-between gap-3">
                 <strong className="text-sm">
-                  {ROLE_LABEL[a.requested_role]}
+                  {tr(ROLE_LABEL[a.requested_role])}
                 </strong>
                 <span
                   className={`workspace-tag ${a.status === "approved" ? "is-success" : a.status === "pending" ? "is-warning" : ""}`}
                 >
-                  {
+                  {tr(
                     {
                       pending: "На рассмотрении",
                       approved: "Одобрена",
                       rejected: "Отклонена",
-                    }[a.status]
-                  }
+                    }[a.status],
+                  )}
                 </span>
               </div>
               <p className="workspace-muted mt-2 text-xs">
-                {dateLabel(a.created_at, true)}
+                {tr(dateLabel(a.created_at, true, language))}
               </p>
-              {a.motivation && (
-                <p className="mt-3 whitespace-pre-wrap text-sm">
-                  {a.motivation}
-                </p>
+              {tr(
+                a.motivation && (
+                  <p className="mt-3 whitespace-pre-wrap text-sm">
+                    {organizerApplicationLabel(a.motivation, tr)}
+                  </p>
+                ),
               )}
-              {a.admin_notes && (
-                <p className="workspace-panel-raised mt-3 rounded-xl p-3 text-sm">
-                  Комментарий администратора: {a.admin_notes}
-                </p>
+              {tr(
+                a.admin_notes && (
+                  <p className="workspace-panel-raised mt-3 rounded-xl p-3 text-sm">
+                    {tr("Комментарий администратора: ")}
+                    {tr(a.admin_notes)}
+                  </p>
+                ),
               )}
             </article>
           ))
         ) : (
           <p className="workspace-muted text-sm">
-            Вы ещё не отправляли заявки.
+            {tr("Вы ещё не отправляли заявки.")}
           </p>
         )}
       </Panel>

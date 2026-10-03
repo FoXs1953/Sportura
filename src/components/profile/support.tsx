@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -26,7 +27,6 @@ import {
   dateLabel,
   useProfileForm,
 } from "./shared";
-
 export type TicketDraft = {
   topic: string;
   subject: string;
@@ -43,6 +43,7 @@ export function TicketComposer({
   draft?: TicketDraft | undefined;
   onDone?: () => void;
 }) {
+  const { tr, language } = useI18n();
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState("");
   const qc = useQueryClient();
@@ -50,7 +51,7 @@ export function TicketComposer({
     "ticket",
     {
       topic: draft?.topic ?? "general",
-      subject: draft?.subject ?? "",
+      subject: draft?.subject ? tr(draft.subject) : "",
       registration_id: draft?.registration_id ?? "",
       activity_id: draft?.activity_id ?? "",
       review_id: draft?.review_id ?? "",
@@ -74,35 +75,35 @@ export function TicketComposer({
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <label>
-          Тема обращения
+          {tr("Тема обращения")}
           <select
             value={form.value.topic}
             onChange={(e) => form.patch({ topic: e.target.value })}
           >
             {Object.entries(ticketTopics).map(([v, label]) => (
               <option key={v} value={v}>
-                {label}
+                {tr(label)}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Связанная запись
+          {tr("Связанная запись")}
           <select
             value={form.value.registration_id}
             onChange={(e) => form.patch({ registration_id: e.target.value })}
           >
-            <option value="">Без привязки к игре</option>
+            <option value="">{tr("Без привязки к игре")}</option>
             {data.registrations.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.activity?.title ?? "Событие удалено"}
+                {tr(r.activity?.title ?? "Событие удалено")}
               </option>
             ))}
           </select>
         </label>
       </div>
       <label>
-        Заголовок
+        {tr("Заголовок")}
         <Input
           value={form.value.subject}
           maxLength={120}
@@ -110,7 +111,7 @@ export function TicketComposer({
         />
       </label>
       <label>
-        Что произошло?
+        {tr("Что произошло?")}
         <Textarea
           value={form.value.body}
           minLength={10}
@@ -119,8 +120,9 @@ export function TicketComposer({
           onChange={(e) => form.patch({ body: e.target.value })}
         />
         <small>
-          Опишите проблему и ожидаемое решение. Не отправляйте пароли и коды
-          входа.
+          {tr(
+            "Опишите проблему и ожидаемое решение. Не отправляйте пароли и коды входа.",
+          )}
         </small>
       </label>
       <AttachmentInput
@@ -128,7 +130,7 @@ export function TicketComposer({
         onChange={setFiles}
         onError={setFileError}
       />
-      <ErrorNotice message={form.error || fileError} />
+      <ErrorNotice message={tr(form.error || fileError)} />
       <Button
         disabled={
           form.busy ||
@@ -144,7 +146,7 @@ export function TicketComposer({
           }
         }}
       >
-        {form.busy ? "Отправляем…" : "Отправить обращение"}
+        {tr(form.busy ? "Отправляем…" : "Отправить обращение")}
       </Button>
     </div>
   );
@@ -158,9 +160,10 @@ function AttachmentInput({
   onChange: (files: File[]) => void;
   onError: (message: string) => void;
 }) {
+  const { tr, language } = useI18n();
   return (
     <label>
-      Вложения · до 3 файлов
+      {tr("Вложения · до 3 файлов")}
       <Input
         type="file"
         multiple
@@ -192,9 +195,11 @@ function AttachmentInput({
         }}
       />
       <small>
-        {files.length
-          ? files.map((f) => f.name).join(", ")
-          : "Изображения или PDF до 10 МБ. Файлы видите только вы и поддержка."}
+        {tr(
+          files.length
+            ? files.map((f) => f.name).join(", ")
+            : "Изображения или PDF до 10 МБ. Файлы видите только вы и поддержка.",
+        )}
       </small>
     </label>
   );
@@ -206,6 +211,7 @@ export function TicketThread({
   ticket: SupportTicket;
   staff?: boolean;
 }) {
+  const { tr, language } = useI18n();
   const [body, setBody] = useState("");
   const [status, setStatus] = useState(ticket.status);
   const [resolution, setResolution] = useState("reply");
@@ -232,10 +238,9 @@ export function TicketThread({
         qc.invalidateQueries({ queryKey: ["profile-workspace"] }),
         qc.invalidateQueries({ queryKey: ["support-admin"] }),
       ]);
-      toast.success("Ответ отправлен");
+      toast.success(tr("Ответ отправлен"));
     } catch (e) {
-      if (attachments.length)
-        await deleteFiles(SUPPORT_BUCKET, attachments);
+      if (attachments.length) await deleteFiles(SUPPORT_BUCKET, attachments);
       setError(errorText(e));
     } finally {
       setBusy(false);
@@ -246,14 +251,17 @@ export function TicketThread({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-bold">
-            №{ticket.number} · {ticket.subject}
+            №{ticket.number} · {tr(ticket.subject)}
           </h3>
           <p className="workspace-muted mt-1 text-xs">
-            {ticketTopics[ticket.topic]} · {dateLabel(ticket.created_at)}
-            {ticket.name ? ` · ${ticket.name}` : ""}
+            {tr(ticketTopics[ticket.topic])} ·{" "}
+            {tr(dateLabel(ticket.created_at, false, language))}
+            {tr(ticket.name ? ` · ${ticket.name}` : "")}
           </p>
         </div>
-        <span className="workspace-tag">{ticketStatuses[ticket.status]}</span>
+        <span className="workspace-tag">
+          {tr(ticketStatuses[ticket.status])}
+        </span>
       </div>
       <div className="profile-conversation">
         {ticket.messages.map((m) => (
@@ -262,12 +270,12 @@ export function TicketThread({
             className={`profile-message ${m.is_staff ? "is-staff" : ""}`}
           >
             <div className="mb-2 flex flex-wrap justify-between gap-2 text-xs">
-              <strong>{m.is_staff ? "Поддержка" : "Пользователь"}</strong>
+              <strong>{tr(m.is_staff ? "Поддержка" : "Пользователь")}</strong>
               <time className="workspace-muted">
-                {dateLabel(m.created_at, true)}
+                {tr(dateLabel(m.created_at, true, language))}
               </time>
             </div>
-            <p className="text-sm leading-relaxed">{m.body}</p>
+            <p className="text-sm leading-relaxed">{tr(m.body)}</p>
             {m.attachments.map((path, i) => (
               <AttachmentLink key={path} path={path} index={i} />
             ))}
@@ -276,9 +284,11 @@ export function TicketThread({
       </div>
       <div className="mt-5 space-y-3">
         <label>
-          {ticket.status === "resolved"
-            ? "Дополнить и открыть обращение снова"
-            : "Ответить"}
+          {tr(
+            ticket.status === "resolved"
+              ? "Дополнить и открыть обращение снова"
+              : "Ответить",
+          )}
           <Textarea
             value={body}
             maxLength={4000}
@@ -290,40 +300,44 @@ export function TicketThread({
         {staff && (
           <div className="grid gap-3 sm:grid-cols-2">
             <label>
-              Статус
+              {tr("Статус")}
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
                 {Object.entries(ticketStatuses).map(([value, label]) => (
                   <option key={value} value={value}>
-                    {label}
+                    {tr(label)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Решение
+              {tr("Решение")}
               <select
                 value={resolution}
                 onChange={(e) => setResolution(e.target.value)}
               >
-                <option value="reply">Только ответ</option>
-                {ticket.topic === "attendance" && ticket.registration_id && (
-                  <option value="correct_attendance">
-                    Исправить на «Посетил»
-                  </option>
+                <option value="reply">{tr("Только ответ")}</option>
+                {tr(
+                  ticket.topic === "attendance" && ticket.registration_id && (
+                    <option value="correct_attendance">
+                      {tr("Исправить на «Посетил»")}
+                    </option>
+                  ),
                 )}
-                {ticket.topic === "review" && ticket.review_id && (
-                  <option value="remove_review">Удалить отзыв</option>
+                {tr(
+                  ticket.topic === "review" && ticket.review_id && (
+                    <option value="remove_review">{tr("Удалить отзыв")}</option>
+                  ),
                 )}
               </select>
             </label>
           </div>
         )}
-        <ErrorNotice message={error} />
+        <ErrorNotice message={tr(error)} />
         <Button disabled={busy || !body.trim()} onClick={() => void send()}>
-          {busy ? "Отправляем…" : "Отправить ответ"}
+          {tr(busy ? "Отправляем…" : "Отправить ответ")}
         </Button>
       </div>
     </article>
@@ -335,7 +349,6 @@ const faq = [
     "Откройте ленту, выберите событие и нажмите «Записаться». Все записи появятся в «Мои игры».",
     "/my-games",
   ],
-
   [
     "Как отменить запись и вернуть деньги?",
     "Отмените запись в «Мои игры». Условия отмены указаны в карточке события.",
@@ -373,6 +386,7 @@ export function HelpTab({
   ticketId?: string;
   onDone: () => void;
 }) {
+  const { tr, language } = useI18n();
   const [search, setSearch] = useState("");
   const [view, setView] = useState(
     draft ? "new" : ticketId ? "tickets" : "faq",
@@ -382,8 +396,8 @@ export function HelpTab({
   return (
     <>
       <Panel
-        title="Помощь и документы"
-        subtitle="Ответы на вопросы и прямая связь с поддержкой"
+        title={tr("Помощь и документы")}
+        subtitle={tr("Ответы на вопросы и прямая связь с поддержкой")}
       >
         <div className="profile-tabs-row">
           {(
@@ -398,7 +412,7 @@ export function HelpTab({
               key={key}
               onClick={() => setView(key)}
             >
-              {label}
+              {tr(label)}
             </button>
           ))}
         </div>
@@ -406,38 +420,42 @@ export function HelpTab({
           <>
             <Input
               type="search"
-              aria-label="Поиск по вопросам"
-              placeholder="Найти ответ…"
+              aria-label={tr("Поиск по вопросам")}
+              placeholder={tr("Найти ответ…")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <div className="mt-4">
               {faq
                 .filter(([q, a]) =>
-                  `${q} ${a}`.toLowerCase().includes(search.toLowerCase()),
+                  `${tr(q)} ${tr(a)} ${q} ${a}`
+                    .toLocaleLowerCase()
+                    .includes(search.trim().toLocaleLowerCase()),
                 )
                 .map(([q, a, href]) => (
                   <details className="profile-item" key={q}>
                     <summary className="cursor-pointer text-sm font-bold">
-                      {q}
+                      {tr(q)}
                     </summary>
                     <p className="workspace-muted my-3 text-sm leading-relaxed">
-                      {a}
+                      {tr(a)}
                     </p>
                     <a className="profile-link" href={href}>
-                      Открыть раздел
+                      {tr("Открыть раздел")}
                     </a>
                   </details>
                 ))}
               {!faq.some(([q, a]) =>
-                `${q} ${a}`.toLowerCase().includes(search.toLowerCase()),
+                `${tr(q)} ${tr(a)} ${q} ${a}`
+                  .toLocaleLowerCase()
+                  .includes(search.trim().toLocaleLowerCase()),
               ) && (
-                <Empty title="Ответ не найден">
+                <Empty title={tr("Ответ не найден")}>
                   <button
                     className="profile-link"
                     onClick={() => setView("new")}
                   >
-                    Написать в поддержку
+                    {tr("Написать в поддержку")}
                   </button>
                 </Empty>
               )}
@@ -462,7 +480,7 @@ export function HelpTab({
                 className="mb-3"
                 onClick={() => setSelected("")}
               >
-                ← Все обращения
+                {tr("← Все обращения")}
               </Button>
               <TicketThread key={selectedTicket.id} ticket={selectedTicket} />
             </>
@@ -476,25 +494,25 @@ export function HelpTab({
                 >
                   <div>
                     <strong className="text-sm">
-                      №{t.number} · {t.subject}
+                      №{t.number} · {tr(t.subject)}
                     </strong>
                     <p className="workspace-muted mt-1 text-xs">
-                      {dateLabel(t.updated_at, true)}
+                      {tr(dateLabel(t.updated_at, true, language))}
                     </p>
                   </div>
                   <span className="workspace-tag">
-                    {ticketStatuses[t.status]}
+                    {tr(ticketStatuses[t.status])}
                   </span>
                 </button>
               ))}
             </div>
           ) : (
-            <Empty title="Обращений пока нет">
-              Отправьте вопрос — переписка сохранится здесь.
+            <Empty title={tr("Обращений пока нет")}>
+              {tr("Отправьте вопрос — переписка сохранится здесь.")}
             </Empty>
           ))}
       </Panel>
-      <Panel title="Документы платформы">
+      <Panel title={tr("Документы платформы")}>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
             "Правила участия",
@@ -507,18 +525,19 @@ export function HelpTab({
               key={title}
               to="/legal"
             >
-              {title} ↗
+              {tr(title)} ↗
             </Link>
           ))}
         </div>
         <p className="workspace-muted mt-4 text-xs">
-          Дата редакции указана на странице документов.
+          {tr("Дата редакции указана на странице документов.")}
         </p>
       </Panel>
     </>
   );
 }
 export function SupportAdmin() {
+  const { tr, language } = useI18n();
   const query = useQuery({
     queryKey: ["support-admin"],
     queryFn: () => getSupportAdmin(),
@@ -529,15 +548,17 @@ export function SupportAdmin() {
   const ticket = query.data?.find((t) => t.id === selected);
   return (
     <Panel
-      title="Поддержка и модерация"
-      subtitle="Обращения, жалобы на отзывы и исправления посещаемости"
+      title={tr("Поддержка и модерация")}
+      subtitle={tr("Обращения, жалобы на отзывы и исправления посещаемости")}
     >
       {query.isPending ? (
-        <p role="status">Загружаем обращения…</p>
+        <p role="status">{tr("Загружаем обращения…")}</p>
       ) : query.isError ? (
         <>
-          <ErrorNotice message={errorText(query.error)} />
-          <Button onClick={() => void query.refetch()}>Повторить</Button>
+          <ErrorNotice message={tr(errorText(query.error))} />
+          <Button onClick={() => void query.refetch()}>
+            {tr("Повторить")}
+          </Button>
         </>
       ) : ticket ? (
         <>
@@ -546,20 +567,20 @@ export function SupportAdmin() {
             className="mb-3"
             onClick={() => setSelected("")}
           >
-            ← К списку
+            {tr("← К списку")}
           </Button>
           <TicketThread key={ticket.id} ticket={ticket} staff />
         </>
       ) : (
         <>
           <select
-            aria-label="Фильтр обращений"
+            aria-label={tr("Фильтр обращений")}
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <option value="open">Открытые</option>
-            <option value="all">Все</option>
-            <option value="resolved">Решённые</option>
+            <option value="open">{tr("Открытые")}</option>
+            <option value="all">{tr("Все")}</option>
+            <option value="resolved">{tr("Решённые")}</option>
           </select>
           {query.data
             ?.filter(
@@ -576,24 +597,24 @@ export function SupportAdmin() {
                 onClick={() => setSelected(t.id)}
               >
                 <span>
-                  №{t.number} · {t.subject}
+                  №{t.number} · {tr(t.subject)}
                   <small className="workspace-muted mt-1 block">
-                    {t.name} · {ticketTopics[t.topic]}
+                    {tr(t.name)} · {tr(ticketTopics[t.topic])}
                   </small>
                 </span>
                 <span className="workspace-tag">
-                  {ticketStatuses[t.status]}
+                  {tr(ticketStatuses[t.status])}
                 </span>
               </button>
             ))}
-          {!query.data?.length && <Empty title="Обращений пока нет" />}
+          {!query.data?.length && <Empty title={tr("Обращений пока нет")} />}
         </>
       )}
     </Panel>
   );
 }
-
 function AttachmentLink({ path, index }: { path: string; index: number }) {
+  const { tr, language } = useI18n();
   const query = useQuery({
     queryKey: ["support-attachment", path],
     queryFn: () => signedFileUrl("support", path, 3600),
@@ -606,7 +627,8 @@ function AttachmentLink({ path, index }: { path: string; index: number }) {
       target="_blank"
       rel="noopener noreferrer"
     >
-      Вложение {index + 1} ↗
+      {tr("Вложение ")}
+      {index + 1} ↗
     </a>
   ) : (
     <button
@@ -614,7 +636,11 @@ function AttachmentLink({ path, index }: { path: string; index: number }) {
       disabled={query.isPending}
       onClick={() => void query.refetch()}
     >
-      {query.isPending ? "Готовим вложение…" : "Не удалось открыть · повторить"}
+      {tr(
+        query.isPending
+          ? "Готовим вложение…"
+          : "Не удалось открыть · повторить",
+      )}
     </button>
   );
 }

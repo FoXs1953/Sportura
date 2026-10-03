@@ -1,3 +1,4 @@
+import { formatDate, useI18n } from "@/lib/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -27,10 +28,8 @@ import {
   type CatalogSettings,
   type GeneralSettings,
 } from "@/lib/cms.functions";
-
 const PAGES = ["home", "join", "legal", "profile"] as const;
 const KINDS: BlockKind[] = ["hero", "banner", "text", "cards", "faq", "cta"];
-
 type Draft = {
   id: string | null;
   page: string;
@@ -41,11 +40,13 @@ type Draft = {
   image_url: string;
   cta_label: string;
   cta_url: string;
-  items: { title: string; text: string }[];
+  items: {
+    title: string;
+    text: string;
+  }[];
   position: number;
   published: boolean;
 };
-
 const emptyDraft: Draft = {
   id: null,
   page: "home",
@@ -60,7 +61,6 @@ const emptyDraft: Draft = {
   position: 0,
   published: true,
 };
-
 function Field({
   label,
   children,
@@ -68,15 +68,16 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const { tr } = useI18n();
   return (
     <label className="block space-y-1.5">
-      <span className="text-[11px] text-muted-foreground">{label}</span>
-      {children}
+      <span className="text-[11px] text-muted-foreground">{tr(label)}</span>
+      {tr(children)}
     </label>
   );
 }
-
 export function ContentTab() {
+  const { tr, language } = useI18n();
   const queryClient = useQueryClient();
   const blocks = useQuery({
     queryKey: ["admin", "blocks"],
@@ -84,22 +85,19 @@ export function ContentTab() {
   });
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [editing, setEditing] = useState(false);
-
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ["admin", "blocks"] });
     void queryClient.invalidateQueries({ queryKey: ["site"] });
   }
-
   async function act(action: () => Promise<unknown>, success: string) {
     try {
       await action();
-      toast.success(success);
+      toast.success(tr(success));
       refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Ошибка");
+      toast.error(tr(err instanceof Error ? err.message : "Ошибка"));
     }
   }
-
   async function save() {
     await act(
       () =>
@@ -124,10 +122,8 @@ export function ContentTab() {
     setDraft(emptyDraft);
     setEditing(false);
   }
-
   const list = (blocks.data ?? []) as any[];
   const withItems = draft.kind === "cards" || draft.kind === "faq";
-
   return (
     <div className="space-y-4">
       {!editing ? (
@@ -138,15 +134,15 @@ export function ContentTab() {
             setEditing(true);
           }}
         >
-          Добавить блок на страницу
+          {tr("Добавить блок на страницу")}
         </Button>
       ) : (
         <div className="panel-frost space-y-3 rounded-2xl p-5">
           <p className="text-sm font-semibold">
-            {draft.id ? "Изменить блок" : "Новый блок"}
+            {tr(draft.id ? "Изменить блок" : "Новый блок")}
           </p>
 
-          <Field label="Страница">
+          <Field label={tr("Страница")}>
             <div className="flex flex-wrap gap-2">
               {PAGES.map((p) => (
                 <Button
@@ -156,13 +152,13 @@ export function ContentTab() {
                   className="press"
                   onClick={() => setDraft({ ...draft, page: p })}
                 >
-                  {PAGE_LABEL[p] ?? p}
+                  {tr(PAGE_LABEL[p] ?? p)}
                 </Button>
               ))}
             </div>
           </Field>
 
-          <Field label="Вид блока">
+          <Field label={tr("Вид блока")}>
             <div className="flex flex-wrap gap-2">
               {KINDS.map((k) => (
                 <Button
@@ -172,25 +168,25 @@ export function ContentTab() {
                   className="press"
                   onClick={() => setDraft({ ...draft, kind: k })}
                 >
-                  {BLOCK_KIND_LABEL[k]}
+                  {tr(BLOCK_KIND_LABEL[k])}
                 </Button>
               ))}
             </div>
           </Field>
 
-          <Field label="Заголовок">
+          <Field label={tr("Заголовок")}>
             <Input
               value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
             />
           </Field>
-          <Field label="Подзаголовок">
+          <Field label={tr("Подзаголовок")}>
             <Input
               value={draft.subtitle}
               onChange={(e) => setDraft({ ...draft, subtitle: e.target.value })}
             />
           </Field>
-          <Field label="Текст">
+          <Field label={tr("Текст")}>
             <Textarea
               rows={4}
               value={draft.body}
@@ -198,7 +194,7 @@ export function ContentTab() {
             />
           </Field>
           {draft.kind === "hero" ? (
-            <Field label="Ссылка на картинку (https://…)">
+            <Field label={tr("Ссылка на картинку (https://…)")}>
               <Input
                 value={draft.image_url}
                 onChange={(e) =>
@@ -208,7 +204,7 @@ export function ContentTab() {
             </Field>
           ) : null}
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Надпись на кнопке">
+            <Field label={tr("Надпись на кнопке")}>
               <Input
                 value={draft.cta_label}
                 onChange={(e) =>
@@ -216,27 +212,29 @@ export function ContentTab() {
                 }
               />
             </Field>
-            <Field label="Куда ведёт кнопка">
+            <Field label={tr("Куда ведёт кнопка")}>
               <Input
                 value={draft.cta_url}
                 onChange={(e) =>
                   setDraft({ ...draft, cta_url: e.target.value })
                 }
-                placeholder="/join или https://…"
+                placeholder={tr("/join или https://…")}
               />
             </Field>
           </div>
 
           {withItems ? (
             <div className="space-y-2">
-              <p className="text-[11px] text-muted-foreground">Пункты списка</p>
+              <p className="text-[11px] text-muted-foreground">
+                {tr("Пункты списка")}
+              </p>
               {draft.items.map((item, i) => (
                 <div
                   key={i}
                   className="panel-frost-2 space-y-2 rounded-2xl p-3"
                 >
                   <Input
-                    placeholder="Заголовок пункта"
+                    placeholder={tr("Заголовок пункта")}
                     value={item.title}
                     onChange={(e) => {
                       const items = [...draft.items];
@@ -246,7 +244,7 @@ export function ContentTab() {
                   />
                   <Textarea
                     rows={2}
-                    placeholder="Текст пункта"
+                    placeholder={tr("Текст пункта")}
                     value={item.text}
                     onChange={(e) => {
                       const items = [...draft.items];
@@ -265,7 +263,7 @@ export function ContentTab() {
                       })
                     }
                   >
-                    Удалить пункт
+                    {tr("Удалить пункт")}
                   </Button>
                 </div>
               ))}
@@ -280,13 +278,13 @@ export function ContentTab() {
                   })
                 }
               >
-                Добавить пункт
+                {tr("Добавить пункт")}
               </Button>
             </div>
           ) : null}
 
           <div className="flex items-center justify-between">
-            <Label className="text-xs">Показывать на сайте</Label>
+            <Label className="text-xs">{tr("Показывать на сайте")}</Label>
             <Switch
               checked={draft.published}
               onCheckedChange={(v) => setDraft({ ...draft, published: v })}
@@ -295,7 +293,7 @@ export function ContentTab() {
 
           <div className="flex gap-2">
             <Button className="press" onClick={() => void save()}>
-              Сохранить
+              {tr("Сохранить")}
             </Button>
             <Button
               variant="secondary"
@@ -305,7 +303,7 @@ export function ContentTab() {
                 setEditing(false);
               }}
             >
-              Отмена
+              {tr("Отмена")}
             </Button>
           </div>
         </div>
@@ -313,23 +311,26 @@ export function ContentTab() {
 
       {list.length === 0 ? (
         <p className="panel-frost rounded-2xl p-5 text-sm text-muted-foreground">
-          Блоков пока нет. Добавьте первый — он сразу появится на выбранной
-          странице.
+          {tr(
+            "Блоков пока нет. Добавьте первый — он сразу появится на выбранной странице.",
+          )}
         </p>
       ) : (
         list.map((b) => (
           <div key={b.id} className="panel-frost space-y-2 rounded-2xl p-4">
             <p className="text-sm font-semibold">
-              {b.title || BLOCK_KIND_LABEL[b.kind as BlockKind]}
+              {tr(b.title || BLOCK_KIND_LABEL[b.kind as BlockKind])}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              {PAGE_LABEL[b.page] ?? b.page} ·{" "}
-              {BLOCK_KIND_LABEL[b.kind as BlockKind]} · порядок {b.position} ·{" "}
-              {b.published ? "показан" : "скрыт"}
+              {tr(PAGE_LABEL[b.page] ?? b.page)} ·{tr(" ")}
+              {tr(BLOCK_KIND_LABEL[b.kind as BlockKind])}
+              {tr(" · порядок ")}
+              {tr(b.position)} ·{tr(" ")}
+              {tr(b.published ? "показан" : "скрыт")}
             </p>
             {b.body ? (
               <p className="line-clamp-2 text-xs text-muted-foreground">
-                {b.body}
+                {tr(b.body)}
               </p>
             ) : null}
             <div className="flex flex-wrap gap-2">
@@ -360,7 +361,7 @@ export function ContentTab() {
                   setEditing(true);
                 }}
               >
-                Изменить
+                {tr("Изменить")}
               </Button>
               <Button
                 size="sm"
@@ -376,7 +377,7 @@ export function ContentTab() {
                   )
                 }
               >
-                {b.published ? "Скрыть" : "Показать"}
+                {tr(b.published ? "Скрыть" : "Показать")}
               </Button>
               <Button
                 size="sm"
@@ -389,7 +390,7 @@ export function ContentTab() {
                   )
                 }
               >
-                Выше
+                {tr("Выше")}
               </Button>
               <Button
                 size="sm"
@@ -402,7 +403,7 @@ export function ContentTab() {
                   )
                 }
               >
-                Ниже
+                {tr("Ниже")}
               </Button>
               <Button
                 size="sm"
@@ -415,7 +416,7 @@ export function ContentTab() {
                   )
                 }
               >
-                Удалить
+                {tr("Удалить")}
               </Button>
             </div>
           </div>
@@ -424,61 +425,60 @@ export function ContentTab() {
     </div>
   );
 }
-
 export function SettingsTab() {
+  const { tr, language } = useI18n();
   const queryClient = useQueryClient();
   const settings = useQuery({
     queryKey: ["admin", "settings"],
     queryFn: () => listSettingsAdmin(),
   });
-  const rows = (settings.data ?? []) as { key: string; value: any }[];
+  const rows = (settings.data ?? []) as {
+    key: string;
+    value: any;
+  }[];
   const stored = (key: string) => rows.find((r) => r.key === key)?.value ?? {};
-
   const [general, setGeneral] = useState<GeneralSettings | null>(null);
   const [catalog, setCatalog] = useState<CatalogSettings | null>(null);
   const [business, setBusiness] = useState<BusinessSettings | null>(null);
-
   const g = general ?? { ...DEFAULT_GENERAL, ...stored("general") };
   const c = catalog ?? { ...DEFAULT_CATALOG, ...stored("catalog") };
   const b = business ?? { ...DEFAULT_BUSINESS, ...stored("business") };
-
   async function save(
     key: "general" | "catalog" | "business",
     value: Record<string, unknown>,
   ) {
     try {
       await saveSetting({ data: { key, value } });
-      toast.success("Сохранено");
+      toast.success(tr("Сохранено"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "settings"] });
       void queryClient.invalidateQueries({ queryKey: ["site"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Ошибка");
+      toast.error(tr(err instanceof Error ? err.message : "Ошибка"));
     }
   }
-
   return (
     <div className="space-y-4">
       <div className="panel-frost space-y-3 rounded-2xl p-5">
-        <p className="text-sm font-semibold">Общее</p>
-        <Field label="Название сайта">
+        <p className="text-sm font-semibold">{tr("Общее")}</p>
+        <Field label={tr("Название сайта")}>
           <Input
             value={g.site_name}
             onChange={(e) => setGeneral({ ...g, site_name: e.target.value })}
           />
         </Field>
-        <Field label="Подпись под названием">
+        <Field label={tr("Подпись под названием")}>
           <Input
             value={g.tagline}
             onChange={(e) => setGeneral({ ...g, tagline: e.target.value })}
           />
         </Field>
-        <Field label="Город по умолчанию">
+        <Field label={tr("Город по умолчанию")}>
           <Input
             value={g.default_city}
             onChange={(e) => setGeneral({ ...g, default_city: e.target.value })}
           />
         </Field>
-        <Field label="Объявление для всех посетителей">
+        <Field label={tr("Объявление для всех посетителей")}>
           <Textarea
             rows={2}
             value={g.announcement}
@@ -486,7 +486,7 @@ export function SettingsTab() {
           />
         </Field>
         <div className="flex items-center justify-between">
-          <Label className="text-xs">Показывать объявление</Label>
+          <Label className="text-xs">{tr("Показывать объявление")}</Label>
           <Switch
             checked={g.announcement_enabled}
             onCheckedChange={(v) =>
@@ -494,7 +494,7 @@ export function SettingsTab() {
             }
           />
         </div>
-        <Field label="Текст режима обслуживания">
+        <Field label={tr("Текст режима обслуживания")}>
           <Textarea
             rows={2}
             value={g.maintenance_message}
@@ -504,13 +504,13 @@ export function SettingsTab() {
           />
         </Field>
         <div className="flex items-center justify-between">
-          <Label className="text-xs">Режим обслуживания</Label>
+          <Label className="text-xs">{tr("Режим обслуживания")}</Label>
           <Switch
             checked={g.maintenance_mode}
             onCheckedChange={(v) => setGeneral({ ...g, maintenance_mode: v })}
           />
         </div>
-        <Field label="Контакт поддержки">
+        <Field label={tr("Контакт поддержки")}>
           <Input
             value={g.support_contact}
             onChange={(e) =>
@@ -522,13 +522,13 @@ export function SettingsTab() {
           className="press"
           onClick={() => void save("general", { ...g })}
         >
-          Сохранить общее
+          {tr("Сохранить общее")}
         </Button>
       </div>
 
       <div className="panel-frost space-y-3 rounded-2xl p-5">
-        <p className="text-sm font-semibold">Виды спорта и города</p>
-        <Field label="Виды спорта (через запятую)">
+        <p className="text-sm font-semibold">{tr("Виды спорта и города")}</p>
+        <Field label={tr("Виды спорта (через запятую)")}>
           <Textarea
             rows={2}
             value={c.sports.join(", ")}
@@ -543,7 +543,7 @@ export function SettingsTab() {
             }
           />
         </Field>
-        <Field label="Города (через запятую)">
+        <Field label={tr("Города (через запятую)")}>
           <Textarea
             rows={2}
             value={c.cities.join(", ")}
@@ -562,14 +562,14 @@ export function SettingsTab() {
           className="press"
           onClick={() => void save("catalog", { ...c })}
         >
-          Сохранить список
+          {tr("Сохранить список")}
         </Button>
       </div>
 
       <div className="panel-frost space-y-3 rounded-2xl p-5">
-        <p className="text-sm font-semibold">Правила платформы</p>
+        <p className="text-sm font-semibold">{tr("Правила платформы")}</p>
         <div className="grid grid-cols-2 gap-2"></div>
-        <Field label="Окно споров, часов">
+        <Field label={tr("Окно споров, часов")}>
           <Input
             type="number"
             value={b.dispute_window_hours}
@@ -582,7 +582,7 @@ export function SettingsTab() {
           />
         </Field>
         <div className="flex items-center justify-between">
-          <Label className="text-xs">Запись на события включена</Label>
+          <Label className="text-xs">{tr("Запись на события включена")}</Label>
           <Switch
             checked={b.registrations_enabled}
             onCheckedChange={(v) =>
@@ -591,7 +591,7 @@ export function SettingsTab() {
           />
         </div>
         <div className="flex items-center justify-between">
-          <Label className="text-xs">Создание событий включено</Label>
+          <Label className="text-xs">{tr("Создание событий включено")}</Label>
           <Switch
             checked={b.activity_creation_enabled}
             onCheckedChange={(v) =>
@@ -603,23 +603,33 @@ export function SettingsTab() {
           className="press"
           onClick={() => void save("business", { ...b })}
         >
-          Сохранить правила
+          {tr("Сохранить правила")}
         </Button>
       </div>
     </div>
   );
 }
-
 export function AuditTab() {
+  const { tr, language } = useI18n();
   const log = useQuery({
     queryKey: ["admin", "auditlog"],
     queryFn: () => listAdminLog(),
   });
   const rows = (log.data ?? []) as any[];
+  const actionLabels: Record<string, string> = {
+    insert: "Запись создана",
+    update: "Запись обновлена",
+    delete: "Запись удалена",
+  };
+  const entityLabels: Record<string, string> = {
+    registrations: "Записи участников",
+    disputes: "Споры",
+    manager_applications: "Заявки организаторов",
+  };
   if (rows.length === 0) {
     return (
       <p className="panel-frost rounded-2xl p-5 text-sm text-muted-foreground">
-        Действий администраторов пока не было.
+        {tr("Действий администраторов пока не было.")}
       </p>
     );
   }
@@ -627,11 +637,27 @@ export function AuditTab() {
     <div className="space-y-2">
       {rows.map((r) => (
         <div key={r.id} className="panel-frost rounded-2xl p-4 text-xs">
-          <p className="font-semibold">{r.action}</p>
+          <p className="font-semibold">
+            {tr(actionLabels[r.action] ?? r.action)}
+          </p>
           <p className="text-muted-foreground">
-            {r.actor?.name ?? "—"} · {r.entity}
-            {r.entity_id ? ` · ${String(r.entity_id).slice(0, 8)}` : ""} ·{" "}
-            {new Date(r.created_at).toLocaleString("ru-RU")}
+            {tr(r.actor?.name ?? "—")} ·{" "}
+            {tr(entityLabels[r.entity] ?? r.entity)}
+            {tr(r.entity_id ? ` · ${String(r.entity_id).slice(0, 8)}` : "")} ·
+            {tr(" ")}
+            {tr(
+              formatDate(
+                r.created_at,
+                {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                },
+                language,
+              ),
+            )}
           </p>
         </div>
       ))}

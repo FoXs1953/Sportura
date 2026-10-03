@@ -1,3 +1,5 @@
+import { useI18n } from "@/lib/i18n";
+import { dateLabel } from "@/components/profile/shared";
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,7 +20,6 @@ import {
   PAYMENT_STATUS_LABEL,
   REGISTRATION_STATUS_LABEL,
 } from "@/lib/sportura";
-
 const historyStatuses: Record<string, string> = {
   ...ACTIVITY_STATUS_LABEL,
   ...PAYMENT_STATUS_LABEL,
@@ -51,6 +52,7 @@ export async function refreshEvents(qc: ReturnType<typeof useQueryClient>) {
   });
 }
 export function useEventAction() {
+  const { tr } = useI18n();
   const qc = useQueryClient();
   const running = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -63,12 +65,12 @@ export function useEventAction() {
     try {
       await fn();
       await refreshEvents(qc);
-      toast.success(message);
+      toast.success(tr(message));
       return true;
     } catch (e) {
       const text = e instanceof Error ? e.message : "Не удалось сохранить";
       setError(text);
-      toast.error(text);
+      toast.error(tr(text));
       return false;
     } finally {
       running.current = false;
@@ -103,6 +105,7 @@ export function Confirm({
   onConfirm: () => void;
   busy: boolean;
 }) {
+  const { tr } = useI18n();
   return (
     <Dialog
       open={open}
@@ -112,16 +115,16 @@ export function Confirm({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{tr(title)}</DialogTitle>
+          <DialogDescription>{tr(description)}</DialogDescription>
         </DialogHeader>
-        {children}
+        {tr(children)}
         <div className="flex flex-wrap gap-2">
           <Button disabled={busy} onClick={onConfirm}>
-            {busy ? "Сохраняем…" : "Подтвердить"}
+            {tr(busy ? "Сохраняем…" : "Подтвердить")}
           </Button>
           <Button variant="outline" disabled={busy} onClick={onClose}>
-            Вернуться
+            {tr("Вернуться")}
           </Button>
         </div>
       </DialogContent>
@@ -148,6 +151,7 @@ export function exportCsv(rows: unknown[][], name: string) {
   );
 }
 export function CalendarButton({ event }: { event: Event }) {
+  const { tr } = useI18n();
   if (!event.date_time) return null;
   const clean = (s: string) =>
     s
@@ -186,11 +190,12 @@ export function CalendarButton({ event }: { event: Event }) {
         )
       }
     >
-      В календарь
+      {tr("В календарь")}
     </Button>
   );
 }
 export function MapLink({ event }: { event: Event }) {
+  const { tr } = useI18n();
   return event.two_gis_url &&
     /^https:\/\/(2gis\.kz|go\.2gis\.com)\//.test(event.two_gis_url) ? (
     <a
@@ -199,24 +204,25 @@ export function MapLink({ event }: { event: Event }) {
       target="_blank"
       rel="noreferrer"
     >
-      Маршрут ↗
+      {tr("Маршрут ↗")}
     </a>
   ) : null;
 }
 export function History({ items }: { items: EventHistory[] }) {
+  const { tr, language } = useI18n();
   return (
     <div className="space-y-3">
       {items.length ? (
         items.map((h) => (
           <div key={h.id} className="profile-item">
-            <strong>{h.action}</strong>
-            {h.actor_name && (
-              <p className="text-xs workspace-muted">{h.actor_name}</p>
+            <strong>{tr(h.action)}</strong>
+            {tr(
+              h.actor_name && (
+                <p className="text-xs workspace-muted">{tr(h.actor_name)}</p>
+              ),
             )}
             <p className="workspace-muted text-xs">
-              {new Date(h.created_at).toLocaleString("ru-RU", {
-                timeZone: "Asia/Almaty",
-              })}
+              {dateLabel(h.created_at, true, language)}
             </p>
             {Object.entries(h.detail)
               .filter(
@@ -226,22 +232,26 @@ export function History({ items }: { items: EventHistory[] }) {
               )
               .map(([k, v]) => (
                 <p className="text-sm" key={k}>
-                  {k === "from"
-                    ? "Было: "
-                    : k === "to"
-                      ? "Стало: "
-                      : k === "status"
-                        ? "Статус: "
-                        : ""}
-                  {["status", "from", "to"].includes(k)
-                    ? (historyStatuses[String(v)] ?? "Изменён")
-                    : String(v)}
+                  {tr(
+                    k === "from"
+                      ? "Было: "
+                      : k === "to"
+                        ? "Стало: "
+                        : k === "status"
+                          ? "Статус: "
+                          : "",
+                  )}
+                  {tr(
+                    ["status", "from", "to"].includes(k)
+                      ? (historyStatuses[String(v)] ?? "Изменён")
+                      : String(v),
+                  )}
                 </p>
               ))}
           </div>
         ))
       ) : (
-        <p className="workspace-muted">Изменений пока нет.</p>
+        <p className="workspace-muted">{tr("Изменений пока нет.")}</p>
       )}
     </div>
   );
@@ -257,6 +267,7 @@ export function HelpLink({
   topic?: "general" | "payment" | "attendance" | "review";
   children?: React.ReactNode;
 }) {
+  const { tr } = useI18n();
   return (
     <Link
       className="profile-link"
@@ -268,7 +279,7 @@ export function HelpLink({
         topic,
       }}
     >
-      {children}
+      {tr(children)}
     </Link>
   );
 }

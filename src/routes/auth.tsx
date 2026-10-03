@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n";
 import {
   createFileRoute,
   useNavigate,
@@ -12,9 +13,12 @@ import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: { redirect?: string } & SearchSchemaInput) => ({
+  validateSearch: (
+    s: {
+      redirect?: string;
+    } & SearchSchemaInput,
+  ) => ({
     redirect:
       typeof s.redirect === "string" &&
       s.redirect.startsWith("/") &&
@@ -39,8 +43,8 @@ export const Route = createFileRoute("/auth")({
   }),
   component: AuthPage,
 });
-
 function AuthPage() {
+  const { tr } = useI18n();
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
   const capabilities = useQuery({
@@ -53,7 +57,6 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const emailUnavailable = capabilities.data?.email === false;
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -61,7 +64,7 @@ function AuthPage() {
       if (mode === "signup") {
         await signUp({ data: { email, password, name } });
         toast.success(
-          "Мы отправили письмо для подтверждения. Проверьте почту.",
+          tr("Мы отправили письмо для подтверждения. Проверьте почту."),
         );
       } else {
         await signIn({ data: { email, password } });
@@ -85,49 +88,47 @@ function AuthPage() {
       } else if (low.includes("already registered")) {
         message = "Такой e-mail уже зарегистрирован. Войдите.";
       }
-      toast.error(message);
+      toast.error(tr(message));
     } finally {
       setBusy(false);
     }
   }
-
   function google() {
     setBusy(true);
     window.location.assign(
       `/api/auth/google?redirect=${encodeURIComponent(redirect)}`,
     );
   }
-
   return (
     <AuthFrame
-      title={mode === "signin" ? "Вход" : "Регистрация"}
-      subtitle="Играйте, записывайтесь и создавайте игры"
+      title={tr(mode === "signin" ? "Вход" : "Регистрация")}
+      subtitle={tr("Играйте, записывайтесь и создавайте игры")}
     >
       <form onSubmit={submit} className="space-y-5">
         {mode === "signup" ? (
           <div className="space-y-2">
-            <Label htmlFor="name">Имя</Label>
+            <Label htmlFor="name">{tr("Имя")}</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ваше имя"
+              placeholder={tr("Ваше имя")}
             />
           </div>
         ) : null}
         <div className="space-y-2">
-          <Label htmlFor="email">E-mail</Label>
+          <Label htmlFor="email">{tr("E-mail")}</Label>
           <Input
             id="email"
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@mail.kz"
+            placeholder={tr("you@mail.kz")}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Пароль</Label>
+          <Label htmlFor="password">{tr("Пароль")}</Label>
           <Input
             id="password"
             type="password"
@@ -143,9 +144,11 @@ function AuthPage() {
         </div>
         {mode === "signup" && (
           <p role="status" className="text-sm text-muted-foreground">
-            {emailUnavailable
-              ? "Регистрация по e-mail пока недоступна. Попробуйте позже."
-              : "На почту придёт письмо со ссылкой для подтверждения адреса."}
+            {tr(
+              emailUnavailable
+                ? "Регистрация по e-mail пока недоступна. Попробуйте позже."
+                : "На почту придёт письмо со ссылкой для подтверждения адреса.",
+            )}
           </p>
         )}
         <Button
@@ -153,14 +156,14 @@ function AuthPage() {
           disabled={busy || (mode === "signup" && emailUnavailable)}
           className="press w-full"
         >
-          {mode === "signin" ? "Войти" : "Создать аккаунт"}
+          {tr(mode === "signin" ? "Войти" : "Создать аккаунт")}
         </Button>
         {mode === "signin" && (
           <Link
             to="/forgot-password"
             className="block text-center text-sm text-brand underline"
           >
-            Забыли пароль?
+            {tr("Забыли пароль?")}
           </Link>
         )}
         {capabilities.data?.google && (
@@ -171,7 +174,7 @@ function AuthPage() {
             className="press w-full"
             onClick={google}
           >
-            Продолжить с Google
+            {tr("Продолжить с Google")}
           </Button>
         )}
         <button
@@ -179,16 +182,19 @@ function AuthPage() {
           className="auth-switch w-full text-center text-sm"
           onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
         >
-          {mode === "signin"
-            ? "Нет аккаунта? Зарегистрируйтесь"
-            : "Уже есть аккаунт? Войти"}
+          {tr(
+            mode === "signin"
+              ? "Нет аккаунта? Зарегистрируйтесь"
+              : "Уже есть аккаунт? Войти",
+          )}
         </button>
       </form>
 
       <p className="auth-bottom-note text-center text-xs text-muted-foreground">
-        Продолжая, вы принимаете{" "}
+        {tr("Продолжая, вы принимаете")}
+        {tr(" ")}
         <Link to="/legal" className="text-brand underline">
-          правила и политики платформы
+          {tr("правила и политики платформы")}
         </Link>
         .
       </p>

@@ -1,3 +1,4 @@
+import { renderLocalizedMessagePage } from "./i18n/message-page";
 // Google sign-in (OpenID Connect authorization code flow with PKCE).
 // Needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET; the authorized redirect URI
 // in Google Cloud Console must be <APP_URL>/api/auth/google/callback.
@@ -55,8 +56,7 @@ function redirectTo(location: string, cookies: string[] = []) {
 
 export function startGoogle(request: Request): Response {
   const google = config();
-  if (!google)
-    return new Response("Google sign-in is not configured", { status: 404 });
+  if (!google) return failure("Вход через Google пока недоступен.", 404);
   const params = new URL(request.url).searchParams;
   const state: State = {
     state: newToken(),
@@ -126,13 +126,16 @@ async function exchange(code: string, verifier: string): Promise<Claims> {
   return payload;
 }
 
-function failure(message: string) {
+function failure(message: string, status = 400) {
   return new Response(
-    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sportura</title><link rel="icon" href="/icons/sportura-favicon-32.png" type="image/png">
-<body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem">
-<h1>Не удалось войти через Google</h1><p>${message}</p><p><a href="/auth">Вернуться ко входу</a></p>`,
+    renderLocalizedMessagePage(
+      "Не удалось войти через Google",
+      message,
+      "/auth",
+      "Вернуться ко входу",
+    ),
     {
-      status: 400,
+      status,
       headers: {
         "content-type": "text/html; charset=utf-8",
         "set-cookie": stateCookie("", 0),
@@ -142,8 +145,7 @@ function failure(message: string) {
 }
 
 export async function finishGoogle(request: Request): Promise<Response> {
-  if (!config())
-    return new Response("Google sign-in is not configured", { status: 404 });
+  if (!config()) return failure("Вход через Google пока недоступен.", 404);
   const params = new URL(request.url).searchParams;
   let state: State;
   try {
