@@ -168,6 +168,9 @@ export const resetPassword = createServerFn({ method: "POST" })
                    updated_at = now()
                WHERE id = ${found.user_id}`;
       await tx`DELETE FROM auth.sessions WHERE user_id = ${found.user_id}`;
+      // Links issued before the reset (e-mail change, confirmation) could have
+      // been requested by someone else who knew the old password.
+      await tx`DELETE FROM auth.one_time_tokens WHERE user_id = ${found.user_id}`;
     });
     s.clearSessionCookie();
     return { ok: true };
@@ -182,7 +185,7 @@ export const changePassword = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const s = await server();
-    const { userId } = context.caller;
+    const { userId, sessionId } = context.caller;
     s.rateLimit(`password:${userId}`, 10, 15);
     const hash = await s.hashPassword(data.password);
     await s.asService(async (tx) => {
@@ -195,6 +198,10 @@ export const changePassword = createServerFn({ method: "POST" })
         throw new Error("Текущий пароль указан неверно.");
       }
       await tx`UPDATE auth.users SET password_hash = ${hash}, updated_at = now() WHERE id = ${userId}`;
+      // A new password ends every other session and pending e-mail link, so
+      // whoever knew the old one loses access.
+      await tx`DELETE FROM auth.sessions WHERE user_id = ${userId} AND id <> ${sessionId}`;
+      await tx`DELETE FROM auth.one_time_tokens WHERE user_id = ${userId}`;
     });
     return { ok: true };
   });

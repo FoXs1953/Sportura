@@ -204,8 +204,9 @@ export function SecurityTab({
                 setCurrent("");
                 setPassword("");
                 setConfirm("");
-                toast.success("Пароль обновлён");
+                toast.success("Пароль обновлён. Другие устройства отключены.");
                 await qc.invalidateQueries({ queryKey: ["profile-identity"] });
+                await qc.invalidateQueries({ queryKey: ["profile-sessions"] });
               })
             }
           >
