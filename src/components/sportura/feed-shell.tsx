@@ -1,7 +1,14 @@
 import { useI18n } from "@/lib/i18n";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { CalendarCheck, Compass, ShieldCheck, UserRound } from "lucide-react";
+import {
+  CalendarCheck,
+  Compass,
+  LogIn,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import type { ReactNode } from "react";
+import { useSessionUser } from "@/lib/use-session";
 import { LanguageToggle } from "./language-toggle";
 import { ThemeToggle } from "./theme-toggle";
 import { BrandMark } from "./brand-mark";
@@ -17,6 +24,8 @@ export function FeedShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
+  // Shown only once the session is known to be absent, so signed-in users never see a flash.
+  const session = useSessionUser();
   return (
     <div className="feed-shell">
       <a className="feed-skip-link" href="#feed-content">
@@ -61,11 +70,27 @@ export function FeedShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="feed-header-actions">
-            <span className="feed-header-note">
-              {tr("Место встречи — спорт")}
-            </span>
             <LanguageToggle />
             <ThemeToggle />
+            {session.data === null && (
+              <div className="feed-auth-actions">
+                <Link
+                  to="/auth"
+                  className="feed-chip feed-auth-signin"
+                  aria-label={tr("Войти")}
+                >
+                  <LogIn size={18} aria-hidden="true" />
+                  <span>{tr("Войти")}</span>
+                </Link>
+                <Link
+                  to="/auth"
+                  search={{ mode: "signup" }}
+                  className="feed-primary feed-auth-signup"
+                >
+                  {tr("Регистрация")}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </header>

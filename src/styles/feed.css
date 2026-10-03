@@ -140,9 +140,18 @@
 .dark .theme-icon-sun {
   display: block;
 }
-.feed-header-note {
-  font-size: 11px;
-  color: var(--feed-muted);
+.feed-auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.feed-auth-signin {
+  gap: 8px;
+  min-height: 44px;
+  color: var(--feed-text);
+}
+.feed-auth-signin svg {
+  display: none;
 }
 .feed-main {
   max-width: 1248px;
@@ -899,9 +908,6 @@
   }
 }
 @media (max-width: 1100px) {
-  .feed-header-note {
-    display: none;
-  }
   .feed-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -925,9 +931,6 @@
   .feed-brand-mark {
     width: 28px;
     height: 28px;
-  }
-  .feed-header-note {
-    display: none;
   }
   .feed-navigation {
     position: fixed;
@@ -1263,11 +1266,58 @@
   outline-offset: 3px;
 }
 @media (max-width: 767px) {
+  .feed-header-inner {
+    gap: 12px;
+  }
   .feed-header-actions {
     gap: 8px;
   }
   .feed-language-toggle button {
+    min-width: 34px;
     min-height: 38px;
+  }
+  .feed-theme-toggle {
+    width: 40px;
+    height: 40px;
+  }
+}
+/* Narrower headers keep sign-in as an icon; registration stays one tap away on its page. */
+@media (max-width: 1199px) {
+  .feed-auth-signin {
+    width: 44px;
+    padding: 0;
+  }
+  .feed-auth-signin span,
+  .feed-auth-signup {
+    display: none;
+  }
+  .feed-auth-signin svg {
+    display: block;
+  }
+}
+@media (max-width: 767px) {
+  .feed-auth-signin {
+    width: 40px;
+    min-height: 40px;
+  }
+}
+@media (max-width: 399px) {
+  .feed-header-actions {
+    gap: 6px;
+  }
+}
+/* Tablets: the top navigation keeps its icons; labels stay for screen readers. */
+@media (min-width: 768px) and (max-width: 1099px) {
+  .feed-navigation a {
+    padding: 11px 13px;
+  }
+  .feed-navigation a span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 @media (max-width: 359px) {

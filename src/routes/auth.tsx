@@ -18,8 +18,10 @@ export const Route = createFileRoute("/auth")({
     s: {
       redirect?: string;
       confirmed?: unknown;
+      mode?: unknown;
     } & SearchSchemaInput,
   ) => ({
+    mode: s.mode === "signup" ? ("signup" as const) : undefined,
     confirmed: s.confirmed === 1 || s.confirmed === "1" ? true : undefined,
     redirect:
       typeof s.redirect === "string" &&
@@ -48,12 +50,14 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { tr } = useI18n();
   const navigate = useNavigate();
-  const { redirect, confirmed } = Route.useSearch();
+  const { redirect, confirmed, mode: initialMode } = Route.useSearch();
   const capabilities = useQuery({
     queryKey: ["auth-capabilities"],
     queryFn: () => getAuthCapabilities(),
   });
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(
+    initialMode ?? "signin",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
