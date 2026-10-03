@@ -4,38 +4,21 @@ import { requireAuth } from "./auth-middleware";
 
 const bucket = z.enum(["avatars", "receipts", "support"]);
 
-/** multipart/form-data: bucket, file, and registrationId for receipts. */
+/** multipart/form-data with one file. Only profile photos can be uploaded. */
 export const uploadFile = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((input: unknown) => {
     if (!(input instanceof FormData)) throw new Error("Некорректный запрос");
     const file = input.get("file");
     if (!(file instanceof File)) throw new Error("Выберите файл");
-    return {
-      bucket: bucket.parse(input.get("bucket")),
-      file,
-      registrationId: z
-        .string()
-        .uuid()
-        .optional()
-        .parse(input.get("registrationId") ?? undefined),
-    };
+    return { file };
   })
   .handler(async ({ data, context }) => {
     const { saveFile, MIME_EXTENSION } = await import("./files.server");
-    const { userId } = context.caller;
     const ext = MIME_EXTENSION[data.file.type];
-    if (!ext) throw new Error("Выберите изображение или PDF");
-    let name: string;
-    if (data.bucket === "avatars") {
-      name = `${userId}/avatar-${crypto.randomUUID()}.${ext}`;
-    } else if (data.bucket === "receipts") {
-      if (!data.registrationId) throw new Error("Не указана запись");
-      name = `${userId}/${data.registrationId}/${Date.now()}.${ext}`;
-    } else {
-      name = `${userId}/${crypto.randomUUID()}.${ext}`;
-    }
-    await saveFile(context.caller, data.bucket, name, data.file);
+    if (!ext || ext === "pdf") throw new Error("Выберите изображение");
+    const name = `${context.caller.userId}/avatar-${crypto.randomUUID()}.${ext}`;
+    await saveFile(context.caller, "avatars", name, data.file);
     return { path: name };
   });
 

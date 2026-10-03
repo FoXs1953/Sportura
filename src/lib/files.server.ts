@@ -8,6 +8,8 @@ import path from "node:path";
 import { asService, asUser, type Caller } from "./db.server";
 
 export const BUCKETS = ["avatars", "receipts", "support"] as const;
+export const MAX_FILES_PER_USER = 10;
+export const MAX_BYTES_PER_USER = 25 * 1024 * 1024;
 export type Bucket = (typeof BUCKETS)[number];
 
 export const MIME_EXTENSION: Record<string, string> = {
@@ -90,6 +92,18 @@ export async function saveFile(caller: Caller, bucket: Bucket, name: string, fil
     throw new Error("Файл слишком большой");
   if (limits.allowed_mime_types && !limits.allowed_mime_types.includes(file.type))
     throw new Error("Этот тип файла не поддерживается");
+  // Per-user cap across every bucket, counted without row-level policies.
+  const [used] = await asService(
+    (tx) => tx<{ files: number; bytes: number }[]>`
+      SELECT count(*)::int AS files,
+             COALESCE(sum((metadata->>'size')::bigint), 0)::bigint AS bytes
+      FROM storage.objects WHERE owner_id = ${caller.userId}`,
+  );
+  if (
+    (used?.files ?? 0) >= MAX_FILES_PER_USER ||
+    Number(used?.bytes ?? 0) + file.size > MAX_BYTES_PER_USER
+  )
+    throw new Error("Достигнут лимит файлов. Удалите старые файлы и попробуйте снова.");
   const target = diskPath(bucket, name);
   const bytes = Buffer.from(await file.arrayBuffer());
   await asUser(caller, async (tx) => {

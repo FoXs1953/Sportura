@@ -13,12 +13,7 @@ import {
   type SupportTicket,
   type ProfileWorkspace,
 } from "@/lib/profile-model";
-import {
-  deleteFiles,
-  signedFileUrl,
-  uploadSupportFiles,
-  SUPPORT_BUCKET,
-} from "@/lib/storage";
+import { signedFileUrl, SUPPORT_BUCKET } from "@/lib/storage";
 import {
   Panel,
   Empty,
@@ -44,8 +39,6 @@ export function TicketComposer({
   onDone?: () => void;
 }) {
   const { tr, language } = useI18n();
-  const [files, setFiles] = useState<File[]>([]);
-  const [fileError, setFileError] = useState("");
   const qc = useQueryClient();
   const form = useProfileForm(
     "ticket",
@@ -60,15 +53,7 @@ export function TicketComposer({
     async (value) => {
       if (value.subject.trim().length < 3 || value.body.trim().length < 10)
         throw new Error("Укажите тему от 3 символов и описание от 10 символов");
-      const attachments = await uploadSupportFiles(files);
-      try {
-        await saveProfileSection({
-          data: { action: "ticket", payload: { ...value, attachments } },
-        });
-      } catch (e) {
-        await deleteFiles(SUPPORT_BUCKET, attachments);
-        throw e;
-      }
+      await saveProfileSection({ data: { action: "ticket", payload: value } });
     },
   );
   return (
@@ -125,12 +110,7 @@ export function TicketComposer({
           )}
         </small>
       </label>
-      <AttachmentInput
-        files={files}
-        onChange={setFiles}
-        onError={setFileError}
-      />
-      <ErrorNotice message={tr(form.error || fileError)} />
+      <ErrorNotice message={tr(form.error)} />
       <Button
         disabled={
           form.busy ||
@@ -139,7 +119,6 @@ export function TicketComposer({
         }
         onClick={async () => {
           if (await form.submit()) {
-            setFiles([]);
             form.reset({ ...form.value, body: "", subject: "" });
             await qc.invalidateQueries({ queryKey: ["support-admin"] });
             onDone?.();
@@ -149,59 +128,6 @@ export function TicketComposer({
         {tr(form.busy ? "Отправляем…" : "Отправить обращение")}
       </Button>
     </div>
-  );
-}
-function AttachmentInput({
-  files,
-  onChange,
-  onError,
-}: {
-  files: File[];
-  onChange: (files: File[]) => void;
-  onError: (message: string) => void;
-}) {
-  const { tr, language } = useI18n();
-  return (
-    <label>
-      {tr("Вложения · до 3 файлов")}
-      <Input
-        type="file"
-        multiple
-        accept="image/jpeg,image/png,image/webp,application/pdf"
-        onChange={(e) => {
-          const selected = Array.from(e.target.files ?? []);
-          if (
-            selected.length > 3 ||
-            selected.some(
-              (f) =>
-                f.size > 10485760 ||
-                ![
-                  "image/jpeg",
-                  "image/png",
-                  "image/webp",
-                  "application/pdf",
-                ].includes(f.type),
-            )
-          ) {
-            onError(
-              "Можно прикрепить до 3 изображений или PDF, каждый до 10 МБ",
-            );
-            e.target.value = "";
-            onChange([]);
-            return;
-          }
-          onError("");
-          onChange(selected);
-        }}
-      />
-      <small>
-        {tr(
-          files.length
-            ? files.map((f) => f.name).join(", ")
-            : "Изображения или PDF до 10 МБ. Файлы видите только вы и поддержка.",
-        )}
-      </small>
-    </label>
   );
 }
 export function TicketThread({
@@ -215,24 +141,20 @@ export function TicketThread({
   const [body, setBody] = useState("");
   const [status, setStatus] = useState(ticket.status);
   const [resolution, setResolution] = useState("reply");
-  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const qc = useQueryClient();
   async function send() {
     setBusy(true);
     setError("");
-    let attachments: string[] = [];
     try {
-      attachments = await uploadSupportFiles(files);
       await saveProfileSection({
         data: {
           action: staff ? "moderate" : "reply",
-          payload: { id: ticket.id, body, status, resolution, attachments },
+          payload: { id: ticket.id, body, status, resolution },
         },
       });
       setBody("");
-      setFiles([]);
       setResolution("reply");
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["profile-workspace"] }),
@@ -240,7 +162,6 @@ export function TicketThread({
       ]);
       toast.success(tr("Ответ отправлен"));
     } catch (e) {
-      if (attachments.length) await deleteFiles(SUPPORT_BUCKET, attachments);
       setError(errorText(e));
     } finally {
       setBusy(false);
@@ -296,7 +217,6 @@ export function TicketThread({
             onChange={(e) => setBody(e.target.value)}
           />
         </label>
-        <AttachmentInput files={files} onChange={setFiles} onError={setError} />
         {staff && (
           <div className="grid gap-3 sm:grid-cols-2">
             <label>

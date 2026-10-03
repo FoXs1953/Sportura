@@ -109,11 +109,19 @@ export const updateMyAvatar = createServerFn({ method: "POST" })
     )
       throw new Error("Некорректное фото");
     const { asUser } = await db();
-    await asUser(
-      context.caller,
-      (tx) =>
-        tx`UPDATE public.profiles SET avatar_url = ${data.path} WHERE id = ${userId}`,
-    );
+    const previous = await asUser(context.caller, async (tx) => {
+      const [row] = await tx<{ avatar_url: string | null }[]>`
+        SELECT avatar_url FROM public.profiles WHERE id = ${userId}`;
+      await tx`UPDATE public.profiles SET avatar_url = ${data.path} WHERE id = ${userId}`;
+      return row?.avatar_url ?? null;
+    });
+    // One stored photo per user. External photos (Google) are not stored files.
+    if (previous && previous !== data.path) {
+      const { removeFiles } = await import("./files.server");
+      await removeFiles(context.caller, "avatars", [previous]).catch(
+        () => undefined,
+      );
+    }
     return { ok: true };
   });
 export const updateMyContact = createServerFn({ method: "POST" })
