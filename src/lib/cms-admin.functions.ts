@@ -286,6 +286,16 @@ const FIELD_LABEL: Record<string, string> = {
   commission_percent: "Комиссия",
 };
 
+/** Event times are Astana wall-clock times: a value without an explicit
+ * offset is read as UTC+5, never in the server's own time zone. */
+function astanaToIso(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const hasOffset = /(Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  const date = new Date(hasOffset ? value : `${value}+05:00`);
+  if (Number.isNaN(date.getTime())) throw new Error("Некорректная дата.");
+  return date.toISOString();
+}
+
 const activityEditSchema = z.object({
   activityId: z.string().uuid(),
   title: z.string().min(3, "Название — минимум 3 символа").max(120),
@@ -337,10 +347,8 @@ export const updateActivityAdmin = createServerFn({ method: "POST" })
         ...provided,
         entry_fee: fee,
         is_free: !fee || fee === 0,
-        date_time: rest.date_time ? new Date(rest.date_time).toISOString() : null,
-        registration_deadline: rest.registration_deadline
-          ? new Date(rest.registration_deadline).toISOString()
-          : null,
+        date_time: astanaToIso(rest.date_time),
+        registration_deadline: astanaToIso(rest.registration_deadline),
       };
       const [current] = await tx<{ invite_code: string | null; registered_count: number | null }[]>`
         SELECT invite_code, registered_count FROM public.activities WHERE id = ${activityId}`;

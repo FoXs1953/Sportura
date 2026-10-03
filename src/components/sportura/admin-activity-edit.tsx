@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { updateActivityAdmin } from "@/lib/cms-admin.functions";
+import { isoDateTime, localDateTime } from "@/lib/event-model";
 
 type ActivityRow = Record<string, any>;
 
@@ -31,14 +32,6 @@ function Field({
   );
 }
 
-function toLocalInput(value: string | null | undefined) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 export function ActivityEditor({
   activity,
   canEditCommission = true,
@@ -59,8 +52,9 @@ export function ActivityEditor({
     two_gis_url: activity["two_gis_url"] ?? "",
     kaspi_payment_link: activity["kaspi_payment_link"] ?? "",
     time_text: activity["time_text"] ?? "",
-    date_time: toLocalInput(activity["date_time"]),
-    registration_deadline: toLocalInput(activity["registration_deadline"]),
+    // Astana time (UTC+5), like the host wizard, whatever the browser zone is.
+    date_time: localDateTime(activity["date_time"]),
+    registration_deadline: localDateTime(activity["registration_deadline"]),
     price_text: activity["price_text"] ?? "",
     entry_fee:
       activity["entry_fee"] === null || activity["entry_fee"] === undefined
@@ -98,8 +92,8 @@ export function ActivityEditor({
           two_gis_url: form.two_gis_url,
           kaspi_payment_link: form.kaspi_payment_link,
           time_text: form.time_text,
-          date_time: form.date_time,
-          registration_deadline: form.registration_deadline,
+          date_time: isoDateTime(form.date_time),
+          registration_deadline: isoDateTime(form.registration_deadline),
           price_text: form.price_text,
           entry_fee:
             form.entry_fee.trim() === "" ? null : Number(form.entry_fee),
