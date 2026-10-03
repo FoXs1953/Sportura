@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { optionalAuth, requireAuth } from "./auth-middleware";
+import type { Tx } from "./db.server";
 
 const email = z.string().trim().toLowerCase().email().max(254);
 const newPassword = z
@@ -80,7 +81,7 @@ export const signUp = createServerFn({ method: "POST" })
           subject: "Подтвердите e-mail в Sportura",
           text: `Здравствуйте!\n\nПодтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}\n\nЕсли вы не регистрировались в Sportura, просто проигнорируйте письмо.`,
         });
-        await s.signInUser(tx, user!.id);
+        // No session until the address is confirmed; the link leads to sign-in.
       });
     } catch (error) {
       if (s.isUniqueViolation(error))
@@ -98,16 +99,38 @@ export const signIn = createServerFn({ method: "POST" })
     const s = await server();
     s.rateLimit(`signin:${data.email}`, 10, 15);
     s.rateLimit(`signin-ip:${s.clientKey()}`, 50, 15);
-    await s.asService(async (tx) => {
-      const [user] = await tx<{ id: string; password_hash: string | null }[]>`
-        SELECT id, password_hash FROM auth.users WHERE email = ${data.email}`;
+    const unconfirmed = await s.asService(async (tx) => {
+      const [user] = await tx<
+        { id: string; password_hash: string | null; confirmed: boolean }[]
+      >`
+        SELECT id, password_hash,
+               (email_confirmed_at IS NOT NULL OR phone_confirmed_at IS NOT NULL) AS confirmed
+        FROM auth.users WHERE email = ${data.email}`;
       const ok = await s.verifyPassword(
         data.password,
         user?.password_hash ?? null,
       );
       if (!user || !ok) throw new Error("Неверный e-mail или пароль.");
+      if (!user.confirmed) return user.id;
       await s.signInUser(tx, user.id);
+      return null;
     });
+    if (unconfirmed) {
+      // The password is correct, so a fresh link can be sent without revealing
+      // anything new.
+      try {
+        s.rateLimit(`confirm:${unconfirmed}`, 5, 60);
+        s.requireMailConfigured();
+        await s.asService((tx) =>
+          sendConfirmation(s, tx, unconfirmed, data.email),
+        );
+      } catch {
+        // Delivery problems must not hide why sign-in was refused.
+      }
+      throw new Error(
+        "Подтвердите e-mail, чтобы войти. Мы отправили новую ссылку на почту.",
+      );
+    }
     return { ok: true };
   });
 
@@ -290,21 +313,30 @@ export const resendConfirmation = createServerFn({ method: "POST" })
         SELECT email, email_confirmed_at IS NOT NULL AS confirmed FROM auth.users WHERE id = ${userId}`;
       if (!user?.email) throw new Error("В аккаунте не указан e-mail.");
       if (user.confirmed) throw new Error("Этот e-mail уже подтверждён.");
-      const token = await s.issueToken(
-        tx,
-        userId,
-        "confirm_email",
-        user.email,
-        24 * 60,
-      );
-      await s.sendMail({
-        to: user.email,
-        subject: "Подтвердите e-mail в Sportura",
-        text: `Подтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}`,
-      });
+      await sendConfirmation(s, tx, userId, user.email);
     });
     return { ok: true };
   });
+
+async function sendConfirmation(
+  s: Awaited<ReturnType<typeof server>>,
+  tx: Tx,
+  userId: string,
+  address: string,
+) {
+  const token = await s.issueToken(
+    tx,
+    userId,
+    "confirm_email",
+    address,
+    24 * 60,
+  );
+  await s.sendMail({
+    to: address,
+    subject: "Подтвердите e-mail в Sportura",
+    text: `Подтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}`,
+  });
+}
 
 export type Identity = { provider: "email" | "google"; email: string | null };
 

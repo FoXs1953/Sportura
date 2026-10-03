@@ -17,8 +17,10 @@ export const Route = createFileRoute("/auth")({
   validateSearch: (
     s: {
       redirect?: string;
+      confirmed?: unknown;
     } & SearchSchemaInput,
   ) => ({
+    confirmed: s.confirmed === 1 || s.confirmed === "1" ? true : undefined,
     redirect:
       typeof s.redirect === "string" &&
       s.redirect.startsWith("/") &&
@@ -46,7 +48,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { tr } = useI18n();
   const navigate = useNavigate();
-  const { redirect } = Route.useSearch();
+  const { redirect, confirmed } = Route.useSearch();
   const capabilities = useQuery({
     queryKey: ["auth-capabilities"],
     queryFn: () => getAuthCapabilities(),
@@ -56,6 +58,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const emailUnavailable = capabilities.data?.email === false;
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,12 +66,13 @@ function AuthPage() {
     try {
       if (mode === "signup") {
         await signUp({ data: { email, password, name } });
-        toast.success(
-          tr("Мы отправили письмо для подтверждения. Проверьте почту."),
-        );
-      } else {
-        await signIn({ data: { email, password } });
+        // Sign-in becomes possible only after the emailed link is opened.
+        setSentTo(email.trim());
+        setPassword("");
+        setMode("signin");
+        return;
       }
+      await signIn({ data: { email, password } });
       // Full reload so every query starts with the new session cookie.
       window.location.assign(redirect);
     } catch (err) {
@@ -105,6 +109,18 @@ function AuthPage() {
       subtitle={tr("Играйте, записывайтесь и создавайте игры")}
     >
       <form onSubmit={submit} className="space-y-5">
+        {sentTo ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            {tr(
+              "Мы отправили ссылку для подтверждения на {email}. Откройте её, затем войдите.",
+              { email: sentTo },
+            )}
+          </p>
+        ) : confirmed && mode === "signin" ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            {tr("E-mail подтверждён. Теперь войдите в аккаунт.")}
+          </p>
+        ) : null}
         {mode === "signup" ? (
           <div className="space-y-2">
             <Label htmlFor="name">{tr("Имя")}</Label>

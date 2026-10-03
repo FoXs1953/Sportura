@@ -124,10 +124,12 @@ export async function currentCaller(): Promise<Caller | null> {
   const token = getCookie(SESSION_COOKIE);
   if (!token) return null;
   const session = await asService(async (tx) => {
+    // Accounts count as signed in only once their contact has been confirmed.
     const [row] = await tx<{ id: string; user_id: string; stale: boolean }[]>`
-      SELECT id, user_id, refreshed_at < now() - interval '1 day' AS stale
-      FROM auth.sessions
-      WHERE token_hash = ${sha256(token)} AND (not_after IS NULL OR not_after > now())`;
+      SELECT s.id, s.user_id, s.refreshed_at < now() - interval '1 day' AS stale
+      FROM auth.sessions s JOIN auth.users u ON u.id = s.user_id
+      WHERE s.token_hash = ${sha256(token)} AND (s.not_after IS NULL OR s.not_after > now())
+        AND (u.email_confirmed_at IS NOT NULL OR u.phone_confirmed_at IS NOT NULL)`;
     if (row?.stale) {
       // Sliding expiry: active sessions stay valid, idle ones lapse after 30 days.
       await tx`UPDATE auth.sessions

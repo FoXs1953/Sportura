@@ -7,17 +7,17 @@ async function confirm(request: Request): Promise<Response> {
   const { findToken, invalidateIdentityTokens } =
     await import("@/lib/auth.server");
   const token = new URL(request.url).searchParams.get("token") ?? "";
-  let ok = false;
+  let confirmed: string | null = null;
   if (token.length >= 20 && token.length <= 100) {
     try {
-      ok = await asService(async (tx) => {
+      confirmed = await asService(async (tx) => {
         const found = await findToken(
           tx,
           token,
           ["confirm_email", "email_change"],
           true,
         );
-        if (!found) return false;
+        if (!found) return null;
         // Updating auth.users fires sync_profile_identity, which updates the profile.
         const updated =
           found.purpose === "email_change"
@@ -30,22 +30,26 @@ async function confirm(request: Request): Promise<Response> {
         if (updated.count === 1 && found.purpose === "email_change") {
           await invalidateIdentityTokens(tx, found.user_id);
         }
-        return updated.count === 1;
+        return updated.count === 1 ? found.purpose : null;
       });
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
     }
   }
-  if (ok) {
-    return new Response(null, {
-      status: 303,
-      headers: { location: "/profile?tab=personal" },
-    });
+  if (confirmed) {
+    // A new account gets no session before confirmation, so it continues at sign-in.
+    const location =
+      confirmed === "email_change"
+        ? "/profile?tab=personal"
+        : "/auth?confirmed=1";
+    return new Response(null, { status: 303, headers: { location } });
   }
   return new Response(
     renderLocalizedMessagePage(
       "Ссылка недействительна",
-      "Ссылка устарела или уже использована. Запросите новое письмо в профиле.",
+      "Ссылка устарела или уже использована. Войдите в аккаунт, чтобы запросить новое письмо.",
+      "/auth",
+      "Войти",
     ),
     { status: 400, headers: { "content-type": "text/html; charset=utf-8" } },
   );
