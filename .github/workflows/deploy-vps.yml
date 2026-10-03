@@ -15,7 +15,7 @@ on:
         required: true
         type: string
       domain:
-        description: Public hostname served by the shared proxy
+        description: Public hostname served by the proxy on that server
         required: true
         type: string
       directory:
@@ -114,6 +114,9 @@ jobs:
         run: |
           scp deploy/docker-compose.yml "$TARGET:$STACK_DIR/"
           scp deploy/proxy/docker-compose.yml deploy/proxy/Caddyfile "$TARGET:$PROXY_DIR/"
+          # Only this environment's site, so each server serves what runs on it.
+          ssh "$TARGET" "mkdir -p '$PROXY_DIR/sites'"
+          scp "deploy/proxy/sites/${{ inputs.environment }}.caddy" "$TARGET:$PROXY_DIR/sites/"
           {
             printf '%s\n' "$ENV_FILE"
             echo "IMAGE=$IMAGE"
@@ -135,7 +138,7 @@ jobs:
           docker compose up -d --wait db
           docker compose run --rm migrate
           docker compose up -d --remove-orphans
-          # Before the shared proxy, the staging stack ran its own Caddy on 80/443.
+          # Before /opt/sportura-proxy, the staging stack ran its own Caddy on 80/443.
           docker ps -aq --filter label=com.docker.compose.project=sportura \
             --filter label=com.docker.compose.service=caddy | xargs -r docker rm -f
           cd "$PROXY_DIR"

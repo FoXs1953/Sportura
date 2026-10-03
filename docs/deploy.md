@@ -1,15 +1,18 @@
 # Deployment (ps.kz VPS + GitHub Actions)
 
-Production and staging run on the same ps.kz VPS as two independent stacks,
-each with its own database and uploaded files. One shared Caddy proxy serves
-HTTPS for both.
+Production and staging run on separate ps.kz VPS servers, each a Docker stack
+with its own database and uploaded files. On each server a Caddy proxy in
+`/opt/sportura-proxy` serves HTTPS for the stacks deployed there; every deploy
+uploads only its own site file, so the same setup also works if both stacks
+ever share one server.
 
 | | Production | Staging |
 |---|---|---|
+| Server | production VPS (`PRODUCTION_SSH_HOST`) | staging VPS `213.155.22.170` |
 | Site | https://sportura.kz | https://staging.sportura.kz |
 | Deployed from | `main` | `dev` |
 | Workflow | Deploy production | Deploy staging |
-| Directory on the VPS | `/opt/sportura-production` | `/opt/sportura` |
+| Stack directory | `/opt/sportura-production` | `/opt/sportura` |
 | GitHub environment | `production` | `staging` |
 | Secret prefix | `PRODUCTION_` | `STAGING_` |
 | Database tunnel port | `5433` | `5432` |
@@ -23,15 +26,16 @@ GitHub Actions                                   VPS
 2. build   Docker image → ghcr.io (private)
 3. deploy  scp compose files ──────────────────▶ <stack dir>/docker-compose.yml
                                                  /opt/sportura-proxy/{docker-compose.yml,Caddyfile}
+           scp this environment's site ────────▶ /opt/sportura-proxy/sites/<env>.caddy
            write .env from secret ─────────────▶ <stack dir>/.env (chmod 600)
            ssh: pull, migrate, restart ────────▶ db (Postgres 16) ← migrate
-                                                 app (Node) ← caddy (HTTPS :443, shared)
+                                                 app (Node) ← caddy (HTTPS :443)
 4. smoke   curl https://<site>
 ```
 
 Files involved: [Dockerfile](../Dockerfile),
 [deploy/docker-compose.yml](../deploy/docker-compose.yml) (one stack),
-[deploy/proxy/](../deploy/proxy/) (shared proxy),
+[deploy/proxy/](../deploy/proxy/) (proxy and per-environment site files),
 [deploy/env.example](../deploy/env.example),
 [.github/workflows/deploy-vps.yml](../.github/workflows/deploy-vps.yml) (shared steps),
 [deploy-production.yml](../.github/workflows/deploy-production.yml),
@@ -45,13 +49,21 @@ value in your password manager.
 
 ## Step 1: DNS
 
-Both hostnames need an **A record** pointing at the VPS IPv4 address from the
-ps.kz control panel: `sportura.kz` and `staging.sportura.kz`. `www.sportura.kz`
-is a CNAME to `sportura.kz` and redirects there. All three already exist in
-the PS.kz DNS zone. Caddy can only get an HTTPS certificate once DNS resolves;
-check with `nslookup sportura.kz`.
+Each hostname needs an **A record** in the PS.kz DNS zone pointing at the IPv4
+address of the server that runs it:
 
-## Step 2: Prepare the VPS (once)
+| Record | Points at |
+|---|---|
+| `staging.sportura.kz` A | staging VPS `213.155.22.170` |
+| `sportura.kz` A | production VPS. It still points at the staging VPS; change it to the new server's IP before the first production deploy |
+| `www.sportura.kz` CNAME | `sportura.kz` (follows it automatically and redirects there) |
+
+Caddy can only get an HTTPS certificate once DNS resolves to its server;
+check with `nslookup sportura.kz`. DNS changes can take up to an hour (TTL).
+
+## Step 2: Prepare each VPS (once per server)
+
+Do this on the staging server and again on the production server.
 
 Use Ubuntu 24.04 LTS (or Debian 13); reinstall from the ps.kz panel if the
 server runs an end-of-life release. The ps.kz Ubuntu image logs in as the
@@ -73,17 +85,21 @@ Create a `deploy` user that GitHub Actions will log in as:
 ```sh
 sudo adduser --disabled-password --gecos "" deploy
 sudo usermod -aG docker deploy
-sudo install -d -o deploy -g deploy -m 750 /opt/sportura /opt/sportura-production /opt/sportura-proxy
 sudo install -d -o deploy -g deploy -m 700 /home/deploy/.ssh
 ```
 
-The deploy user cannot create directories in `/opt`, so all three are created
-here. On a server that already runs staging, run only
-`sudo install -d -o deploy -g deploy -m 750 /opt/sportura-production /opt/sportura-proxy`.
+The deploy user cannot create directories in `/opt`, so create the stack and
+proxy directories for that server:
 
-> Membership in the `docker` group is effectively root on this machine, and
-> this machine now runs production. Keep the SSH key below only in GitHub, and
-> consider a separate key for each environment.
+```sh
+# staging server
+sudo install -d -o deploy -g deploy -m 750 /opt/sportura /opt/sportura-proxy
+# production server
+sudo install -d -o deploy -g deploy -m 750 /opt/sportura-production /opt/sportura-proxy
+```
+
+> Membership in the `docker` group is effectively root on that machine. Keep
+> the SSH key below only in GitHub, and use a separate key for each server.
 
 Firewall. Also open ports 22, 80 and 443 in the ps.kz panel firewall if one is
 enabled there.
@@ -138,10 +154,10 @@ The printed line (`<VPS_IP> ssh-ed25519 AAAA...`) is the
 `<PREFIX>_SSH_KNOWN_HOSTS` value. In Git Bash,
 `ssh-keyscan -t ed25519 <VPS_IP> 2>/dev/null` gives the same line.
 
-Both environments deploy to the same server, so the same key and host line
-work for `STAGING_*` and `PRODUCTION_*`. A separate key for production
-(`ssh-keygen ... -f sportura-production-deploy`) lets you revoke one without
-the other.
+Repeat this step for the production server with its own key
+(`ssh-keygen -t ed25519 -f sportura-production-deploy -C "github-actions-production"`)
+and its own host line. Those become the `PRODUCTION_*` values; the staging
+server's key and host line are the `STAGING_*` values.
 
 Optional hardening once key login works: add your own key for `ubuntu`, then in
 `/etc/ssh/sshd_config` set `PasswordAuthentication no` and run
@@ -240,22 +256,27 @@ keys, or move them into your password manager.
 
 ## Step 6: First deploy
 
-1. Push to `dev`, or open **Actions → Deploy staging → Run workflow**.
-   The first deploy after this change moves HTTPS from the old per-stack
-   Caddy to the shared proxy in `/opt/sportura-proxy`. Staging keeps its
-   database and uploads; the site is unavailable for a few seconds while the
-   proxy takes over ports 80/443 and gets new certificates.
-2. Merge `dev` into `main` (or open **Actions → Deploy production → Run
+**Staging.** Push to `dev`, or open **Actions → Deploy staging → Run
+workflow**. The first deploy after the move to `/opt/sportura-proxy` replaces
+the old per-stack Caddy on the staging server. Staging keeps its database and
+uploads; the site is unavailable for a few seconds while the proxy takes over
+ports 80/443 and gets a new certificate.
+
+**Production**, once its server, DNS record and `production` environment are
+ready:
+
+1. Merge `dev` into `main` (or open **Actions → Deploy production → Run
    workflow** on `main`). The first run creates an empty production database,
    applies all migrations and creates the `sportura_app` database user.
-3. Watch the jobs: `test` → `build` → `deploy`. The first build takes a few
-   minutes; later ones are cached.
-4. Open https://sportura.kz and https://staging.sportura.kz.
-5. Register on production, confirm the email, then make yourself admin
-   (see Day-to-day → Make someone admin).
+2. Watch the jobs: `test` → `build` → `deploy`. The first build takes a few
+   minutes; later ones are cached. With *Required reviewers* on, approve the
+   `deploy` job in the Actions tab.
+3. Open https://sportura.kz.
+4. Register, confirm the email, then make yourself admin (see Day-to-day →
+   Make someone admin).
 
-Until production is deployed for the first time, https://sportura.kz answers
-`502 Bad Gateway`.
+Until `production` exists in GitHub, pushes to `main` start **Deploy
+production** and it fails at the SSH step without touching any server.
 
 ### Make the container image private
 
@@ -292,11 +313,11 @@ docker compose exec db psql -U sportura -d sportura -c \
 ```
 
 **Connect to a database** from your laptop (TablePlus, DBeaver, psql, etc.).
-Each stack listens on its own loopback port on the VPS:
+Each stack listens on a loopback port on its server:
 
 ```sh
-ssh -N -L 6433:127.0.0.1:5433 deploy@<VPS_IP>   # production → localhost:6433
-ssh -N -L 6432:127.0.0.1:5432 deploy@<VPS_IP>   # staging    → localhost:6432
+ssh -N -L 6433:127.0.0.1:5433 deploy@<PRODUCTION_IP>   # production → localhost:6433
+ssh -N -L 6432:127.0.0.1:5432 deploy@213.155.22.170    # staging    → localhost:6432
 # database sportura, user sportura, password DB_OWNER_PASSWORD of that stack
 ```
 

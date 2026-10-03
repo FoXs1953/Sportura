@@ -3,7 +3,7 @@
 # project name, so each stack keeps its own database and uploads volumes.
 # GitHub Actions uploads this file and writes .env from the environment's
 # *_ENV_FILE secret, then appends IMAGE, DEPLOY_ENV, SITE_DOMAIN and
-# DB_TUNNEL_PORT. HTTPS is served by the shared proxy in deploy/proxy.
+# DB_TUNNEL_PORT. HTTPS is served by the server's proxy in deploy/proxy.
 services:
   db:
     image: postgres:16-alpine

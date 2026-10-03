@@ -1,6 +1,6 @@
-# Shared reverse proxy (/opt/sportura-proxy). It is the only service bound to
-# ports 80/443 and reaches the stacks over the external "edge" network.
-# Every deploy uploads this directory, starts it, and reloads the Caddyfile.
+# Reverse proxy on each VPS (/opt/sportura-proxy). It is the only service bound
+# to ports 80/443 and reaches the stacks over the external "edge" network.
+# Every deploy uploads its site file, starts the proxy, and reloads Caddy.
 services:
   caddy:
     image: caddy:2-alpine
@@ -11,6 +11,7 @@ services:
       - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
       - caddy-data:/data
       - caddy-config:/config
     networks:

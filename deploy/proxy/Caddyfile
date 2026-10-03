@@ -1,17 +1,6 @@
-# Shared HTTPS entry point for both stacks on the VPS (/opt/sportura-proxy).
-# Certificates are issued automatically once DNS points at the VPS.
-# A stack that is not deployed yet answers 502 until its first deploy.
-sportura.kz {
-	encode zstd gzip
-	reverse_proxy production-app:3000
-}
-
-www.sportura.kz {
-	redir https://sportura.kz{uri} permanent
-}
-
-staging.sportura.kz {
-	encode zstd gzip
-	reverse_proxy staging-app:3000
-	header X-Robots-Tag "noindex, nofollow"
-}
+# HTTPS entry point on a VPS (/opt/sportura-proxy). Each deploy uploads only
+# its own site file (sites/staging.caddy or sites/production.caddy), so a
+# server serves exactly the stacks deployed to it, whether production and
+# staging share a server or not. Certificates are issued automatically once
+# DNS points at the server.
+import sites/*.caddy

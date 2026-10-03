@@ -1,0 +1,9 @@
+# Production site. Deployed only to the server that runs the production stack.
+sportura.kz {
+	encode zstd gzip
+	reverse_proxy production-app:3000
+}
+
+www.sportura.kz {
+	redir https://sportura.kz{uri} permanent
+}
