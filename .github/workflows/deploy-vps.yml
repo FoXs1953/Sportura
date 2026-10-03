@@ -1,0 +1,149 @@
+name: Deploy to VPS
+
+# Shared by deploy-staging.yml and deploy-production.yml. Each GitHub
+# environment (staging, production) holds <PREFIX>_SSH_HOST, _SSH_USER,
+# _SSH_KEY, _SSH_KNOWN_HOSTS and _ENV_FILE; see docs/deploy.md.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment and proxy alias (staging or production)
+        required: true
+        type: string
+      secret_prefix:
+        description: Prefix of the environment's secrets (STAGING or PRODUCTION)
+        required: true
+        type: string
+      domain:
+        description: Public hostname served by the shared proxy
+        required: true
+        type: string
+      directory:
+        description: Stack directory on the VPS; its name is the compose project
+        required: true
+        type: string
+      db_tunnel_port:
+        description: Loopback port for SSH access to this stack's database
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: name
+        # GHCR image names must be lowercase.
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.name.outputs.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: https://${{ inputs.domain }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      TARGET: ${{ secrets[format('{0}_SSH_USER', inputs.secret_prefix)] }}@${{ secrets[format('{0}_SSH_HOST', inputs.secret_prefix)] }}
+      IMAGE: ${{ needs.build.outputs.image }}
+      STACK_DIR: ${{ inputs.directory }}
+      PROXY_DIR: /opt/sportura-proxy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets[format('{0}_SSH_KEY', inputs.secret_prefix)] }}
+          KNOWN_HOSTS: ${{ secrets[format('{0}_SSH_KNOWN_HOSTS', inputs.secret_prefix)] }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Check stack directories
+        # Unquoted heredoc: $STACK_DIR and $PROXY_DIR expand here, \$d on the VPS.
+        run: |
+          ssh "$TARGET" bash -s <<EOF
+          for d in "$STACK_DIR" "$PROXY_DIR"; do
+            if [ ! -d "\$d" ] || [ ! -w "\$d" ]; then
+              echo "::error::\$d is missing or not writable. On the VPS run once: sudo install -d -o deploy -g deploy -m 750 \$d"
+              exit 1
+            fi
+          done
+          EOF
+
+      - name: Upload stack files and environment
+        env:
+          ENV_FILE: ${{ secrets[format('{0}_ENV_FILE', inputs.secret_prefix)] }}
+        run: |
+          scp deploy/docker-compose.yml "$TARGET:$STACK_DIR/"
+          scp deploy/proxy/docker-compose.yml deploy/proxy/Caddyfile "$TARGET:$PROXY_DIR/"
+          {
+            printf '%s\n' "$ENV_FILE"
+            echo "IMAGE=$IMAGE"
+            echo "DEPLOY_ENV=${{ inputs.environment }}"
+            echo "SITE_DOMAIN=${{ inputs.domain }}"
+            echo "DB_TUNNEL_PORT=${{ inputs.db_tunnel_port }}"
+          } | ssh "$TARGET" "umask 077 && cat > '$STACK_DIR/.env'"
+
+      - name: Pull image, migrate, restart
+        run: |
+          # Short-lived job token, passed on stdin so it never appears in a command line.
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" \
+            | ssh "$TARGET" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          ssh "$TARGET" bash -s <<EOF
+          set -e
+          docker network create edge >/dev/null 2>&1 || true
+          cd "$STACK_DIR"
+          docker compose pull --quiet
+          docker compose up -d --wait db
+          docker compose run --rm migrate
+          docker compose up -d --remove-orphans
+          # Before the shared proxy, the staging stack ran its own Caddy on 80/443.
+          docker ps -aq --filter label=com.docker.compose.project=sportura \
+            --filter label=com.docker.compose.service=caddy | xargs -r docker rm -f
+          cd "$PROXY_DIR"
+          docker compose up -d
+          docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+          docker logout ghcr.io
+          docker image prune -f
+          EOF
+
+      - name: Smoke check
+        run: curl -fsS -o /dev/null --retry 10 --retry-delay 5 --retry-all-errors "https://${{ inputs.domain }}"

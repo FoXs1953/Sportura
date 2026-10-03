@@ -819,7 +819,7 @@ function CopyEvent({ event: a }: { event: Event }) {
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(
-            `https://sportura.vercel.app/activity/${a.id}${a.is_private && a.invite_code ? "?code=" + encodeURIComponent(a.invite_code) : ""}`,
+            `https://sportura.kz/activity/${a.id}${a.is_private && a.invite_code ? "?code=" + encodeURIComponent(a.invite_code) : ""}`,
           );
           toast.success(tr("Ссылка скопирована"));
         } catch {

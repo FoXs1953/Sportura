@@ -1,11 +1,10 @@
-# Staging/self-hosted image: Node server build plus the database migration runner.
+# Production and staging image: Node server build plus the database migration runner.
 FROM node:24-alpine AS build
 WORKDIR /app
 RUN npm install -g bun@1
 COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY . .
-ENV NITRO_PRESET=node-server
 RUN npx vite build
 
 FROM node:24-alpine

@@ -35,10 +35,8 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       tailwindcss(),
       tanstackStart({ server: { entry: "server" } }),
-      // Vercel by default; the VPS image builds with NITRO_PRESET=node-server.
-      ...(command === "build"
-        ? [nitro({ preset: process.env["NITRO_PRESET"] || "vercel" })]
-        : []),
+      // Plain Node server; the Docker image runs .output/server/index.mjs.
+      ...(command === "build" ? [nitro({ preset: "node-server" })] : []),
       react(),
     ],
   };

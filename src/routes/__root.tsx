@@ -16,7 +16,7 @@ import { LocalizedHead } from "@/components/sportura/localized-head";
 import appCss from "../styles.css?url";
 function brandImageUrl() {
   const origin = import.meta.env.SSR
-    ? process.env["APP_URL"] || "https://sportura.vercel.app"
+    ? process.env["APP_URL"] || "https://sportura.kz"
     : window.location.origin;
   return new URL("/icons/sportura-s-512.png", origin).href;
 }

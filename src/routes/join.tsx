@@ -24,9 +24,9 @@ export const Route = createFileRoute("/join")({
           "Приватные игры доступны только по коду приглашения от организатора.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://sportura.vercel.app/join" },
+      { property: "og:url", content: "https://sportura.kz/join" },
     ],
-    links: [{ rel: "canonical", href: "https://sportura.vercel.app/join" }],
+    links: [{ rel: "canonical", href: "https://sportura.kz/join" }],
   }),
   component: JoinByCode,
 });

@@ -1,29 +1,29 @@
-name: Deploy staging
+name: Deploy production
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
   workflow_dispatch:
 
 # One deploy per environment at a time. A separate group per environment keeps
 # a queued staging run from cancelling a queued production run.
 concurrency:
-  group: vps-staging
+  group: vps-production
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  staging:
+  production:
     uses: ./.github/workflows/deploy-vps.yml
     permissions:
       contents: read
       packages: write
     secrets: inherit
     with:
-      environment: staging
-      secret_prefix: STAGING
-      domain: staging.sportura.kz
-      directory: /opt/sportura
-      db_tunnel_port: "5432"
+      environment: production
+      secret_prefix: PRODUCTION
+      domain: sportura.kz
+      directory: /opt/sportura-production
+      db_tunnel_port: "5433"

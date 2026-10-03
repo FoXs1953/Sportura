@@ -2275,11 +2275,11 @@ Paid competitions and automated payouts can be added after the audience and lega
 
 ## Production
 
-The live application is https://sportura.vercel.app. Deployments are built by
-Vercel from this repository. The editor preview is not the production site.
-
-The existing Supabase backend provides authentication, database records, and
-private file storage. Preserve it when cleaning up editor-related resources.
+The live application is https://sportura.kz; staging is
+https://staging.sportura.kz. Both run on a ps.kz VPS as Docker stacks with
+their own PostgreSQL database and file storage, deployed by GitHub Actions
+from `main` (production) and `dev` (staging). See
+[docs/deploy.md](docs/deploy.md).
 
 ## Development
 

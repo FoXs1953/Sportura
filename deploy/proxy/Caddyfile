@@ -1,0 +1,17 @@
+# Shared HTTPS entry point for both stacks on the VPS (/opt/sportura-proxy).
+# Certificates are issued automatically once DNS points at the VPS.
+# A stack that is not deployed yet answers 502 until its first deploy.
+sportura.kz {
+	encode zstd gzip
+	reverse_proxy production-app:3000
+}
+
+www.sportura.kz {
+	redir https://sportura.kz{uri} permanent
+}
+
+staging.sportura.kz {
+	encode zstd gzip
+	reverse_proxy staging-app:3000
+	header X-Robots-Tag "noindex, nofollow"
+}
