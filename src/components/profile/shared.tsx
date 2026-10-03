@@ -102,6 +102,8 @@ export function useProfileForm<T extends object>(
   id: string,
   initial: T,
   save: (value: T) => Promise<unknown>,
+  // false: unsaved edits don't block navigation (e.g. a form with its own draft).
+  guardNavigation = true,
 ) {
   const { tr } = useI18n();
   const [value, setValue] = useState(initial);
@@ -150,7 +152,7 @@ export function useProfileForm<T extends object>(
   useEffect(() => {
     register(
       id,
-      dirty
+      dirty && guardNavigation
         ? {
             save: () => current.current.submit(),
             discard: () => current.current.discard(),
@@ -158,7 +160,7 @@ export function useProfileForm<T extends object>(
         : null,
     );
     return () => register(id, null);
-  }, [dirty, id, register]);
+  }, [dirty, guardNavigation, id, register]);
   return {
     value,
     setValue,

@@ -1,5 +1,5 @@
 import { useI18n } from "@/lib/i18n";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,9 @@ import {
 import { applyForHostRole, type MyProfile } from "@/lib/me.functions";
 import { type ProfileWorkspace } from "@/lib/profile-model";
 import { ROLE_LABEL, SPORTS } from "@/lib/sportura";
+import { clearDraft, draftKey, loadDraft, saveDraft } from "@/lib/form-draft";
+
+const DRAFT_MAX_AGE = 24 * 60 * 60 * 1000;
 import {
   Panel,
   SaveRow,
@@ -39,25 +42,55 @@ export function OrganizerTab({
   const pending = data.applications.some((a) => a.status === "pending");
   const isHost =
     roles.some((r) => me.roles.includes(r)) || me.roles.includes("admin");
+  const blank = {
+    role: available[0] ?? "sports_manager",
+    sports: me.sports,
+    city: me.city,
+    venues: "",
+    experience: "",
+    links: "",
+    frequency: "Еженедельно",
+  };
+  const draft = draftKey("organizer-application", me.id);
   const form = useProfileForm(
     "application",
-    {
-      role: available[0] ?? "sports_manager",
-      sports: me.sports,
-      city: me.city,
-      venues: "",
-      experience: "",
-      links: "",
-      frequency: "Еженедельно",
-    },
-    (v) =>
-      applyForHostRole({
+    blank,
+    async (v) => {
+      await applyForHostRole({
         data: {
           requested_role: v.role,
           motivation: `Город: ${v.city}\nСпорт: ${v.sports.join(", ")}\nПлощадки: ${v.venues}\nОпыт: ${v.experience}\nСсылки: ${v.links}\nЧастота: ${v.frequency}`,
         },
-      }),
+      });
+      clearDraft(draft);
+    },
+    false,
   );
+  // The draft is restored after mount: storage exists only in the browser.
+  const restored = useRef(false);
+  const { setValue } = form;
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    const saved = loadDraft<typeof blank>(draft, DRAFT_MAX_AGE);
+    if (!saved) return;
+    setValue((current) => ({
+      ...current,
+      ...saved,
+      role: available.includes(saved.role) ? saved.role : current.role,
+      sports: Array.isArray(saved.sports)
+        ? saved.sports.filter((s) => (SPORTS as readonly string[]).includes(s))
+        : current.sports,
+    }));
+  }, [available, draft, setValue]);
+  const blankKey = JSON.stringify(blank);
+  const valueKey = JSON.stringify(form.value);
+  useEffect(() => {
+    if (!restored.current || pending) return;
+    // Every edit restarts the 24-hour expiry; an untouched form keeps no draft.
+    if (valueKey === blankKey) clearDraft(draft);
+    else saveDraft(draft, JSON.parse(valueKey));
+  }, [blankKey, draft, pending, valueKey]);
   const host = useSectionForm(
     "host",
     {
@@ -273,6 +306,11 @@ export function OrganizerTab({
                 )}
               </p>
             )}
+            <p className="workspace-muted text-xs">
+              {tr(
+                "Черновик заявки сохраняется на этом устройстве на 24 часа. Можно перейти в другой раздел и вернуться.",
+              )}
+            </p>
             <ErrorNotice message={tr(form.error)} />
             <Button
               disabled={

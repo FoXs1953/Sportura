@@ -40,6 +40,7 @@ import {
   dateLabel,
 } from "./shared";
 import type { TicketDraft } from "./support";
+import { clearAllDrafts } from "@/lib/form-draft";
 export function SecurityTab({
   me,
   data,
@@ -410,6 +411,7 @@ export function SecurityTab({
             onClick={() =>
               void run(async () => {
                 await signOut({ data: { scope: "local" } });
+                clearAllDrafts();
                 await qc.cancelQueries();
                 qc.clear();
                 await navigate({ to: "/auth", replace: true });
