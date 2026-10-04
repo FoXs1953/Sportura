@@ -6,7 +6,7 @@ import {
   stripSearchParams,
 } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -21,6 +21,14 @@ import { useSessionUser } from "@/lib/use-session";
 import { FeedShell } from "@/components/sportura/feed-shell";
 import { ActivityCard } from "@/components/sportura/activity-card";
 import { ContentBlocks } from "@/components/sportura/content-blocks";
+import { HowItWorks } from "@/components/sportura/guest-info";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getSiteContent } from "@/lib/cms.functions";
 import { getFeedPreferences } from "@/lib/profile.functions";
 import {
@@ -63,6 +71,26 @@ function Feed() {
   const user = useSessionUser().data?.id ?? null;
   const [expanded, setExpanded] = useState(false);
   const [readyCity, setReadyCity] = useState(false);
+  const accountPromptTrigger = useRef<HTMLButtonElement | null>(null);
+  const [accountPrompt, setAccountPrompt] = useState<{
+    feature: "personal" | "saved";
+    redirect: string;
+  } | null>(null);
+  const explainAccount = (
+    feature: "personal" | "saved",
+    trigger: HTMLButtonElement,
+  ) => {
+    accountPromptTrigger.current = trigger;
+    const params = new URLSearchParams(window.location.search);
+    if (feature === "personal") {
+      params.set("sort", "personal");
+      params.set("view", "all");
+      params.set("open", "true");
+    } else {
+      params.set("view", "saved");
+    }
+    setAccountPrompt({ feature, redirect: `/?${params.toString()}` });
+  };
   const action = useEventAction();
   const prefs = useQuery({
     queryKey: ["feed-preferences", user],
@@ -540,13 +568,10 @@ function Feed() {
           </button>
           <button
             className={filters.sort === "personal" ? "is-active" : ""}
-            onClick={() =>
+            onClick={(event) =>
               user
                 ? set({ view: "all", sort: "personal", open: true })
-                : void navigate({
-                    to: "/auth",
-                    search: { redirect: "/?sort=personal" },
-                  })
+                : explainAccount("personal", event.currentTarget)
             }
           >
             {tr("Для вас")}
@@ -558,13 +583,10 @@ function Feed() {
           </button>
           <button
             className={filters.view === "saved" ? "is-active" : ""}
-            onClick={() =>
+            onClick={(event) =>
               user
                 ? set({ view: "saved" })
-                : void navigate({
-                    to: "/auth",
-                    search: { redirect: "/?view=saved" },
-                  })
+                : explainAccount("saved", event.currentTarget)
             }
           >
             {tr("Сохранённые")}
@@ -649,17 +671,62 @@ function Feed() {
           </div>
         ) : !list.length ? (
           <div className="feed-empty">
-            <Search size={26} />
-            <h3>{tr("Пока без совпадений")}</h3>
+            <span className="feed-empty-icon">
+              <Search size={26} aria-hidden="true" />
+            </span>
+            <h3>
+              {tr(
+                active.length > 0 || filters.sort === "personal"
+                  ? "Пока без совпадений"
+                  : filters.view === "saved"
+                    ? "Сохранённых игр пока нет"
+                    : filters.view === "archive"
+                      ? "Завершённых событий пока нет"
+                      : "Новые игры скоро появятся",
+              )}
+            </h3>
             <p>
-              {tr("Попробуйте изменить город, дату или убрать часть фильтров.")}
+              {tr(
+                active.length > 0 || filters.sort === "personal"
+                  ? "Попробуйте изменить город, дату или убрать часть фильтров."
+                  : filters.view === "saved"
+                    ? "Нажмите на закладку у интересной игры — она появится здесь. Сохранение не резервирует место."
+                    : filters.view === "archive"
+                      ? "Здесь появятся прошедшие игры и результаты соревнований. Пока можно выбрать предстоящую игру."
+                      : "Пока нет предстоящих публичных событий. Включите уведомления о новых играх или организуйте свою.",
+              )}
             </p>
-            <button
-              className="feed-primary"
-              onClick={() => set(discoveryDefaults)}
-            >
-              {tr("Показать все события")}
-            </button>
+            <div className="feed-empty-actions">
+              {(active.length > 0 ||
+                filters.sort === "personal" ||
+                filters.view !== "all") && (
+                <button
+                  className="feed-primary"
+                  onClick={() => set(discoveryDefaults)}
+                >
+                  {tr("Показать все события")}
+                </button>
+              )}
+              <Link
+                to="/game-alerts"
+                search={{
+                  city: filters.city,
+                  sport: filters.sport.length === 1 ? filters.sport[0] : "all",
+                }}
+                className={
+                  active.length === 0 &&
+                  filters.view === "all" &&
+                  filters.sort !== "personal"
+                    ? "feed-primary"
+                    : "feed-chip"
+                }
+              >
+                {tr("Узнавать о новых играх")}
+              </Link>
+              <Link to="/for-organizers" className="feed-chip">
+                {tr("Организовать игру")}
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="feed-grid">
@@ -763,6 +830,58 @@ function Feed() {
           </div>
         )}
       </section>
+      {!user && <HowItWorks />}
+      <Dialog
+        open={accountPrompt !== null}
+        onOpenChange={(open) => {
+          if (!open) setAccountPrompt(null);
+        }}
+      >
+        <DialogContent
+          className="max-w-md"
+          onCloseAutoFocus={(event) => {
+            if (accountPromptTrigger.current?.isConnected) {
+              event.preventDefault();
+              accountPromptTrigger.current.focus({ preventScroll: true });
+            }
+            accountPromptTrigger.current = null;
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {tr(
+                accountPrompt?.feature === "personal"
+                  ? "Игры по вашим интересам"
+                  : "Сохраняйте интересные игры",
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {tr(
+                accountPrompt?.feature === "personal"
+                  ? "Укажите город и любимые виды спорта в профиле — Sportura подберёт подходящие события. Для персональной подборки нужен аккаунт."
+                  : "С аккаунтом ваши сохранённые игры доступны с любого устройства. Это удобный список, но место нужно бронировать отдельно.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <Link
+            to="/auth"
+            search={{
+              mode: "signup",
+              redirect: accountPrompt?.redirect ?? "/",
+            }}
+            className="feed-primary"
+          >
+            {tr("Создать аккаунт")}
+          </Link>
+          <Link
+            to="/auth"
+            search={{ redirect: accountPrompt?.redirect ?? "/" }}
+            className="feed-chip text-center"
+          >
+            {tr("Уже есть аккаунт? Войти")}
+          </Link>
+        </DialogContent>
+      </Dialog>
     </FeedShell>
   );
 }
