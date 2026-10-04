@@ -16,6 +16,7 @@ import {
   accountForVerifiedGoogleEmail,
   GoogleLinkNeedsConfirmationError,
 } from "./auth-identities.server";
+import { safeAuthRedirect } from "./auth-redirect";
 
 const STATE_COOKIE = "sportura_oauth";
 
@@ -33,15 +34,6 @@ function config() {
 }
 
 const callbackUrl = () => `${appUrl()}/api/auth/google/callback`;
-
-function safeRedirect(value: string | null): string {
-  return value &&
-    value.startsWith("/") &&
-    !value.startsWith("//") &&
-    !value.includes("\\")
-    ? value
-    : "/";
-}
 
 function stateCookie(value: string, maxAge: number) {
   const secure = appUrl().startsWith("https://") ? "; Secure" : "";
@@ -61,7 +53,7 @@ export function startGoogle(request: Request): Response {
   const state: State = {
     state: newToken(),
     verifier: newToken(),
-    redirect: safeRedirect(params.get("redirect")),
+    redirect: safeAuthRedirect(params.get("redirect")),
     mode: params.get("mode") === "link" ? "link" : "login",
   };
   const challenge = createHash("sha256")
@@ -213,7 +205,7 @@ export async function finishGoogle(request: Request): Promise<Response> {
     }
     throw error;
   }
-  return redirectTo(state.redirect, [
+  return redirectTo(safeAuthRedirect(state.redirect), [
     stateCookie("", 0),
     sessionCookieHeader(token),
   ]);
