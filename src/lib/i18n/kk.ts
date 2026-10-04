@@ -2,11 +2,13 @@
 import { eventsKazakhMessages } from "./kk-events.ts";
 import { interfaceKazakhMessages } from "./kk-interface.ts";
 import { servicesKazakhMessages } from "./kk-services.ts";
+import { clientAuditMessages } from "./kk-client-audit.ts";
 
 export const kazakhMessages: Record<string, string> = {
   ...eventsKazakhMessages,
   ...interfaceKazakhMessages,
   ...servicesKazakhMessages,
+  ...clientAuditMessages,
   "Запись создана": "Жазба қосылды",
   "Запись обновлена": "Жазба жаңартылды",
   "Запись удалена": "Жазба жойылды",
