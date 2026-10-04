@@ -5,6 +5,9 @@ RUN npm install -g bun@1
 COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY . .
+ARG RELEASE_SHA=local
+# Public build identity lets deployment checks detect a stale running app.
+RUN node -e 'require("node:fs").writeFileSync("public/release.json", JSON.stringify({revision:process.env.RELEASE_SHA}) + "\n")'
 RUN npx vite build
 
 FROM node:24-alpine
