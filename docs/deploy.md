@@ -17,6 +17,10 @@ ever share one server.
 | Secret prefix | `PRODUCTION_` | `STAGING_` |
 | Database tunnel port | `5433` | `5432` |
 
+Staging deploys through GitHub Actions to the VPS. `vercel.json` disables the
+retired Vercel Git deployment for `dev`, which would otherwise report unrelated
+build failures after a successful VPS deployment.
+
 Every push to the branch (or a manual run) does this:
 
 ```
