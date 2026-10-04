@@ -7,6 +7,7 @@ import {
   createRootRouteWithContext,
   useRouter,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 import { Toaster } from "../components/ui/sonner";
@@ -38,7 +39,7 @@ function NotFoundComponent() {
     </AppShell>
   );
 }
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const { tr } = useI18n();
   console.error(error);
   const router = useRouter();
