@@ -1,12 +1,20 @@
 import { useI18n } from "@/lib/i18n";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  type SearchSchemaInput,
+} from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { checkRecoveryToken, resetPassword } from "@/lib/auth.functions";
 import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { authContinuationPath, safeAuthRedirect } from "@/lib/auth-redirect";
 export const Route = createFileRoute("/reset-password")({
+  validateSearch: (search: { redirect?: unknown } & SearchSchemaInput) => ({
+    redirect: safeAuthRedirect(search.redirect),
+  }),
   head: () => ({
     meta: [
       { title: "Новый пароль — Sportura" },
@@ -18,6 +26,7 @@ export const Route = createFileRoute("/reset-password")({
 type Screen = "checking" | "change" | "expired" | "done";
 function ResetPasswordPage() {
   const { tr } = useI18n();
+  const { redirect } = Route.useSearch();
   const [screen, setScreen] = useState<Screen>("checking");
   const [accountEmail, setAccountEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +42,11 @@ function ResetPasswordPage() {
       return;
     }
     // Keep the token out of the address bar, history and Referer headers.
-    window.history.replaceState(null, "", window.location.pathname);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      authContinuationPath("/reset-password", redirect),
+    );
     setToken(value);
     void checkRecoveryToken({ data: { token: value } })
       .then((found) => {
@@ -51,7 +64,7 @@ function ResetPasswordPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [redirect]);
   async function changePassword(event: React.FormEvent) {
     event.preventDefault();
     setError("");
@@ -99,6 +112,7 @@ function ResetPasswordPage() {
           </p>
           <Link
             to="/forgot-password"
+            search={{ redirect }}
             className="block text-center text-sm text-brand underline"
           >
             {tr("Отправить новую ссылку")}
@@ -160,6 +174,7 @@ function ResetPasswordPage() {
           </p>
           <Link
             to="/auth"
+            search={{ redirect }}
             className="block text-center text-sm text-brand underline"
           >
             {tr("Перейти ко входу")}
@@ -169,6 +184,7 @@ function ResetPasswordPage() {
       {screen !== "done" && (
         <Link
           to="/auth"
+          search={{ redirect }}
           className="mt-4 block text-center text-sm text-brand underline"
         >
           {tr("Вернуться ко входу")}
