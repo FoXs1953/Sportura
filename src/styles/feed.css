@@ -881,6 +881,28 @@
 .feed-footer a:hover {
   color: var(--feed-accent);
 }
+.feed-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 20px;
+}
+.feed-footer-links :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 12px;
+}
+.feed-footer-links button:hover {
+  color: var(--feed-accent);
+}
+.feed-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
 .feed-skeleton {
   background: var(--feed-surface);
   border: 1px solid var(--feed-line);

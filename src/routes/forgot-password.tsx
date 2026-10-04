@@ -1,5 +1,9 @@
 import { useI18n } from "@/lib/i18n";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  type SearchSchemaInput,
+} from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -10,7 +14,11 @@ import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { safeAuthRedirect } from "@/lib/auth-redirect";
 export const Route = createFileRoute("/forgot-password")({
+  validateSearch: (search: { redirect?: unknown } & SearchSchemaInput) => ({
+    redirect: safeAuthRedirect(search.redirect),
+  }),
   head: () => ({
     meta: [
       { title: "Забыли пароль — Sportura" },
@@ -21,6 +29,7 @@ export const Route = createFileRoute("/forgot-password")({
 });
 function ForgotPasswordPage() {
   const { tr } = useI18n();
+  const { redirect } = Route.useSearch();
   const capabilities = useQuery({
     queryKey: ["auth-capabilities"],
     queryFn: () => getAuthCapabilities(),
@@ -35,7 +44,7 @@ function ForgotPasswordPage() {
     setBusy(true);
     setError("");
     try {
-      await requestPasswordReset({ data: { email: email.trim() } });
+      await requestPasswordReset({ data: { email: email.trim(), redirect } });
       setSent(true);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "";
@@ -115,6 +124,7 @@ function ForgotPasswordPage() {
       )}
       <Link
         to="/auth"
+        search={{ redirect }}
         className="mt-4 block text-center text-sm text-brand underline"
       >
         {tr("Вернуться ко входу")}

@@ -1,5 +1,5 @@
 import { useI18n } from "@/lib/i18n";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/sportura/shell";
 import { PageBlocks } from "@/components/sportura/page-blocks";
 export const Route = createFileRoute("/legal")({
@@ -92,6 +92,12 @@ function Legal() {
           </section>
         ))}
       </div>
+      <p className="mt-6 text-sm text-muted-foreground">
+        {tr("Есть вопрос о правилах или участии?")}{" "}
+        <Link to="/help" className="text-brand underline">
+          {tr("Открыть помощь и поддержку")}
+        </Link>
+      </p>
     </AppShell>
   );
 }

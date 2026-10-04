@@ -9,6 +9,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { getAuthCapabilities, signIn, signUp } from "@/lib/auth.functions";
+import { safeAuthRedirect } from "@/lib/auth-redirect";
 import { AuthFrame } from "@/components/sportura/auth-frame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,29 +17,35 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/auth")({
   validateSearch: (
     s: {
-      redirect?: string;
+      redirect?: unknown;
       confirmed?: unknown;
       mode?: unknown;
     } & SearchSchemaInput,
   ) => ({
     mode: s.mode === "signup" ? ("signup" as const) : undefined,
     confirmed: s.confirmed === 1 || s.confirmed === "1" ? true : undefined,
-    redirect:
-      typeof s.redirect === "string" &&
-      s.redirect.startsWith("/") &&
-      !s.redirect.startsWith("//") &&
-      !s.redirect.includes("\\")
-        ? s.redirect
-        : "/",
+    redirect: safeAuthRedirect(s.redirect),
   }),
-  head: () => ({
+  loaderDeps: ({ search }) => ({ mode: search.mode }),
+  head: ({ match }) => ({
     meta: [
-      { title: "Вход — Sportura" },
+      {
+        title:
+          match.search.mode === "signup"
+            ? "Регистрация — Sportura"
+            : "Вход — Sportura",
+      },
       {
         name: "description",
         content: "Войдите или зарегистрируйтесь, чтобы записываться на игры.",
       },
-      { property: "og:title", content: "Вход — Sportura" },
+      {
+        property: "og:title",
+        content:
+          match.search.mode === "signup"
+            ? "Регистрация — Sportura"
+            : "Вход — Sportura",
+      },
       {
         property: "og:description",
         content: "Вход и регистрация участников Sportura.",
@@ -50,14 +57,12 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { tr } = useI18n();
   const navigate = useNavigate();
-  const { redirect, confirmed, mode: initialMode } = Route.useSearch();
+  const { redirect, confirmed, mode: searchMode } = Route.useSearch();
+  const mode = searchMode ?? "signin";
   const capabilities = useQuery({
     queryKey: ["auth-capabilities"],
     queryFn: () => getAuthCapabilities(),
   });
-  const [mode, setMode] = useState<"signin" | "signup">(
-    initialMode ?? "signin",
-  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -69,14 +74,18 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        await signUp({ data: { email, password, name } });
+        await signUp({ data: { email, password, name, redirect } });
         // Sign-in becomes possible only after the emailed link is opened.
         setSentTo(email.trim());
         setPassword("");
-        setMode("signin");
+        await navigate({
+          to: "/auth",
+          search: { redirect },
+          replace: true,
+        });
         return;
       }
-      await signIn({ data: { email, password } });
+      await signIn({ data: { email, password, redirect } });
       // Full reload so every query starts with the new session cookie.
       window.location.assign(redirect);
     } catch (err) {
@@ -181,6 +190,7 @@ function AuthPage() {
         {mode === "signin" && (
           <Link
             to="/forgot-password"
+            search={{ redirect }}
             className="block text-center text-sm text-brand underline"
           >
             {tr("Забыли пароль?")}
@@ -200,7 +210,16 @@ function AuthPage() {
         <button
           type="button"
           className="auth-switch w-full text-center text-sm"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+          onClick={() =>
+            void navigate({
+              to: "/auth",
+              search: {
+                redirect,
+                mode: mode === "signin" ? "signup" : undefined,
+              },
+              replace: true,
+            })
+          }
         >
           {tr(
             mode === "signin"

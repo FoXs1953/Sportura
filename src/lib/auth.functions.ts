@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { optionalAuth, requireAuth } from "./auth-middleware";
+import { authContinuationPath, safeAuthRedirect } from "./auth-redirect";
 import type { Tx } from "./db.server";
 
 const email = z.string().trim().toLowerCase().email().max(254);
@@ -55,6 +56,7 @@ export const signUp = createServerFn({ method: "POST" })
           .min(6, "Пароль должен быть не короче 6 символов.")
           .max(200),
         name: z.string().trim().max(80).default(""),
+        redirect: z.string().optional().transform(safeAuthRedirect),
       })
       .parse(input),
   )
@@ -79,7 +81,7 @@ export const signUp = createServerFn({ method: "POST" })
         await s.sendMail({
           to: data.email,
           subject: "Подтвердите e-mail в Sportura",
-          text: `Здравствуйте!\n\nПодтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}\n\nЕсли вы не регистрировались в Sportura, просто проигнорируйте письмо.`,
+          text: `Здравствуйте!\n\nПодтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}${authContinuationPath("/api/auth/confirm", data.redirect, { token })}\n\nЕсли вы не регистрировались в Sportura, просто проигнорируйте письмо.`,
         });
         // No session until the address is confirmed; the link leads to sign-in.
       });
@@ -93,7 +95,13 @@ export const signUp = createServerFn({ method: "POST" })
 
 export const signIn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ email, password: z.string().max(200) }).parse(input),
+    z
+      .object({
+        email,
+        password: z.string().max(200),
+        redirect: z.string().optional().transform(safeAuthRedirect),
+      })
+      .parse(input),
   )
   .handler(async ({ data }) => {
     const s = await server();
@@ -122,7 +130,7 @@ export const signIn = createServerFn({ method: "POST" })
         s.rateLimit(`confirm:${unconfirmed}`, 5, 60);
         s.requireMailConfigured();
         await s.asService((tx) =>
-          sendConfirmation(s, tx, unconfirmed, data.email),
+          sendConfirmation(s, tx, unconfirmed, data.email, data.redirect),
         );
       } catch {
         // Delivery problems must not hide why sign-in was refused.
@@ -152,7 +160,14 @@ export const signOut = createServerFn({ method: "POST" })
   });
 
 export const requestPasswordReset = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => z.object({ email }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        email,
+        redirect: z.string().optional().transform(safeAuthRedirect),
+      })
+      .parse(input),
+  )
   .handler(async ({ data }) => {
     const s = await server();
     s.rateLimit(`reset:${data.email}`, 5, 60);
@@ -176,7 +191,7 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
         await s.sendMail({
           to: data.email,
           subject: "Восстановление пароля Sportura",
-          text: `Чтобы задать новый пароль, откройте ссылку (действует 1 час):\n${s.appUrl()}/reset-password?token=${token}\n\nЕсли вы не запрашивали смену пароля, проигнорируйте письмо.`,
+          text: `Чтобы задать новый пароль, откройте ссылку (действует 1 час):\n${s.appUrl()}${authContinuationPath("/reset-password", data.redirect, { token })}\n\nЕсли вы не запрашивали смену пароля, проигнорируйте письмо.`,
         });
       });
     } catch (error) {
@@ -323,6 +338,7 @@ async function sendConfirmation(
   tx: Tx,
   userId: string,
   address: string,
+  redirect = "/",
 ) {
   const token = await s.issueToken(
     tx,
@@ -334,7 +350,7 @@ async function sendConfirmation(
   await s.sendMail({
     to: address,
     subject: "Подтвердите e-mail в Sportura",
-    text: `Подтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}/api/auth/confirm?token=${token}`,
+    text: `Подтвердите адрес, открыв ссылку (действует 24 часа):\n${s.appUrl()}${authContinuationPath("/api/auth/confirm", redirect, { token })}`,
   });
 }
 
