@@ -12,6 +12,7 @@ import { useSessionUser } from "@/lib/use-session";
 import { LanguageToggle } from "./language-toggle";
 import { ThemeToggle } from "./theme-toggle";
 import { BrandMark } from "./brand-mark";
+import { AnalyticsSettingsButton } from "@/components/analytics/consent";
 import "@/styles/feed.css";
 const navigation = [
   { to: "/", label: "Лента", icon: Compass },
@@ -51,7 +52,8 @@ export function FeedShell({ children }: { children: ReactNode }) {
                   ? pathname === "/"
                   : to === "/host"
                     ? pathname.startsWith("/host") ||
-                      pathname.startsWith("/organizer/")
+                      pathname.startsWith("/organizer/") ||
+                      pathname === "/for-organizers"
                     : to === "/profile"
                       ? pathname.startsWith("/profile") ||
                         pathname.startsWith("/admin")
@@ -59,7 +61,11 @@ export function FeedShell({ children }: { children: ReactNode }) {
               return (
                 <Link
                   key={to}
-                  to={to}
+                  to={
+                    to === "/host" && session.data === null
+                      ? "/for-organizers"
+                      : to
+                  }
                   aria-current={active ? "page" : undefined}
                   className={active ? "is-active" : ""}
                 >
@@ -99,7 +105,16 @@ export function FeedShell({ children }: { children: ReactNode }) {
       </main>
       <footer className="feed-footer">
         <span>{tr("Sportura · Игра начинается с тебя")}</span>
-        <Link to="/legal">{tr("Правила и документы")}</Link>
+        <nav
+          className="feed-footer-links"
+          aria-label={tr("Помощь и настройки")}
+        >
+          <Link to="/help">{tr("Помощь")}</Link>
+          <Link to="/for-organizers">{tr("Организаторам")}</Link>
+          <Link to="/game-alerts">{tr("Новые игры")}</Link>
+          <Link to="/legal">{tr("Правила и документы")}</Link>
+          <AnalyticsSettingsButton />
+        </nav>
       </footer>
     </div>
   );
