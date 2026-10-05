@@ -3,6 +3,7 @@ import { disputeAction } from "@/lib/competition-admin.functions";
 import { WeatherReschedule } from "@/components/events/prizes";
 import { EventDisputes } from "@/components/events/disputes";
 import { OrganizerTrust } from "@/components/events/host/trust";
+import { GettingStarted } from "@/components/events/host/getting-started";
 import { useState } from "react";
 import {
   createFileRoute,
@@ -117,7 +118,7 @@ function HostPage() {
     >
       <UnsavedChanges>
         <div className="events-workspace">
-          {me.isPending || q.isPending ? (
+          {me.isPending || (!!me.data && q.isPending) ? (
             <Panel title={tr("Загружаем кабинет…")}>
               <p className="workspace-muted">
                 {tr("Получаем события и последние изменения.")}
@@ -217,25 +218,19 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
   }
   return (
     <>
-      {["overview", "settings"].includes(search.tab) && (
-        <OrganizerTrust
-          firstSpark={data.activities.some(
-            (a) => a.type === "tournament" && a.tier === "spark",
-          )}
-        />
+      {(search.tab !== "overview" || data.activities.length > 0) && (
+        <div className="event-toolbar justify-end">
+          <Button
+            disabled={!!editor && search.tab === "events"}
+            onClick={() => {
+              setEditor({ key: crypto.randomUUID() });
+              go("events");
+            }}
+          >
+            {tr("+ Создать событие")}
+          </Button>
+        </div>
       )}
-      <div className="event-toolbar">
-        <p className="workspace-kicker">SPORTURA / ORGANIZER</p>
-        <Button
-          disabled={!!editor && search.tab === "events"}
-          onClick={() => {
-            setEditor({ key: crypto.randomUUID() });
-            go("events");
-          }}
-        >
-          {tr("+ Создать событие")}
-        </Button>
-      </div>
       <nav className="event-tabs" aria-label={tr("Кабинет организатора")}>
         {Object.entries(tabs)
           .filter(([key]) => key !== "payments")
@@ -264,7 +259,19 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
           onDone={open}
         />
       ) : search.tab === "overview" ? (
-        <Overview data={data} me={me} go={go} />
+        <Overview
+          data={data}
+          me={me}
+          go={go}
+          onCreate={() => {
+            setEditor({ key: crypto.randomUUID() });
+            go("events");
+          }}
+          onDraft={(document) => {
+            setEditor({ key: document.id, document });
+            go("events");
+          }}
+        />
       ) : search.tab === "events" && a ? (
         <EventManagement
           event={a}
@@ -346,22 +353,25 @@ function Workspace({ data, me }: { data: HostWorkspace; me: MyProfile }) {
       ) : search.tab === "insights" ? (
         <HostInsights data={data} onSelect={open} />
       ) : search.tab === "settings" ? (
-        <HostSettings
-          data={data}
-          onTemplate={(d) => {
-            setEditor({
-              key: crypto.randomUUID(),
-              document: {
-                ...d,
-                id: crypto.randomUUID(),
-                kind: "draft",
-                updated_at: "",
-                data: { ...d.data, date_time: "", registration_deadline: "" },
-              },
-            });
-            go("events");
-          }}
-        />
+        <>
+          {canComp && <OrganizerTrust />}
+          <HostSettings
+            data={data}
+            onTemplate={(d) => {
+              setEditor({
+                key: crypto.randomUUID(),
+                document: {
+                  ...d,
+                  id: crypto.randomUUID(),
+                  kind: "draft",
+                  updated_at: "",
+                  data: { ...d.data, date_time: "", registration_deadline: "" },
+                },
+              });
+              go("events");
+            }}
+          />
+        </>
       ) : null}
     </>
   );
@@ -370,9 +380,13 @@ function Overview({
   data: d,
   me,
   go,
+  onCreate,
+  onDraft,
 }: {
   data: HostWorkspace;
   me: MyProfile;
+  onCreate: () => void;
+  onDraft: (document: HostDocument) => void;
   go: (
     tab: keyof typeof tabs,
     event?: string,
@@ -381,9 +395,11 @@ function Overview({
   ) => void;
 }) {
   const { tr, language } = useI18n();
+  const hasCompetitions = d.activities.some((a) => a.type !== "daily_game");
   const disputes = useQuery({
     queryKey: ["disputes", "all"],
     queryFn: () => disputeAction({ data: { action: "list", payload: {} } }),
+    enabled: hasCompetitions,
   });
   const openDisputes =
     disputes.data?.filter(
@@ -394,13 +410,14 @@ function Overview({
   const future = d.activities
     .filter((a) => ["upcoming", "live"].includes(eventPhase(a)))
     .sort((a, b) => (a.date_time ?? "z").localeCompare(b.date_time ?? "z"));
-  const checks = d.registrations.filter(
-    (r) => r.payment_status === "needs_review",
-  );
-  const refunds = d.refunds.filter(
-    (f) => !["completed", "rejected"].includes(f.status),
-  );
   const today = localDateTime(new Date().toISOString()).slice(0, 10);
+  const todayEvents = d.activities
+    .filter(
+      (a) =>
+        a.status !== "cancelled" &&
+        localDateTime(a.date_time).startsWith(today),
+    )
+    .sort((a, b) => (a.date_time ?? "z").localeCompare(b.date_time ?? "z"));
   const attention = d.activities.filter(
     (a) =>
       a.status !== "cancelled" &&
@@ -416,6 +433,9 @@ function Overview({
   );
   return (
     <>
+      {!d.activities.length && (
+        <GettingStarted data={d} onCreate={onCreate} onDraft={onDraft} />
+      )}
       <Panel
         title={tr(me.name)}
         description={`${tr(me.city)} · ${me.roles
@@ -425,7 +445,9 @@ function Overview({
       >
         <div className="event-line">
           <span className="workspace-tag">
-            {tr(me.verified ? "Профиль проверен" : "Роль организатора активна")}
+            {tr(
+              me.verified ? "Контакт подтверждён" : "Роль организатора активна",
+            )}
           </span>
           <Link
             className="profile-link"
@@ -436,29 +458,31 @@ function Overview({
           </Link>
         </div>
       </Panel>
-      <div className="event-stats">
-        {[
-          [future.length, "Предстоящие", () => go("events")],
-          [
-            d.registrations.filter(
-              (r) =>
-                r.status === "registered" &&
-                future.some((a) => a.id === r.activity_id),
-            ).length,
-            "Записаны",
-            () => go("participants", undefined, undefined, "registered"),
-          ],
-        ].map(([n, l, fn]) => (
-          <button
-            key={String(l)}
-            className="workspace-stat"
-            onClick={fn as () => void}
-          >
-            <strong>{Number(n)}</strong>
-            <span>{tr(String(l))}</span>
-          </button>
-        ))}
-      </div>
+      {d.activities.length > 0 && (
+        <div className="event-stats event-overview-stats">
+          {[
+            [future.length, "Предстоящие", () => go("events")],
+            [
+              d.registrations.filter(
+                (r) =>
+                  r.status === "registered" &&
+                  future.some((a) => a.id === r.activity_id),
+              ).length,
+              "Записаны",
+              () => go("participants", undefined, undefined, "registered"),
+            ],
+          ].map(([n, l, fn]) => (
+            <button
+              key={String(l)}
+              className="workspace-stat"
+              onClick={fn as () => void}
+            >
+              <strong>{Number(n)}</strong>
+              <span>{tr(String(l))}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {future[0] && (
         <Panel title={tr("Ближайшее событие")}>
           <EventSummary a={future[0]} data={d} />
@@ -470,67 +494,89 @@ function Overview({
           </div>
         </Panel>
       )}
-      <Panel title={tr("Требует внимания")}>
-        {openDisputes > 0 && (
-          <Button
-            className="mb-3"
-            variant="outline"
-            onClick={() => go("disputes")}
-          >
-            {tr("Открытые споры: ")}
-            {openDisputes} →
-          </Button>
-        )}
-        <div className="event-rows">
-          {attention.map((a) => (
-            <button
-              key={a.id}
-              className="event-row text-left"
-              onClick={() => go("events", a.id)}
+      {(d.activities.length > 0 || d.notifications.length > 0) && (
+        <Panel title={tr("Требует внимания")}>
+          {hasCompetitions && disputes.isPending && (
+            <p className="workspace-muted" role="status">
+              {tr("Проверяем открытые споры…")}
+            </p>
+          )}
+          {hasCompetitions && disputes.isError && (
+            <div className="space-y-3" role="alert">
+              <p className="workspace-muted">
+                {tr(
+                  "Не удалось проверить споры. Повторите загрузку или откройте раздел «Споры».",
+                )}
+              </p>
+              <div className="event-actions">
+                <Button
+                  variant="outline"
+                  onClick={() => void disputes.refetch()}
+                >
+                  {tr("Повторить")}
+                </Button>
+                <Button variant="outline" onClick={() => go("disputes")}>
+                  {tr("Споры")}
+                </Button>
+              </div>
+            </div>
+          )}
+          {openDisputes > 0 && (
+            <Button
+              className="mb-3"
+              variant="outline"
+              onClick={() => go("disputes")}
             >
-              {tr(a.title)}:{tr(" ")}
-              {tr(
-                eventPhase(a) === "upcoming"
-                  ? "набрано меньше половины состава"
-                  : "проверьте посещение и результаты",
+              {tr("Открытые споры: ")}
+              {openDisputes} →
+            </Button>
+          )}
+          <div className="event-rows">
+            {attention.map((a) => (
+              <button
+                key={a.id}
+                className="event-row text-left"
+                onClick={() => go("events", a.id)}
+              >
+                {tr(a.title)}:{tr(" ")}
+                {tr(
+                  eventPhase(a) === "upcoming"
+                    ? "набрано меньше половины состава"
+                    : "проверьте посещение и результаты",
+                )}
+                {tr(" ")}→
+              </button>
+            ))}
+            {d.notifications.slice(0, 5).map((n) => (
+              <a
+                key={n.id}
+                className="event-row"
+                href={
+                  n.href.startsWith("/") && !n.href.startsWith("//")
+                    ? n.href
+                    : "/host"
+                }
+              >
+                <strong>{tr(n.title)}</strong>
+                <p className="workspace-muted text-sm">{tr(n.body)}</p>
+              </a>
+            ))}
+            {!attention.length &&
+              !d.notifications.length &&
+              openDisputes === 0 &&
+              (!hasCompetitions || disputes.isSuccess) && (
+                <Empty
+                  title={tr("Всё спокойно")}
+                  text="Новые задачи появятся здесь."
+                />
               )}
-              {tr(" ")}→
-            </button>
-          ))}
-          {d.notifications.slice(0, 5).map((n) => (
-            <a
-              key={n.id}
-              className="event-row"
-              href={
-                n.href.startsWith("/") && !n.href.startsWith("//")
-                  ? n.href
-                  : "/host"
-              }
-            >
-              <strong>{tr(n.title)}</strong>
-              <p className="workspace-muted text-sm">{tr(n.body)}</p>
-            </a>
-          ))}
-          {!checks.length &&
-            !refunds.length &&
-            !attention.length &&
-            !d.notifications.length && (
-              <Empty
-                title={tr("Всё спокойно")}
-                text="Новые задачи появятся здесь."
-              />
-            )}
-        </div>
-      </Panel>
-      <Panel title={tr("План на сегодня")}>
-        <div className="event-rows">
-          {d.activities
-            .filter(
-              (a) =>
-                a.status !== "cancelled" &&
-                localDateTime(a.date_time).startsWith(today),
-            )
-            .map((a) => (
+          </div>
+        </Panel>
+      )}
+      {d.activities.length > 0 && (
+        <Panel title={tr("План на сегодня")}>
+          <div className="event-rows">
+            {todayEvents.map((a) => (
               <button
                 key={a.id}
                 className="event-row text-left"
@@ -539,35 +585,19 @@ function Overview({
                 {tr(dateLabel(a.date_time, true, language))} · {tr(a.title)} →
               </button>
             ))}
-        </div>
-        {!d.activities.some((a) =>
-          localDateTime(a.date_time).startsWith(today),
-        ) && (
-          <p className="workspace-muted">
-            {tr("Сегодня событий нет. Можно подготовить следующую игру.")}
-          </p>
-        )}
-      </Panel>
-      {!d.activities.length && (
-        <Panel title={tr("Первые шаги")}>
-          <ol className="list-decimal ml-5 space-y-2">
-            <li>
-              <Link
-                className="profile-link"
-                to="/profile"
-                search={{ tab: "organizer" }}
-              >
-                {tr("Заполните сведения организатора")}
-              </Link>
-            </li>
-            <li>{tr("Создайте событие и сохраните черновик.")}</li>
-            <li>{tr("Проверьте карточку и опубликуйте.")}</li>
-          </ol>
+          </div>
+          {todayEvents.length === 0 && (
+            <p className="workspace-muted">
+              {tr("Сегодня событий нет. Можно подготовить следующую игру.")}
+            </p>
+          )}
         </Panel>
       )}
-      <Panel title={tr("Последние изменения")}>
-        <History items={d.history.slice(0, 8)} />
-      </Panel>
+      {d.history.length > 0 && (
+        <Panel title={tr("Последние изменения")}>
+          <History items={d.history.slice(0, 8)} />
+        </Panel>
+      )}
     </>
   );
 }

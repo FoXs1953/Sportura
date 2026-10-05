@@ -111,6 +111,18 @@ export function OrganizerTab({
     { done: me.account_status === "active", label: "Аккаунт активен" },
   ];
   const canApply = requirements.every((r) => r.done) && !pending;
+  const missingFields = [
+    { done: !!form.value.city.trim(), label: "город" },
+    { done: form.value.sports.length > 0, label: "хотя бы один вид спорта" },
+    {
+      done: form.value.venues.trim().length >= 3,
+      label: "площадки — минимум 3 символа",
+    },
+    {
+      done: form.value.experience.trim().length >= 10,
+      label: "опыт — минимум 10 символов",
+    },
+  ].filter((field) => !field.done);
   return (
     <>
       <Panel
@@ -139,7 +151,7 @@ export function OrganizerTab({
           {requirements.map((r) => (
             <li
               key={r.label}
-              className={r.done ? "text-[#9ed9a2]" : "text-[#e9c67f]"}
+              className={r.done ? "text-success" : "text-warning"}
             >
               {tr(r.done ? "✓" : "○")} {tr(r.label)}
             </li>
@@ -226,15 +238,21 @@ export function OrganizerTab({
               </select>
             </label>
             <label>
-              {tr("Город")}
+              {tr("Город (обязательно)")}
               <Input
                 value={form.value.city}
                 maxLength={60}
+                required
                 onChange={(e) => form.patch({ city: e.target.value })}
               />
             </label>
             <div>
-              <h3 className="mb-3 text-sm font-bold">{tr("Виды спорта")}</h3>
+              <h3 className="text-sm font-bold">
+                {tr("Виды спорта (обязательно)")}
+              </h3>
+              <p className="workspace-muted mb-3 mt-1 text-xs">
+                {tr("Выберите хотя бы один вид спорта.")}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {SPORTS.map((s) => (
                   <button
@@ -255,22 +273,42 @@ export function OrganizerTab({
               </div>
             </div>
             <label>
-              {tr("Площадки")}
+              {tr("Площадки (обязательно)")}
               <Input
                 maxLength={200}
+                minLength={3}
+                required
+                aria-describedby="organizer-venues-hint"
                 value={form.value.venues}
                 onChange={(e) => form.patch({ venues: e.target.value })}
                 placeholder={tr("Название и адрес или район")}
               />
+              <span
+                id="organizer-venues-hint"
+                className="workspace-muted mt-1 block text-xs"
+              >
+                {tr("Минимум 3 символа.")}
+              </span>
             </label>
             <label>
-              {tr("Опыт проведения событий")}
+              {tr("Опыт проведения событий (обязательно)")}
               <Textarea
                 rows={4}
                 maxLength={500}
+                minLength={10}
+                required
+                aria-describedby="organizer-experience-hint"
                 value={form.value.experience}
                 onChange={(e) => form.patch({ experience: e.target.value })}
               />
+              <span
+                id="organizer-experience-hint"
+                className="workspace-muted mt-1 block text-xs"
+              >
+                {tr(
+                  "Минимум 10 символов. Расскажите о проведённых событиях или планах, если это ваш первый опыт.",
+                )}
+              </span>
             </label>
             <label>
               {tr("Публичный профиль или канал (необязательно)")}
@@ -300,11 +338,20 @@ export function OrganizerTab({
               </select>
             </label>
             {!canApply && (
-              <p className="text-sm text-[#e9c67f]">
-                {tr(
-                  "Перед отправкой выполните условия выше в разделе личных данных.",
-                )}
-              </p>
+              <div className="text-sm text-warning">
+                <p>
+                  {tr(
+                    "Перед отправкой выполните условия выше в разделе личных данных.",
+                  )}
+                </p>
+                <Link
+                  className="profile-link mt-2 inline-block"
+                  to="/profile"
+                  search={{ tab: "personal" }}
+                >
+                  {tr("Перейти к личным данным →")}
+                </Link>
+              </div>
             )}
             <p className="workspace-muted text-xs">
               {tr(
@@ -312,15 +359,14 @@ export function OrganizerTab({
               )}
             </p>
             <ErrorNotice message={tr(form.error)} />
+            {missingFields.length > 0 && (
+              <p className="text-sm text-warning" aria-live="polite">
+                {tr("Чтобы проверить заявку, заполните:")}{" "}
+                {missingFields.map((field) => tr(field.label)).join("; ")}.
+              </p>
+            )}
             <Button
-              disabled={
-                !canApply ||
-                form.busy ||
-                form.value.venues.trim().length < 3 ||
-                form.value.experience.trim().length < 10 ||
-                !form.value.sports.length ||
-                !form.value.city.trim()
-              }
+              disabled={!canApply || form.busy || missingFields.length > 0}
               onClick={() => setReview(true)}
             >
               {tr("Проверить заявку")}

@@ -30,6 +30,9 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
+.event-overview-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .event-line {
   display: flex;
   flex-wrap: wrap;

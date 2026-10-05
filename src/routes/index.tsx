@@ -12,13 +12,12 @@ import {
   SlidersHorizontal,
   X,
   Bookmark,
-  MapPin,
   ArrowRight,
-  ChevronDown,
   Check,
 } from "lucide-react";
 import { useSessionUser } from "@/lib/use-session";
 import { FeedShell } from "@/components/sportura/feed-shell";
+import { CitySelect } from "@/components/sportura/city-select";
 import { ActivityCard } from "@/components/sportura/activity-card";
 import { ContentBlocks } from "@/components/sportura/content-blocks";
 import { HowItWorks } from "@/components/sportura/guest-info";
@@ -217,26 +216,11 @@ function Feed() {
     <FeedShell>
       <section className="feed-intro">
         <div>
-          <label className="feed-location">
-            <MapPin size={17} aria-hidden="true" />
-            <select
-              aria-label={tr("Город")}
-              value={filters.city}
-              onChange={(e) => {
-                set({ city: e.target.value, district: "" });
-              }}
-            >
-              <option value="all">{tr("Все города")}</option>
-              {[
-                ...new Set([...CITIES, ...(site.data?.catalog.cities ?? [])]),
-              ].map((c) => (
-                <option value={c} className="bg-[#1b2123]" key={c}>
-                  {tr(c)}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={15} aria-hidden="true" />
-          </label>
+          <CitySelect
+            city={filters.city}
+            cities={[...CITIES, ...(site.data?.catalog.cities ?? [])]}
+            onCityChange={(city) => set({ city, district: "" })}
+          />
           <h1>
             {tr("Спорт рядом")}
             <span className="feed-title-dot">.</span>

@@ -1,6 +1,4 @@
 import { useI18n } from "@/lib/i18n";
-import { Link } from "@tanstack/react-router";
-import { getProfileWorkspace } from "@/lib/profile.functions";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -12,18 +10,11 @@ import { Button } from "@/components/ui/button";
 export function OrganizerTrust({
   id,
   admin = false,
-  firstSpark = false,
 }: {
   id?: string;
   admin?: boolean;
-  firstSpark?: boolean;
 }) {
   const { tr } = useI18n();
-  const profile = useQuery({
-    queryKey: ["profile-workspace"],
-    queryFn: () => getProfileWorkspace(),
-    enabled: !id,
-  });
   const q = useQuery({
     queryKey: ["host-trust", id ?? "me"],
     queryFn: () => getHostTrust({ data: { id } }),
@@ -61,36 +52,6 @@ export function OrganizerTrust({
             )}
           </p>
         </>
-      )}
-      {!id && profile.data && (
-        <div className="space-y-2 text-sm">
-          <strong>{tr("Первые шаги")}</strong>
-          <p>
-            {tr(
-              profile.data.preferences.host_name &&
-                profile.data.preferences.host_bio
-                ? "✓"
-                : "○",
-            )}
-            {tr(" ")}
-            {tr("Заполнить публичный профиль")}
-          </p>
-          <p>
-            {tr(profile.data.preferences.host_contact ? "✓" : "○")}
-            {tr(" Добавить ссылку для связи")}
-          </p>
-          <p>
-            {tr(firstSpark ? "✓" : "○")}
-            {tr(" Создать первый Spark")}
-          </p>
-          <Link
-            className="profile-link"
-            to="/profile"
-            search={{ tab: "organizer" }}
-          >
-            {tr("Настроить профиль →")}
-          </Link>
-        </div>
       )}
       {q.error && <ErrorNotice message={tr(q.error.message)} />}
       {tr(

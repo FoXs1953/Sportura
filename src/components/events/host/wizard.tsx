@@ -39,6 +39,16 @@ const steps = [
   "Доступ",
   "Предпросмотр",
 ];
+const fieldSteps: Partial<Record<keyof EventDraft, number>> = {
+  title: 1,
+  location_text: 2,
+  date_time: 2,
+  duration_minutes: 2,
+  registration_deadline: 2,
+  two_gis_url: 2,
+  max_participants: 3,
+  entry_fee: 3,
+};
 export function EventWizard({
   document,
   event,
@@ -107,6 +117,10 @@ export function EventWizard({
     saved.current = { id: d.id, version: d.updated_at };
   });
   const v = form.value;
+  const templates = documents.filter(
+    (d) =>
+      d.kind === "template" && (competition || d.data.type === "daily_game"),
+  );
   const update = (p: Partial<EventDraft>) => {
     form.patch(p);
     setErrors({});
@@ -175,6 +189,13 @@ export function EventWizard({
     setErrors(e);
     return Object.keys(e).length === 0;
   }
+  async function goToStep(nextStep: number) {
+    if (nextStep === step) return;
+    if ((!form.dirty && saved.current.version) || (await form.submit())) {
+      if (nextStep === 5) validate();
+      setStep(nextStep);
+    }
+  }
   return (
     <Panel
       title={tr(
@@ -183,7 +204,7 @@ export function EventWizard({
           : "Новое событие",
       )}
       description={tr(
-        "Черновик хранится в аккаунте. Время — Астана / Алматы (UTC+5).",
+        "Изменения сохраняются при переходе между этапами и кнопкой «Сохранить черновик». Время — Астана / Алматы (UTC+5).",
       )}
     >
       <fieldset disabled={form.busy || action.busy} className="event-form">
@@ -193,9 +214,7 @@ export function EventWizard({
               key={s}
               className={step === i ? "is-active" : ""}
               aria-current={step === i ? "step" : undefined}
-              onClick={async () => {
-                if (await form.submit()) setStep(i);
-              }}
+              onClick={() => void goToStep(i)}
               disabled={form.busy}
             >
               {i + 1}. {tr(s)}
@@ -204,38 +223,49 @@ export function EventWizard({
         </nav>
         {step === 0 && (
           <>
-            <label>
-              {tr("Формат")}
-              <select
-                value={v.type}
-                disabled={!!event || !!document?.activity_id}
-                onChange={(e) => {
-                  const nextType = e.target.value as EventDraft["type"];
-                  update({
-                    type: nextType,
-                    competition_format:
-                      nextType === "league"
-                        ? "league_playoff"
-                        : "single_elimination",
-                    duration_minutes: nextType === "league" ? 40320 : 180,
-                    ...(nextType === "tournament"
-                      ? {}
-                      : {
-                          tier: nextType === "league" ? "spark" : null,
-                          entry_fee: 0,
-                        }),
-                  });
-                }}
-              >
-                {Object.entries(ACTIVITY_TYPE_LABEL)
-                  .filter(([t]) => t === "daily_game" || competition)
-                  .map(([k, l]) => (
-                    <option key={k} value={k}>
-                      {tr(l)}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            {competition || v.type !== "daily_game" ? (
+              <label>
+                {tr("Формат")}
+                <select
+                  value={v.type}
+                  disabled={!!event || !!document?.activity_id}
+                  onChange={(e) => {
+                    const nextType = e.target.value as EventDraft["type"];
+                    update({
+                      type: nextType,
+                      competition_format:
+                        nextType === "league"
+                          ? "league_playoff"
+                          : "single_elimination",
+                      duration_minutes: nextType === "league" ? 40320 : 180,
+                      ...(nextType === "tournament"
+                        ? {}
+                        : {
+                            tier: nextType === "league" ? "spark" : null,
+                            entry_fee: 0,
+                          }),
+                    });
+                  }}
+                >
+                  {Object.entries(ACTIVITY_TYPE_LABEL)
+                    .filter(([t]) => t === "daily_game" || competition)
+                    .map(([k, l]) => (
+                      <option key={k} value={k}>
+                        {tr(l)}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ) : (
+              <div className="event-muted-box">
+                <h3 className="font-semibold">{tr("Игра")}</h3>
+                <p className="workspace-muted mt-2 text-sm">
+                  {tr(
+                    "Вы создаёте игру без турнирной сетки. После публикации игроки смогут записаться.",
+                  )}
+                </p>
+              </div>
+            )}
             {v.type !== "daily_game" && (
               <div className="event-form-grid">
                 <label>
@@ -400,34 +430,30 @@ export function EventWizard({
                 </p>
               </div>
             )}
-            <label>
-              {tr("Использовать шаблон")}
-              <select
-                defaultValue=""
-                onChange={(e) => {
-                  const d = documents.find((d) => d.id === e.target.value);
-                  if (d)
-                    update({
-                      ...d.data,
-                      date_time: "",
-                      registration_deadline: "",
-                    });
-                }}
-              >
-                <option value="">{tr("Без шаблона")}</option>
-                {documents
-                  .filter(
-                    (d) =>
-                      d.kind === "template" &&
-                      (competition || d.data.type === "daily_game"),
-                  )
-                  .map((d) => (
+            {templates.length > 0 && (
+              <label>
+                {tr("Использовать шаблон")}
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    const d = documents.find((d) => d.id === e.target.value);
+                    if (d)
+                      update({
+                        ...d.data,
+                        date_time: "",
+                        registration_deadline: "",
+                      });
+                  }}
+                >
+                  <option value="">{tr("Без шаблона")}</option>
+                  {templates.map((d) => (
                     <option key={d.id} value={d.id}>
                       {tr(d.name)}
                     </option>
                   ))}
-              </select>
-            </label>
+                </select>
+              </label>
+            )}
           </>
         )}
         {step === 1 && (
@@ -613,6 +639,7 @@ export function EventWizard({
                 {tr("Начало")}
                 <input
                   type="datetime-local"
+                  aria-invalid={!!errors.date_time}
                   value={localDateTime(v.date_time)}
                   onChange={(e) =>
                     update({ date_time: isoDateTime(e.target.value) })
@@ -630,6 +657,7 @@ export function EventWizard({
                 <label>
                   {tr("Длительность сезона")}
                   <select
+                    aria-invalid={!!errors.duration_minutes}
                     value={v.duration_minutes}
                     onChange={(e) =>
                       update({ duration_minutes: Number(e.target.value) })
@@ -650,6 +678,11 @@ export function EventWizard({
                       </option>
                     ))}
                   </select>
+                  {errors.duration_minutes && (
+                    <span className="event-error-field">
+                      {tr(errors.duration_minutes)}
+                    </span>
+                  )}
                 </label>
               ) : (
                 field("duration_minutes", "Продолжительность, минут", "number")
@@ -658,6 +691,7 @@ export function EventWizard({
                 {tr("Окончание регистрации")}
                 <input
                   type="datetime-local"
+                  aria-invalid={!!errors.registration_deadline}
                   value={localDateTime(v.registration_deadline)}
                   onChange={(e) =>
                     update({
@@ -853,11 +887,26 @@ export function EventWizard({
             <p className="event-description">{tr(v.description)}</p>
             <p className="event-description">{tr(v.rules)}</p>
             <p className="event-description">{tr(v.cancellation_policy)}</p>
-            {Object.entries(errors).map(([k, e]) => (
-              <p className="event-error-field" key={k}>
-                {tr(e)}
-              </p>
-            ))}
+            {Object.keys(errors).length > 0 && (
+              <div role="alert" className="space-y-2">
+                <p className="event-error-field">
+                  {tr("Перед публикацией исправьте поля:")}
+                </p>
+                {Object.entries(errors).map(([key, error]) => {
+                  const target = fieldSteps[key as keyof EventDraft] ?? 1;
+                  return (
+                    <button
+                      type="button"
+                      className="event-error-field block text-left underline underline-offset-4"
+                      key={key}
+                      onClick={() => void goToStep(target)}
+                    >
+                      {tr(steps[target])}: {tr(error)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
         <ErrorNotice message={tr(form.error || action.error)} />
@@ -881,9 +930,7 @@ export function EventWizard({
           {step < 5 ? (
             <Button
               disabled={form.busy}
-              onClick={async () => {
-                if (await form.submit()) setStep(step + 1);
-              }}
+              onClick={() => void goToStep(step + 1)}
             >
               {tr("Далее")}
             </Button>
@@ -939,7 +986,9 @@ export function EventWizard({
               onDone(result.id);
             }, "Событие опубликовано");
           }}
-        />
+        >
+          <ErrorNotice message={tr(form.error || action.error)} />
+        </Confirm>
       </fieldset>
     </Panel>
   );
