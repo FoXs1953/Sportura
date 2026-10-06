@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Trophy,
   LifeBuoy,
+  Shield,
 } from "lucide-react";
 import { AppShell } from "@/components/sportura/shell";
 import { Button } from "@/components/ui/button";
@@ -223,6 +224,12 @@ function Profile() {
                     </Link>
                   );
                 })}
+                {user.roles.includes("admin") && (
+                  <Link to="/admin">
+                    <Shield size={17} />
+                    {tr("Администрирование")}
+                  </Link>
+                )}
               </nav>
             </aside>
             <div className="profile-main" key={tab}>
