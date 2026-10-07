@@ -10,8 +10,11 @@ const report = {
 };
 let transport;
 const deadline = setTimeout(() => {
-  report.connection = "failed";
-  report.code = "ETIMEDOUT";
+  if (report.connection === "ready") report.providerCheck = "timed_out";
+  else {
+    report.connection = "failed";
+    report.code = "ETIMEDOUT";
+  }
   process.stdout.write(
     `[mail] deployment preflight ${JSON.stringify(report)}\n`,
     () => process.exit(0),
@@ -61,6 +64,81 @@ try {
       socketTimeout: 8_000,
     });
     report.connection = (await transport.verify()) ? "ready" : "failed";
+    // Read only provider configuration, never messages or recovery links.
+    if (report.connection === "ready" && url.hostname === "smtp.resend.com") {
+      try {
+        const headers = {
+          Authorization: `Bearer ${decodeURIComponent(url.password)}`,
+        };
+        const domainsResponse = await fetch(
+          "https://api.resend.com/domains?limit=100",
+          {
+            headers,
+            signal: AbortSignal.timeout(3_500),
+          },
+        );
+        report.providerReadStatus = domainsResponse.status;
+        const domains = await domainsResponse.json();
+        if (!domainsResponse.ok) {
+          // A sending-only key cannot read domains; its SMTP access is valid.
+          const names = [
+            "restricted_api_key",
+            "suspended_api_key",
+            "invalid_permission",
+            "invalid_api_key",
+            "rate_limit_exceeded",
+          ];
+          report.providerReadError = names.includes(domains.name)
+            ? domains.name
+            : "unavailable";
+        } else if (Array.isArray(domains.data)) {
+          const domainName = sender.split("@").at(-1).toLowerCase();
+          const domain = domains.data.find(
+            (entry) => entry.name?.toLowerCase() === domainName,
+          );
+          const statuses = [
+            "not_started",
+            "pending",
+            "verified",
+            "failed",
+            "temporary_failure",
+            "partially_verified",
+            "partially_failed",
+          ];
+          report.senderDomainStatus = domain
+            ? statuses.includes(domain.status)
+              ? domain.status
+              : "unknown"
+            : domains.has_more
+              ? "not_checked"
+              : "not_found";
+          if (["enabled", "disabled"].includes(domain?.capabilities?.sending)) {
+            report.senderDomainSending = domain.capabilities.sending;
+          }
+          const usageResponse = await fetch("https://api.resend.com/usage", {
+            headers,
+            signal: AbortSignal.timeout(3_500),
+          });
+          report.providerUsageStatus = usageResponse.status;
+          if (usageResponse.ok) {
+            const usage = await usageResponse.json();
+            for (const window of ["daily", "monthly"]) {
+              const quota = usage.emails?.[window];
+              if (
+                typeof quota?.limit === "number" &&
+                Number.isFinite(quota.limit) &&
+                typeof quota.used === "number" &&
+                Number.isFinite(quota.used)
+              ) {
+                report[`${window}QuotaExhausted`] = quota.used >= quota.limit;
+              }
+            }
+          }
+        }
+      } catch {
+        report.providerCheck = "unavailable";
+      }
+    }
   } else {
     report.connection = "not_configured";
   }

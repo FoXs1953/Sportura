@@ -43,6 +43,12 @@ configuration flags, the server host/port and error codes. A failed check keeps
 the site available; SMTP acceptance of a particular sender and inbox delivery
 must be checked separately.
 
+For Resend, a read-only check also reports the sender domain status and whether
+the email quota is exhausted, if the existing API key permits these reads.
+`providerReadStatus: 401` with `restricted_api_key` means a sending-only key;
+it does not mean SMTP authentication failed. Provider responses, keys and
+message contents are never logged.
+
 Files involved: [Dockerfile](../Dockerfile),
 [deploy/docker-compose.yml](../deploy/docker-compose.yml) (one stack),
 [deploy/proxy/](../deploy/proxy/) (proxy and per-environment site files),
