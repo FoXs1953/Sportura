@@ -23,6 +23,7 @@ export {
   findToken,
   invalidateIdentityTokens,
 } from "./auth-tokens.server";
+export { requireEmailConfirmation } from "./auth-confirmation.server";
 
 export const SESSION_COOKIE = "sportura_session";
 const SESSION_SECONDS = 30 * 24 * 3600;

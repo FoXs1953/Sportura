@@ -37,6 +37,12 @@ GitHub Actions                                   VPS
 4. smoke   curl https://<site>
 ```
 
+After migrations, the deployment checks SMTP connectivity and authentication
+without sending a message. The `[mail] deployment preflight` log contains only
+configuration flags, the server host/port and error codes. A failed check keeps
+the site available; SMTP acceptance of a particular sender and inbox delivery
+must be checked separately.
+
 Files involved: [Dockerfile](../Dockerfile),
 [deploy/docker-compose.yml](../deploy/docker-compose.yml) (one stack),
 [deploy/proxy/](../deploy/proxy/) (proxy and per-environment site files),

@@ -16,7 +16,7 @@ ENV NODE_ENV=production PORT=3000
 COPY --from=build /app/.output ./.output
 # Migration runner: `node scripts/db-migrate.mjs` (postgres has no dependencies).
 COPY --from=build /app/node_modules/postgres ./node_modules/postgres
-COPY scripts/db-migrate.mjs ./scripts/
+COPY scripts/db-migrate.mjs scripts/check-mail.mjs ./scripts/
 COPY db ./db
 COPY supabase/migrations ./supabase/migrations
 # Uploaded files; a named volume mounted here inherits this ownership.

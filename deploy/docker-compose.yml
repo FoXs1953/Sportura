@@ -26,11 +26,14 @@ services:
   migrate:
     image: ${IMAGE:?set IMAGE}
     profiles: ["tools"]
-    command: ["node", "scripts/db-migrate.mjs"]
+    command: ["sh", "-c", "node scripts/db-migrate.mjs && node scripts/check-mail.mjs"]
     environment:
       DATABASE_URL: postgres://sportura:${DB_OWNER_PASSWORD}@db:5432/sportura
       APP_DB_USER: sportura_app
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+      # Verify mail connectivity during deployment; never send test messages.
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     depends_on:
       db:
         condition: service_healthy

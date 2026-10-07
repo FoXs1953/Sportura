@@ -126,18 +126,13 @@ export const signIn = createServerFn({ method: "POST" })
     if (unconfirmed) {
       // The password is correct, so a fresh link can be sent without revealing
       // anything new.
-      try {
+      await s.requireEmailConfirmation(async () => {
         s.rateLimit(`confirm:${unconfirmed}`, 5, 60);
         s.requireMailConfigured();
         await s.asService((tx) =>
           sendConfirmation(s, tx, unconfirmed, data.email, data.redirect),
         );
-      } catch {
-        // Delivery problems must not hide why sign-in was refused.
-      }
-      throw new Error(
-        "Подтвердите e-mail, чтобы войти. Мы отправили новую ссылку на почту.",
-      );
+      });
     }
     return { ok: true };
   });
