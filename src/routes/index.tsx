@@ -722,8 +722,7 @@ function Feed() {
                 (s) => s.activity_id === a.id,
               );
               return (
-                <div key={a.id}>
-                  <ActivityCard activity={a} priority={index === 0} />
+                <ActivityCard key={a.id} activity={a} priority={index === 0}>
                   <div className="event-card-controls">
                     <div>
                       {reg && (
@@ -766,6 +765,7 @@ function Feed() {
                       )}
                     </div>
                     <button
+                      type="button"
                       className="event-favorite"
                       aria-label={tr(
                         saved ? "Убрать из сохранённых" : "Сохранить событие",
@@ -797,7 +797,7 @@ function Feed() {
                       />
                     </button>
                   </div>
-                </div>
+                </ActivityCard>
               );
             })}
           </div>

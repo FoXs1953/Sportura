@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, MapPin, Clock, Star, UsersRound } from "lucide-react";
@@ -58,6 +59,7 @@ export function CapacityMeter({
 export function ActivityCard({
   activity,
   priority = false,
+  children,
 }: {
   activity: PublicActivity & {
     cover_url?: string | null;
@@ -67,6 +69,7 @@ export function ActivityCard({
     host_approved?: boolean;
   };
   priority?: boolean;
+  children?: ReactNode;
 }) {
   const { tr, language } = useI18n();
   const open = isRegistrationOpen(activity);
@@ -256,6 +259,7 @@ export function ActivityCard({
           </div>
         </div>
       </Link>
+      {children}
     </article>
   );
 }

@@ -132,23 +132,39 @@
 }
 .event-card-controls {
   border-top: 1px solid var(--feed-line);
-  padding: 12px 20px;
+  margin: 0 18px;
+  padding: 12px 0 16px;
   display: flex;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
 }
+.event-card-controls > div {
+  min-width: 0;
+}
 .event-favorite {
   display: grid;
   place-items: center;
-  min-width: 40px;
-  min-height: 40px;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  color: var(--feed-muted);
+  background: var(--feed-bg);
   border-radius: 10px;
   border: 1px solid var(--feed-line);
 }
+.event-favorite:hover:not(:disabled) {
+  color: var(--feed-accent);
+  border-color: var(--feed-accent);
+}
+.event-favorite:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 .event-favorite[aria-pressed="true"] {
   color: var(--feed-accent);
-  background: color-mix(in srgb, var(--feed-accent) 9%, transparent);
+  border-color: color-mix(in srgb, var(--feed-accent) 45%, var(--feed-line));
+  background: color-mix(in srgb, var(--feed-accent) 12%, var(--feed-bg));
 }
 .event-form {
   display: grid;

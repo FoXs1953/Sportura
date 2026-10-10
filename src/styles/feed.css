@@ -513,6 +513,8 @@
   gap: 22px;
 }
 .feed-card {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   background: var(--feed-surface);
   border: 1px solid var(--feed-line);
@@ -535,7 +537,7 @@
 .feed-card-link {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
 }
 .feed-card:has(.feed-card-link:focus-visible) {
   outline: 2px solid var(--feed-accent);
@@ -1213,10 +1215,13 @@
 .feed-sports {
   padding-bottom: 16px;
 }
-.feed-sports .feed-chip.is-active:not(:first-child) {
-  background: #ff916418;
+.feed-sports .feed-chip.is-active {
+  background: color-mix(in srgb, var(--feed-accent) 12%, var(--feed-bg));
   color: var(--feed-accent);
-  border-color: #ff91646b;
+  border-color: color-mix(in srgb, var(--feed-accent) 45%, var(--feed-line));
+}
+.feed-sports .feed-chip.is-active:hover {
+  background: color-mix(in srgb, var(--feed-accent) 18%, var(--feed-bg));
 }
 .feed-active-filter {
   display: inline-flex;
@@ -1247,7 +1252,7 @@
   color: var(--feed-text);
 }
 .feed-active-filter:hover .feed-filter-remove {
-  background: #ff916426;
+  background: color-mix(in srgb, var(--feed-accent) 15%, var(--feed-bg));
   color: var(--feed-accent);
 }
 
