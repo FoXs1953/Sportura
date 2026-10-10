@@ -229,7 +229,7 @@ function Feed() {
         </div>
         <Link to="/join" className="feed-invite">
           <span>
-            <strong>{tr("Есть приглашение?")}</strong>
+            <strong>{tr("Есть приглашение?")}</strong>{" "}
             <span>{tr("Войти в игру по коду")}</span>
           </span>
           <ArrowRight size={20} />

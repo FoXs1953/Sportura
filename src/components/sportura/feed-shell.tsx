@@ -78,6 +78,23 @@ export function FeedShell({ children }: { children: ReactNode }) {
           <div className="feed-header-actions">
             <LanguageToggle />
             <ThemeToggle />
+            {session.data && (
+              <Link
+                to="/profile"
+                className="feed-account-link"
+                aria-label={tr("Перейти в профиль")}
+                title={tr("Перейти в профиль")}
+                aria-current={
+                  pathname.startsWith("/profile") ? "page" : undefined
+                }
+              >
+                <span className="feed-account-icon" aria-hidden="true">
+                  <UserRound size={19} />
+                  <span className="feed-account-status" />
+                </span>
+                <span className="feed-account-label">{tr("Профиль")}</span>
+              </Link>
+            )}
             {session.data === null && (
               <div className="feed-auth-actions">
                 <Link

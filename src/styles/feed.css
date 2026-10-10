@@ -133,6 +133,42 @@
   background: var(--feed-raised);
   color: var(--feed-accent);
 }
+.feed-account-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--feed-accent) 30%, var(--feed-line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--feed-accent) 8%, var(--feed-surface));
+  color: var(--feed-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+.feed-account-link:hover,
+.feed-account-link[aria-current="page"] {
+  border-color: var(--feed-accent);
+  background: color-mix(in srgb, var(--feed-accent) 15%, var(--feed-surface));
+}
+.feed-account-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.feed-account-status {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--feed-surface);
+  border-radius: 50%;
+  background: var(--success);
+}
 .theme-icon-sun,
 .dark .theme-icon-moon {
   display: none;
@@ -1310,6 +1346,13 @@
 }
 /* Narrower headers keep sign-in as an icon; registration stays one tap away on its page. */
 @media (max-width: 1199px) {
+  .feed-account-link {
+    width: 44px;
+    padding: 0;
+  }
+  .feed-account-label {
+    display: none;
+  }
   .feed-auth-signin {
     width: 44px;
     padding: 0;
@@ -1323,6 +1366,11 @@
   }
 }
 @media (max-width: 767px) {
+  .feed-account-link {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+  }
   .feed-auth-signin {
     width: 40px;
     min-height: 40px;
@@ -1349,10 +1397,12 @@
 }
 @media (max-width: 359px) {
   .feed-header-inner {
+    gap: 6px;
     padding-inline: 12px;
   }
   .feed-wordmark {
-    font-size: 14px;
+    gap: 6px;
+    font-size: 13px;
   }
   .feed-brand-mark {
     width: 24px;
