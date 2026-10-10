@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { normalizeInviteCode } from "./invite-code";
 
 export type PublicActivity = {
   tier?: "spark" | "blitz" | "marathon" | null;
@@ -41,15 +42,26 @@ export type PublicActivity = {
   created_at: string;
 };
 
-/** Private activities are reachable only with the exact invite code. */
+/** Accept readable numeric invitations and previously shared legacy codes. */
 export const findActivityByInvite = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ code: z.string().trim().min(4).max(64) }).parse(input),
+    z
+      .object({
+        code: z
+          .string()
+          .max(80)
+          .transform(normalizeInviteCode)
+          .pipe(z.string().min(4).max(64)),
+      })
+      .parse(input),
   )
   .handler(async ({ data }): Promise<{ id: string } | null> => {
     const { asAnon } = await import("./db.server");
     const [row] = await asAnon(
-      (tx) => tx<{ id: string | null }[]>`SELECT public.find_activity_by_invite(${data.code}) AS id`,
+      (tx) =>
+        tx<
+          { id: string | null }[]
+        >`SELECT public.find_activity_by_invite(${data.code}) AS id`,
     );
     return row?.id ? { id: row.id } : null;
   });

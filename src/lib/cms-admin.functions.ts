@@ -342,14 +342,11 @@ export const updateActivityAdmin = createServerFn({ method: "POST" })
           ? new Date(rest.registration_deadline).toISOString()
           : null,
       };
-      const [current] = await tx<{ invite_code: string | null; registered_count: number | null }[]>`
-        SELECT invite_code, registered_count FROM public.activities WHERE id = ${activityId}`;
+      const [current] = await tx<{ registered_count: number | null }[]>`
+        SELECT registered_count FROM public.activities WHERE id = ${activityId}`;
       if (!current) throw new Error("Активность не найдена.");
       if (data.max_participants < (current.registered_count ?? 0)) {
         throw new Error("Мест не может быть меньше, чем уже записалось участников.");
-      }
-      if (data.is_private && !current.invite_code) {
-        patch["invite_code"] = crypto.randomUUID().slice(0, 8);
       }
       await tx`UPDATE public.activities SET ${tx(patch)} WHERE id = ${activityId}`;
       await logAction(tx, context.caller, "activity.edit", "activities", activityId, {

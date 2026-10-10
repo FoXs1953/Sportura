@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "node --test tests/*.test.ts && node tests/profile-database.mjs && node tests/event-verification.mjs && node tests/game-alerts-database.mjs",
+    "test": "node --test tests/*.test.ts && node tests/profile-database.mjs && node tests/event-verification.mjs && node tests/game-alerts-database.mjs && node tests/invite-codes-database.mjs",
     "db:up": "docker compose up -d --wait db",
     "db:migrate": "node --env-file-if-exists=.env scripts/db-migrate.mjs"
   },

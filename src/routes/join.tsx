@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { findActivityByInvite } from "@/lib/activities.functions";
+import { normalizeInviteCode } from "@/lib/invite-code";
 export const Route = createFileRoute("/join")({
   head: () => ({
     meta: [
@@ -36,13 +37,14 @@ function JoinByCode() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   async function open() {
-    if (code.trim().length < 4) {
+    const inviteCode = normalizeInviteCode(code);
+    if (inviteCode.length < 4) {
       toast.error(tr("Код слишком короткий"));
       return;
     }
     setBusy(true);
     try {
-      const found = await findActivityByInvite({ data: { code: code.trim() } });
+      const found = await findActivityByInvite({ data: { code: inviteCode } });
       if (!found) {
         toast.error(tr("Игра по такому коду не найдена"));
         return;
@@ -50,7 +52,7 @@ function JoinByCode() {
       await navigate({
         to: "/activity/$id",
         params: { id: found.id },
-        search: { code: code.trim() },
+        search: { code: inviteCode },
       });
     } catch (err) {
       toast.error(
@@ -75,15 +77,23 @@ function JoinByCode() {
         <Label htmlFor="invite-code">{tr("Код приглашения")}</Label>
         <Input
           id="invite-code"
+          aria-describedby="invite-code-hint"
           value={code}
           disabled={busy}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") void open();
           }}
-          placeholder={tr("Например: ASTANA-FC-12")}
-          autoCapitalize="characters"
+          placeholder={tr("Например: 4827 1936")}
+          inputMode="numeric"
+          maxLength={64}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
         />
+        <p id="invite-code-hint" className="text-xs text-muted-foreground">
+          {tr("Код можно вводить с пробелом или без него.")}
+        </p>
         <Button
           className="press w-full"
           disabled={busy}

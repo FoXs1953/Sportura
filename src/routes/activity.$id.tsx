@@ -16,6 +16,7 @@ import { AppShell } from "@/components/sportura/shell";
 import { Button } from "@/components/ui/button";
 import { CapacityMeter } from "@/components/sportura/activity-card";
 import { readEvent, getPlayerEvents } from "@/lib/event.functions";
+import { inviteCodeFromSearch } from "@/lib/invite-code";
 import {
   registrationOpen,
   eventPhase,
@@ -43,7 +44,12 @@ import {
 import { CompetitionView } from "@/components/events/competition";
 import "@/styles/profile.css";
 import "@/styles/events.css";
-const search = z.object({ code: z.string().max(64).catch("").default("") });
+const search = z.object({
+  code: z.preprocess(
+    inviteCodeFromSearch,
+    z.string().max(64).catch("").default(""),
+  ),
+});
 export const Route = createFileRoute("/activity/$id")({
   validateSearch: (
     s: {

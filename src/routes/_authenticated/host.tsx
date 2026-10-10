@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { UnsavedChanges } from "@/components/profile/shared";
 import { getHostEvents, mutateEvent } from "@/lib/event.functions";
 import { getMe, type MyProfile } from "@/lib/me.functions";
+import { formatInviteCode } from "@/lib/invite-code";
 import {
   eventDraft,
   eventPhase,
@@ -914,7 +915,9 @@ function EventManagement({
             <p>
               {tr("Код приглашения:")}
               {tr(" ")}
-              <strong className="break-all">{tr(a.invite_code)}</strong>
+              <strong className="select-all whitespace-nowrap font-mono text-lg tabular-nums tracking-widest">
+                {formatInviteCode(a.invite_code ?? "")}
+              </strong>
             </p>
             <Button
               size="sm"
