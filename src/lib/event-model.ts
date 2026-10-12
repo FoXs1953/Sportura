@@ -1,4 +1,5 @@
 import type { EventExtras } from "./event-series";
+import { registrationTimeOpen } from "./registration-window.ts";
 import type { CompetitionFormat } from "./competition-formats";
 import type { PublicActivity } from "./activities.functions";
 import type { PaymentStatus, RegistrationStatus } from "./sportura";
@@ -273,9 +274,7 @@ export function registrationOpen(
   return (
     ["open", "nearly_full"].includes(a.status) &&
     a.registered_count < a.max_participants &&
-    (!a.date_time || new Date(a.date_time).getTime() > now) &&
-    (!a.registration_deadline ||
-      new Date(a.registration_deadline).getTime() > now)
+    registrationTimeOpen(a, now)
   );
 }
 export function overlaps(
