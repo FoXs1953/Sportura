@@ -1,6 +1,7 @@
 import { translateText } from "./i18n/core.ts";
 import { z } from "zod";
 import type { PublicActivity } from "./activities.functions";
+import { registrationTimeOpen } from "./registration-window.ts";
 
 export const feedSearchSchema = z.object({
   sport: z.string().catch("all").default("all"),
@@ -43,9 +44,7 @@ export function isRegistrationOpen(
   return (
     (activity.status === "open" || activity.status === "nearly_full") &&
     activity.registered_count < activity.max_participants &&
-    (!activity.date_time || Date.parse(activity.date_time) > now) &&
-    (!activity.registration_deadline ||
-      Date.parse(activity.registration_deadline) > now)
+    registrationTimeOpen(activity, now)
   );
 }
 
