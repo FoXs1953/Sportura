@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { CapacityMeter } from "@/components/sportura/activity-card";
 import { readEvent, getPlayerEvents } from "@/lib/event.functions";
 import { inviteCodeFromSearch } from "@/lib/invite-code";
+import { registrationTimeOpen } from "@/lib/registration-window";
 import {
   registrationOpen,
   eventPhase,
@@ -313,7 +314,7 @@ function EventPage() {
                                 ),
                               },
                             )
-                          : "Сообщим в приложении, когда освободится место. На подтверждение — до 15 минут, но не позже закрытия регистрации или начала события.",
+                          : "Сообщим в приложении, когда освободится место. На подтверждение — до 15 минут, но не позже закрытия регистрации.",
                       )}
                       {tr(" ")}
                       {tr("Очередь не является записью на событие.")}
@@ -339,9 +340,8 @@ function EventPage() {
                     user &&
                     (a.registered_count >= a.max_participants ||
                       queueHasPriority) &&
-                    eventPhase(a) === "upcoming" &&
-                    (!a.registration_deadline ||
-                      Date.parse(a.registration_deadline) > Date.now()) &&
+                    ["open", "nearly_full", "full"].includes(a.status) &&
+                    registrationTimeOpen(a) &&
                     !q.data?.matches.length && (
                       <Button
                         variant="outline"
