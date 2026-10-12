@@ -15,6 +15,10 @@ import { Button } from "@/components/ui/button";
 import { useProfileForm } from "@/components/profile/shared";
 import { mutateEvent } from "@/lib/event.functions";
 import {
+  registrationDeadlineAllowed,
+  registrationDeadlineLimit,
+} from "@/lib/registration-window";
+import {
   eventDraft,
   localDateTime,
   isoDateTime,
@@ -176,11 +180,8 @@ export function EventWizard({
         e.entry_fee =
           "Marathon: взнос больше 0 ₸ и длительность больше одного дня";
     }
-    if (
-      v.registration_deadline &&
-      Date.parse(v.registration_deadline) > Date.parse(v.date_time)
-    )
-      e.registration_deadline = "Не позже начала события";
+    if (!registrationDeadlineAllowed(v.date_time, v.registration_deadline))
+      e.registration_deadline = "Не позже 30 дней после начала";
     if (
       v.two_gis_url &&
       !/^https:\/\/(2gis\.kz|go\.2gis\.com)\//.test(v.two_gis_url)
@@ -693,12 +694,21 @@ export function EventWizard({
                   type="datetime-local"
                   aria-invalid={!!errors.registration_deadline}
                   value={localDateTime(v.registration_deadline)}
+                  max={
+                    localDateTime(registrationDeadlineLimit(v.date_time)) ||
+                    undefined
+                  }
                   onChange={(e) =>
                     update({
                       registration_deadline: isoDateTime(e.target.value),
                     })
                   }
                 />
+                {!errors.registration_deadline && (
+                  <span className="text-xs text-muted-foreground">
+                    {tr("Не позже 30 дней после начала")}
+                  </span>
+                )}
                 {tr(
                   errors.registration_deadline && (
                     <span className="event-error-field">
