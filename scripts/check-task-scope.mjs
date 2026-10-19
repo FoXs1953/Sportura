@@ -9,6 +9,15 @@ const owners = {
     "src/lib/registration-window.ts",
     "src/lib/i18n/kk-events.ts",
     "src/styles/host-start.css",
+    "src/lib/mail.server.ts",
+    "src/routes/auth.tsx",
+    "src/routes/forgot-password.tsx",
+    "src/routes/reset-password.tsx",
+    "scripts/check-mail.mjs",
+    "scripts/staging-account-maintenance.sh",
+    "tests/staging-account-maintenance.test.ts",
+    ".github/workflows/staging-account-maintenance.yml",
+    "docs/account-maintenance.md",
     "docs/nadir-readiness-2026-10-19.md",
   ]),
   iskander: new Set([
@@ -23,6 +32,21 @@ const owners = {
     "src/lib/i18n/kk-client-audit.ts",
     "docs/iskander-design-qa-2026-10-19.md",
   ]),
+  "iskander-coordinator": new Set([
+    "docs/team-ownership.md",
+    "docs/deploy.md",
+    "docs/event-workspaces.md",
+    "docs/iskander-release-qa-2026-10-19.md",
+    "scripts/check-task-scope.mjs",
+    "tests/task-scope.test.ts",
+    "tests/deploy-workflow.test.ts",
+    ".github/workflows/deploy-production.yml",
+    ".github/workflows/deploy-staging.yml",
+    ".github/workflows/deploy-vps.yml",
+    "eslint.config.js",
+    "vite.config.ts",
+    "tsconfig.json",
+  ]),
 };
 
 export function isAllowedPath(owner, path) {
@@ -36,10 +60,14 @@ export function isAllowedPath(owner, path) {
   )
     return false;
   if (owners[owner].has(path)) return true;
+  // Coordination adds only the explicit shared paths above to the feed scope.
+  if (owner === "iskander-coordinator") return isAllowedPath("iskander", path);
   if (new RegExp(`^tests/${owner}-[^/]+$`).test(path)) return true;
   return (
     owner === "nadir" &&
     (path.startsWith("src/components/events/host/") ||
+      /^src\/lib\/auth[^/]*$/.test(path) ||
+      path.startsWith("src/routes/api/auth/") ||
       /^supabase\/migrations\/2026101911[0-5][0-9][0-5][0-9]_nadir_[a-z0-9_]+\.sql$/.test(
         path,
       ))
@@ -69,7 +97,7 @@ function main(args) {
   const [owner, base = "origin/dev"] = args;
   if (args.length > 2 || !Object.hasOwn(owners, owner ?? ""))
     throw new Error(
-      "Usage: node scripts/check-task-scope.mjs <nadir|iskander> [git-base]; default: origin/dev",
+      "Usage: node scripts/check-task-scope.mjs <nadir|iskander|iskander-coordinator> [git-base]; default: origin/dev",
     );
   if (!base || base.startsWith("-") || /[\s\0]/.test(base))
     throw new Error("Invalid Git base reference.");
