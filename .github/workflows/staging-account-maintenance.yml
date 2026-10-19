@@ -1,0 +1,73 @@
+name: Staging account maintenance
+
+on:
+  # Bootstrap diagnostics before workflow_dispatch is registered on main.
+  # Push runs never inspect accounts or change the database.
+  push:
+    branches: [dev]
+    paths: [.github/workflows/staging-account-maintenance.yml]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Inspect, delete for re-registration, or grant the existing admin role
+        type: choice
+        required: true
+        default: inspect
+        options: [inspect, reset, grant-admin]
+      email:
+        description: Exact account email (not printed in the report)
+        type: string
+        required: true
+      expected_user_id:
+        description: Account UUID from inspect; required for reset and grant-admin
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-staging
+  cancel-in-progress: false
+
+jobs:
+  maintenance:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure staging SSH
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: Run guarded staging maintenance
+        env:
+          SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          OPERATION: ${{ github.event_name == 'push' && 'diagnostics' || inputs.operation }}
+          ACCOUNT_EMAIL: ${{ inputs.email }}
+          EXPECTED_USER_ID: ${{ inputs.expected_user_id }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_USER" && test -n "$SSH_HOST"
+          # Bash-quote data on stdin; never interpolate inputs into an SSH command.
+          {
+            printf 'operation=%q\n' "$OPERATION"
+            printf 'account_email=%q\n' "$ACCOUNT_EMAIL"
+            printf 'expected_user_id=%q\n' "$EXPECTED_USER_ID"
+            cat scripts/staging-account-maintenance.sh
+          } | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            -l "$SSH_USER" "$SSH_HOST" bash -s
+      - name: Remove runner SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519 ~/.ssh/known_hosts
