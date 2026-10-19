@@ -65,6 +65,7 @@
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
+  min-height: 44px;
   gap: 10px;
   font-family: var(--font-heading);
   font-size: 18px;
@@ -93,6 +94,7 @@
 .feed-navigation a {
   display: flex;
   align-items: center;
+  min-height: 44px;
   gap: 8px;
   padding: 11px 16px;
   border-radius: 9px;
@@ -194,6 +196,7 @@
   margin-inline: auto;
   padding: 28px 32px 0;
   min-height: calc(100dvh - 170px);
+  scroll-margin-top: 80px;
 }
 .feed-main:focus {
   outline: none;
@@ -334,8 +337,8 @@
 .feed-clear {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 7px;
   flex-shrink: 0;
 }
@@ -382,7 +385,7 @@
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  min-height: 40px;
+  min-height: 44px;
   padding: 9px 17px;
   border-radius: 8px;
   border: 1px solid var(--feed-line);
@@ -474,6 +477,18 @@
   padding-top: 24px;
   border-top: 1px solid var(--feed-line);
 }
+.feed-results .event-tabs button,
+.feed-discovery-panel :is(input:not([type="checkbox"]), select, .feed-primary),
+.feed-discovery-panel .feed-availability {
+  min-height: 44px;
+}
+.feed-discovery-panel .feed-icon-button {
+  width: 44px;
+  height: 44px;
+}
+.feed-discovery-panel .feed-date-range input {
+  max-width: 100%;
+}
 .feed-results-toolbar {
   display: flex;
   justify-content: space-between;
@@ -504,6 +519,7 @@
   font-size: 11px;
 }
 .feed-sort select {
+  min-height: 44px;
   background: var(--feed-bg);
   color: var(--feed-muted);
   border: 0;
@@ -517,7 +533,8 @@
   gap: 22px;
 }
 .feed-types button {
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   border-bottom: 2px solid transparent;
   padding: 9px 0;
   color: var(--feed-muted);
@@ -535,6 +552,7 @@
 .feed-reset {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   gap: 5px;
   padding: 8px 0;
   color: var(--feed-muted);
@@ -650,7 +668,8 @@
   background: #332526f5;
   color: #edb5b5;
 }
-.feed-status-completed {
+.feed-status-completed,
+.feed-status-closed {
   background: #292f32f5;
   color: #cbd2d5;
 }
@@ -733,6 +752,7 @@
 }
 .feed-capacity-label {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
@@ -744,6 +764,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 .feed-capacity-label svg {
   margin-right: 3px;
@@ -753,7 +775,7 @@
   font-weight: 600;
 }
 .feed-capacity-label > span:last-child {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .feed-last-spots {
   color: var(--feed-accent);
@@ -876,11 +898,12 @@
   border-radius: 18px;
   margin: 0 auto 20px;
 }
-.feed-empty :is(h1, h3) {
+.feed-empty :is(h1, h2, h3) {
   font-size: 20px;
   line-height: 1.4;
 }
 .feed-empty p {
+  overflow-wrap: anywhere;
   color: var(--feed-muted);
   max-width: 380px;
   font-size: 13px;
@@ -1176,7 +1199,7 @@
   .feed-empty {
     padding: 40px 20px;
   }
-  .feed-empty :is(h1, h3) {
+  .feed-empty :is(h1, h2, h3) {
     font-size: 18px;
   }
 }
@@ -1263,7 +1286,7 @@
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  min-height: 36px;
+  min-height: 44px;
   max-width: 100%;
   padding: 5px 7px 5px 12px;
   border: 1px solid var(--feed-line);
@@ -1272,6 +1295,7 @@
   color: var(--feed-muted);
   font-size: 12px;
   text-align: left;
+  overflow-wrap: anywhere;
 }
 .feed-filter-remove {
   display: grid;
@@ -1296,7 +1320,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 3px;
+  padding: 0;
   min-height: 44px;
   border: 1px solid var(--feed-line);
   border-radius: 12px;
@@ -1304,8 +1328,8 @@
   flex-shrink: 0;
 }
 .feed-language-toggle button {
-  min-width: 42px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 6px 8px;
   border-radius: 8px;
   color: var(--feed-muted);
@@ -1336,12 +1360,12 @@
     gap: 8px;
   }
   .feed-language-toggle button {
-    min-width: 34px;
-    min-height: 38px;
+    min-width: 44px;
+    min-height: 44px;
   }
   .feed-theme-toggle {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
 }
 /* Narrower headers keep sign-in as an icon; registration stays one tap away on its page. */
@@ -1367,16 +1391,26 @@
 }
 @media (max-width: 767px) {
   .feed-account-link {
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
   }
   .feed-auth-signin {
-    width: 40px;
-    min-height: 40px;
+    width: 44px;
+    min-height: 44px;
   }
 }
 @media (max-width: 399px) {
+  .feed-header-inner {
+    padding-inline: 12px;
+  }
+  .feed-wordmark {
+    gap: 6px;
+    font-size: 14px;
+  }
+  .feed-wordmark-dot {
+    margin-left: -6px;
+  }
   .feed-header-actions {
     gap: 6px;
   }
@@ -1401,11 +1435,16 @@
     padding-inline: 12px;
   }
   .feed-wordmark {
-    gap: 6px;
-    font-size: 13px;
+    justify-content: center;
+    min-width: 44px;
+    gap: 0;
+    font-size: 0;
+  }
+  .feed-wordmark-dot {
+    display: none;
   }
   .feed-brand-mark {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
   }
 }
