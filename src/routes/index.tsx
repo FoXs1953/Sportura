@@ -69,6 +69,11 @@ function Feed() {
   const navigate = Route.useNavigate();
   const user = useSessionUser().data?.id ?? null;
   const [expanded, setExpanded] = useState(false);
+  const filterTrigger = useRef<HTMLButtonElement | null>(null);
+  const closeFilters = () => {
+    setExpanded(false);
+    filterTrigger.current?.focus({ preventScroll: true });
+  };
   const [readyCity, setReadyCity] = useState(false);
   const accountPromptTrigger = useRef<HTMLButtonElement | null>(null);
   const [accountPrompt, setAccountPrompt] = useState<{
@@ -120,7 +125,13 @@ function Feed() {
         }
       }
       void navigate({
-        search: (prev) => ({ ...prev, ...patch }),
+        search: (prev) => ({
+          ...prev,
+          ...patch,
+          ...(patch.city !== undefined && patch.city !== prev.city
+            ? { district: "" }
+            : {}),
+        }),
         replace: true,
         resetScroll: false,
       });
@@ -169,6 +180,7 @@ function Feed() {
     )[0];
   const active = Object.entries(filters).filter(
     ([k, v]) =>
+      Object.hasOwn(discoveryDefaults, k) &&
       !["view", "sort"].includes(k) &&
       v !== discoveryDefaults[k as keyof DiscoveryFilters] &&
       v !== "" &&
@@ -273,6 +285,7 @@ function Feed() {
             {tr(
               filters.q && (
                 <button
+                  className="feed-clear"
                   aria-label={tr("Очистить поиск")}
                   onClick={() => set({ q: "" })}
                 >
@@ -282,6 +295,7 @@ function Feed() {
             )}
           </div>
           <button
+            ref={filterTrigger}
             className={`feed-filter-toggle ${expanded ? "is-active" : ""}`}
             aria-expanded={expanded}
             aria-controls="discovery-filters"
@@ -331,6 +345,12 @@ function Feed() {
           <div
             className="feed-filter-panel feed-discovery-panel"
             id="discovery-filters"
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !event.defaultPrevented) {
+                event.preventDefault();
+                closeFilters();
+              }
+            }}
           >
             <div className="feed-filter-heading">
               <div>
@@ -340,7 +360,7 @@ function Feed() {
               <button
                 className="feed-icon-button"
                 aria-label={tr("Закрыть фильтры")}
-                onClick={() => setExpanded(false)}
+                onClick={closeFilters}
               >
                 <X size={20} />
               </button>
@@ -494,10 +514,7 @@ function Feed() {
                   <small>{tr("Есть места и открыта регистрация")}</small>
                 </span>
               </label>
-              <button
-                className="feed-primary"
-                onClick={() => setExpanded(false)}
-              >
+              <button className="feed-primary" onClick={closeFilters}>
                 {tr("Показать события")}
                 {tr(!feed.isFetching && ` · ${total}`)}
               </button>
@@ -542,7 +559,7 @@ function Feed() {
         <div className="event-tabs mb-4">
           <button
             className={
-              filters.view === "all" && filters.sort !== "personal"
+              filters.view === "all" && filters.sort === "available"
                 ? "is-active"
                 : ""
             }
@@ -561,6 +578,11 @@ function Feed() {
             {tr("Для вас")}
           </button>
           <button
+            className={
+              filters.view === "all" && filters.sort === "date"
+                ? "is-active"
+                : ""
+            }
             onClick={() => set({ view: "all", sort: "date", open: true })}
           >
             {tr("Ближайшие")}
@@ -601,7 +623,13 @@ function Feed() {
           </div>
           <div className="feed-results-meta">
             <span aria-live="polite">
-              {tr(feed.isPending ? "Загружаем…" : eventCountLabel(total))}
+              {tr(
+                feed.isError
+                  ? "Не удалось загрузить игры"
+                  : feed.isPending
+                    ? "Загружаем…"
+                    : eventCountLabel(total),
+              )}
             </span>
             <label className="feed-sort">
               <select
@@ -637,7 +665,7 @@ function Feed() {
           </p>
         )}
         {feed.isError ? (
-          <div className="feed-empty">
+          <div className="feed-empty" role="alert">
             <h2>{tr("Не удалось загрузить игры")}</h2>
             <p>{tr(feed.error.message)}</p>
             <button
