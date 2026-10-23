@@ -50,7 +50,7 @@ export function CapacityMeter({
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-panel-2">
         <div
           className="fillbar h-full rounded-full bg-brand"
-          style={{ width: `${Math.max(percent, 4)}%` }}
+          style={{ width: `${percent}%` }}
         />
       </div>
     </div>
@@ -72,9 +72,16 @@ export function ActivityCard({
   children?: ReactNode;
 }) {
   const { tr, language } = useI18n();
-  const open = isRegistrationOpen(activity);
+  const now = Date.now();
+  const open = isRegistrationOpen(activity, now);
+  const start = activity.date_time ? Date.parse(activity.date_time) : NaN;
+  const started = Number.isFinite(start) && start <= now;
+  const elapsed =
+    started && start + (activity.duration_minutes ?? 120) * 60000 <= now;
   const closed =
-    activity.status === "cancelled" || activity.status === "completed";
+    activity.status === "cancelled" ||
+    activity.status === "completed" ||
+    (!open && elapsed);
   const left = spotsLeft(activity.registered_count, activity.max_participants);
   const percent = capacityPercent(
     activity.registered_count,
@@ -87,9 +94,15 @@ export function ActivityCard({
     .map((part) => part[0])
     .join("");
   const status =
-    (activity.status === "open" || activity.status === "nearly_full") && !open
-      ? "full"
-      : activity.status;
+    activity.status === "cancelled" || activity.status === "completed"
+      ? activity.status
+      : open
+        ? activity.status
+        : elapsed
+          ? "completed"
+          : started || left > 0
+            ? "closed"
+            : "full";
   const placeWord = new Intl.PluralRules("ru").select(left);
   return (
     <article className={`feed-card ${closed ? "feed-card-closed" : ""}`}>
@@ -130,13 +143,10 @@ export function ActivityCard({
                     ? "Отменено"
                     : activity.status === "completed"
                       ? "Завершено"
-                      : activity.date_time &&
-                          Date.parse(activity.date_time) <= Date.now()
-                        ? Date.parse(activity.date_time) +
-                            (activity.duration_minutes ?? 120) * 60000 >
-                          Date.now()
-                          ? "Идёт сейчас"
-                          : "Завершилось"
+                      : started
+                        ? elapsed
+                          ? "Завершилось"
+                          : "Идёт сейчас"
                         : left === 0
                           ? "Мест нет"
                           : "Регистрация закрыта",
@@ -154,7 +164,11 @@ export function ActivityCard({
             <p className="feed-card-time">
               <Clock size={15} aria-hidden="true" />
               <span>
-                {tr(timeLabel(activity, language) || "Время уточняется")}
+                {tr(
+                  activity.time_text?.trim() || Number.isFinite(start)
+                    ? timeLabel(activity, language)
+                    : "Время уточняется",
+                )}
               </span>
             </p>
             <p>

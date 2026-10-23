@@ -20,6 +20,7 @@
   color: var(--feed-accent);
 }
 .feed-city-trigger > span:first-of-type {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -88,8 +89,16 @@
   flex-shrink: 0;
   color: var(--feed-muted);
 }
+.feed-city-option > span:not(.feed-city-check) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .feed-city-option[data-highlighted] {
   background: var(--feed-surface);
+}
+.feed-city-option:focus-visible {
+  outline: 2px solid var(--feed-accent);
+  outline-offset: -2px;
 }
 .feed-city-option[data-state="checked"] {
   background: color-mix(in srgb, var(--feed-accent) 9%, var(--feed-bg));
